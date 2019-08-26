@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Ned.Data.ScreenOffset.Test</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <style type="text/css">
+  /* Kudos to Pascal Hertleif                  */
+  /* https://gist.github.com/killercup/5917178 */
+  
+  html {
+    font-size: 100%;
+    overflow-y: scroll;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  body {
+    color: #444;
+    font-family: Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 1em;
+    margin: auto;
+    max-width: 42em;
+    background: #fefefe;
+  }
+  
+  a {
+    color: #0645ad;
+    text-decoration: none;
+  }
+  
+  a:visited {
+    color: #0b0080;
+  }
+  
+  a:hover {
+    color: #06e;
+  }
+  
+  a:active {
+    color: #faa700;
+  }
+  
+  a:focus {
+    outline: thin dotted;
+  }
+  
+  *::-moz-selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #000;
+  }
+  
+  *::selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #000;
+  }
+  
+  a::-moz-selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #0645ad;
+  }
+  
+  a::selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #0645ad;
+  }
+  
+  p {
+    margin: 1em 0;
+  }
+  
+  img {
+    max-width: 100%;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #111;
+    line-height: 125%;
+    margin-top: 2em;
+    font-weight: normal;
+  }
+  
+  h4, h5, h6 {
+    font-weight: bold;
+  }
+  
+  h1 {
+    font-size: 2.5em;
+  }
+  
+  h2 {
+    font-size: 2em;
+  }
+  
+  h3 {
+    font-size: 1.5em;
+  }
+  
+  h4 {
+    font-size: 1.2em;
+  }
+  
+  h5 {
+    font-size: 1em;
+  }
+  
+  h6 {
+    font-size: 0.9em;
+  }
+  
+  blockquote {
+    display: block;
+    color: #666666;
+    margin: 0;
+    padding-left: 3em;
+    border-left: 0.5em #EEE solid;
+  }
+  
+  hr {
+    display: block;
+    height: 2px;
+    border: 0;
+    border-top: 1px solid #aaa;
+    border-bottom: 1px solid #eee;
+    margin: 1em 0;
+    padding: 0;
+  }
+  
+  pre, code, kbd, samp {
+    color: #000;
+    font-family: monospace, monospace;
+    _font-family: 'courier new', monospace;
+    font-size: 0.98em;
+  }
+  
+  pre {
+    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  
+  b, strong {
+    font-weight: bold;
+  }
+  
+  dfn {
+    font-style: italic;
+  }
+  
+  ins {
+    background: #ff9;
+    color: #000;
+    text-decoration: none;
+  }
+  
+  mark {
+    background: #ff0;
+    color: #000;
+    font-style: italic;
+    font-weight: bold;
+  }
+  
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  
+  sup {
+    top: -0.5em;
+  }
+  
+  sub {
+    bottom: -0.25em;
+  }
+  
+  ul, ol {
+    margin: 1em 0;
+    padding: 0 0 0 2em;
+  }
+  
+  li p:last-child {
+    margin-bottom: 0;
+  }
+  
+  ul ul, ol ol {
+    margin: .3em 0;
+  }
+  
+  dl {
+    margin-bottom: 1em;
+  }
+  
+  dt {
+    font-weight: bold;
+    margin-bottom: .8em;
+  }
+  
+  dd {
+    margin: 0 0 .8em 2em;
+  }
+  
+  dd:last-child {
+    margin-bottom: 0;
+  }
+  
+  img {
+    border: 0;
+    -ms-interpolation-mode: bicubic;
+    vertical-align: middle;
+  }
+  
+  figure {
+    display: block;
+    text-align: center;
+    margin: 1em 0;
+  }
+  
+  figure img {
+    border: none;
+    margin: 0 auto;
+  }
+  
+  figcaption {
+    font-size: 0.8em;
+    font-style: italic;
+    margin: 0 0 .8em;
+  }
+  
+  table {
+    margin-bottom: 2em;
+    border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    border-spacing: 0;
+    border-collapse: collapse;
+  }
+  
+  table th {
+    padding: .2em 1em;
+    background-color: #eee;
+    border-top: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+  }
+  
+  table td {
+    padding: .2em 1em;
+    border-top: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+    vertical-align: top;
+  }
+  
+  .author {
+    font-size: 1.2em;
+    text-align: center;
+  }
+  
+  .sourceCode {
+    background-color: #eee;
+  }
+  
+  @media only screen and (min-width: 480px) {
+    body {
+      font-size: 14px;
+    }
+  }
+  @media only screen and (min-width: 768px) {
+    body {
+      font-size: 16px;
+    }
+  }
+  @media print {
+    * {
+      background: transparent !important;
+      color: black !important;
+      filter: none !important;
+      -ms-filter: none !important;
+    }
+  
+    body {
+      font-size: 12pt;
+      max-width: 100%;
+    }
+  
+    a, a:visited {
+      text-decoration: underline;
+    }
+  
+    hr {
+      height: 1px;
+      border: 0;
+      border-bottom: 1px solid black;
+    }
+  
+    a[href]:after {
+      content: " (" attr(href) ")";
+    }
+  
+    abbr[title]:after {
+      content: " (" attr(title) ")";
+    }
+  
+    .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after {
+      content: "";
+    }
+  
+    pre, blockquote {
+      border: 1px solid #999;
+      padding-right: 1em;
+      page-break-inside: avoid;
+    }
+  
+    tr, img {
+      page-break-inside: avoid;
+    }
+  
+    img {
+      max-width: 100% !important;
+    }
+  
+    @page :left {
+      margin: 15mm 20mm 15mm 10mm;
+  }
+  
+    @page :right {
+      margin: 15mm 10mm 15mm 20mm;
+  }
+  
+    p, h2, h3 {
+      orphans: 3;
+      widows: 3;
+    }
+  
+    h2, h3 {
+      page-break-after: avoid;
+    }
+  }
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Ned.Data.ScreenOffset.Test</h1>
+</header>
+<h2 id="contents">Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#generators">Generators</a>
+<ul>
+<li><a href="#test-helpers">Test helperts</a></li>
+</ul></li>
+<li><a href="#tests">Tests</a>
+<ul>
+<li><a href="#span-width">Span Width</a></li>
+<li><a href="#type-level-numbers">Type level numbers</a></li>
+<li><a href="#takechunk-properties">takeChunk properties</a></li>
+<li><a href="#takechunks-properties">takeChunks properties</a></li>
+<li><a href="#screenoffset-is-a-monoid">ScreenOffset is a monoid</a></li>
+<li><a href="#applyscreenoffset-is-a-monoid-action">applyScreenOffset is a monoid action</a></li>
+<li><a href="#test-suite">Test suite</a></li>
+</ul></li>
+</ul>
+<h1 id="introduction">Introduction</h1>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">    ScopedTypeVariables</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">  , Rank2Types</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">#-}</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">module</span> <span class="dt">Ned.Data.ScreenOffset.Test</span> (</a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">    test_ScreenOffset</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb1-10" data-line-number="10"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="kw">import</span> <span class="dt">Data.Foldable</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12"><span class="kw">import</span> <span class="dt">Control.Monad</span></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14"><span class="kw">import</span> <span class="dt">Test.QuickCheck</span></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15"><span class="kw">import</span> <span class="dt">Test.Tasty</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="kw">import</span> <span class="dt">Test.Tasty.QuickCheck</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17"></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"><span class="kw">import</span> <span class="dt">Ned.Data.FingerTree</span></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="kw">import</span> <span class="dt">Ned.Data.RunLengthEncoding</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="kw">import</span> <span class="dt">Ned.Data.ReflectNat</span></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="kw">import</span> <span class="dt">Ned.Data.ScreenOffset</span></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Ned.Data.FingerTree.Test</span></a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"><span class="kw">import</span> <span class="dt">Ned.Data.RunLengthEncoding.Test</span></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25"><span class="kw">import</span> <span class="dt">Ned.Data.ReflectNat.Test</span></a></code></pre></div>
+<h1 id="generators">Generators</h1>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  <span class="dt">Arbitrary</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">    arbitrary <span class="fu">=</span> elements</a>
+<a class="sourceLine" id="cb2-5" data-line-number="5">      [ <span class="dt">Fixed0</span>, <span class="dt">Fixed1</span>, <span class="dt">Fixed2</span>, <span class="dt">Stretchy</span> ]</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Arbitrary</span> (<span class="dt">ScreenOffset</span> w t)</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">    arbitrary <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb3-7" data-line-number="7">        run <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-8" data-line-number="8">          <span class="dt">Positive</span> k <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb3-9" data-line-number="9">          a <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">          return (k,a)</a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">      p <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">      <span class="kw">if</span> p</a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">        <span class="kw">then</span></a>
+<a class="sourceLine" id="cb3-14" data-line-number="14">          mkNoNewlines</a>
+<a class="sourceLine" id="cb3-15" data-line-number="15">            <span class="fu">&lt;$&gt;</span> listOf run</a>
+<a class="sourceLine" id="cb3-16" data-line-number="16">        <span class="kw">else</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-17" data-line-number="17">          <span class="dt">Positive</span> m <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb3-18" data-line-number="18">          mkWithNewlines</a>
+<a class="sourceLine" id="cb3-19" data-line-number="19">            <span class="fu">&lt;$&gt;</span> listOf run <span class="fu">&lt;*&gt;</span> pure m <span class="fu">&lt;*&gt;</span> listOf run</a>
+<a class="sourceLine" id="cb3-20" data-line-number="20"></a>
+<a class="sourceLine" id="cb3-21" data-line-number="21">    shrink x <span class="fu">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb3-22" data-line-number="22">      <span class="dt">NoNewlines</span> zs <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-23" data-line-number="23">        cs <span class="ot">&lt;-</span> shrink zs</a>
+<a class="sourceLine" id="cb3-24" data-line-number="24">        return <span class="fu">$</span> <span class="dt">NoNewlines</span> cs</a>
+<a class="sourceLine" id="cb3-25" data-line-number="25">      <span class="dt">WithNewlines</span> xs k ys <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb3-26" data-line-number="26">        [ <span class="dt">NoNewlines</span> xs, <span class="dt">NoNewlines</span> ys ] <span class="fu">++</span></a>
+<a class="sourceLine" id="cb3-27" data-line-number="27">        <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-28" data-line-number="28">          as <span class="ot">&lt;-</span> shrink xs</a>
+<a class="sourceLine" id="cb3-29" data-line-number="29">          m <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span>k]</a>
+<a class="sourceLine" id="cb3-30" data-line-number="30">          bs <span class="ot">&lt;-</span> shrink ys</a>
+<a class="sourceLine" id="cb3-31" data-line-number="31">          return <span class="fu">$</span> <span class="dt">WithNewlines</span> as m bs</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1">genAll</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">NonNegative</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Gen</span> (<span class="dt">RunLengthEncoding</span> <span class="dt">Span</span>)</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">genAll span (<span class="dt">NonNegative</span> k) <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">  <span class="kw">let</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">    xs <span class="fu">=</span> <span class="kw">if</span> k <span class="fu">&lt;=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">      <span class="kw">then</span> []</a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">      <span class="kw">else</span> [(k, span)]</a>
+<a class="sourceLine" id="cb4-10" data-line-number="10">  return <span class="fu">$</span> fromFreqList xs</a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">genValidCoords</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ot">  ::</span> forall w</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">IsWidth</span> w )</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">Gen</span> (<span class="dt">Int</span>, <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">genValidCoords _ <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">  <span class="kw">let</span> w <span class="fu">=</span> toWidth (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> w)</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">  x <span class="ot">&lt;-</span> choose (<span class="dv">0</span>,w<span class="fu">-</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">  <span class="dt">Positive</span> y <span class="ot">&lt;-</span> arbitrary</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">  return (x,y)</a></code></pre></div>
+<h2 id="test-helpers">Test helpers</h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">lastSpanWithPositiveWidth</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">lastSpanWithPositiveWidth xs <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">  (<span class="dt">Run</span> (_,a), ys) <span class="ot">&lt;-</span> lastRun xs</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">  <span class="kw">case</span> a <span class="kw">of</span></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="dt">Fixed0</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-7" data-line-number="7">      (<span class="dt">Run</span> (_,b), _) <span class="ot">&lt;-</span> lastRun ys</a>
+<a class="sourceLine" id="cb6-8" data-line-number="8">      return b</a>
+<a class="sourceLine" id="cb6-9" data-line-number="9">    _ <span class="ot">-&gt;</span> return a</a></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">(<span class="fu">~&lt;=</span>)</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Ord</span> a, <span class="dt">Show</span> a )</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">x <span class="fu">~&lt;=</span> y <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">  counterexample (show x <span class="fu">++</span> interpret res <span class="fu">++</span> show y) res</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7">    res <span class="fu">=</span> x <span class="fu">&lt;=</span> y</a>
+<a class="sourceLine" id="cb7-8" data-line-number="8">    interpret <span class="dt">True</span>  <span class="fu">=</span> <span class="st">&quot; &lt;= &quot;</span></a>
+<a class="sourceLine" id="cb7-9" data-line-number="9">    interpret <span class="dt">False</span> <span class="fu">=</span> <span class="st">&quot; &gt; &quot;</span></a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">(<span class="fu">~&lt;</span>)</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Ord</span> a, <span class="dt">Show</span> a )</a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">  <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">x <span class="fu">~&lt;</span> y <span class="fu">=</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">  counterexample (show x <span class="fu">++</span> interpret res <span class="fu">++</span> show y) res</a>
+<a class="sourceLine" id="cb8-6" data-line-number="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7">    res <span class="fu">=</span> x <span class="fu">&lt;</span> y</a>
+<a class="sourceLine" id="cb8-8" data-line-number="8">    interpret <span class="dt">True</span>  <span class="fu">=</span> <span class="st">&quot; &lt; &quot;</span></a>
+<a class="sourceLine" id="cb8-9" data-line-number="9">    interpret <span class="dt">False</span> <span class="fu">=</span> <span class="st">&quot; &gt;= &quot;</span></a></code></pre></div>
+<h1 id="tests">Tests</h1>
+<h2 id="span-width">Span Width</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ot">test_SpanWidth ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">test_SpanWidth <span class="fu">=</span></a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">  testGroup <span class="st">&quot;spanWidth&quot;</span></a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">    [ test_SpanWidth_all_Fixed0</a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    , test_SpanWidth_all_Fixed1</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">    , test_SpanWidth_all_Fixed2</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">    , test_SpanWidth_examples</a>
+<a class="sourceLine" id="cb9-8" data-line-number="8">    ]</a></code></pre></div>
+<p>A list of spans with <span class="math inline">\(k\)</span> width 0 characters has width 0.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">prop_SpanWidth_all_Fixed0</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">NonNegative</span> <span class="dt">Int</span> <span class="co">-- number of spans</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span>    <span class="co">-- tab width</span></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">prop_SpanWidth_all_Fixed0 m t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">  forAll (genAll <span class="dt">Fixed0</span> m) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">      <span class="dt">NonNegative</span> k <span class="fu">=</span> m</a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">      <span class="dt">Positive</span> tab <span class="fu">=</span> t</a>
+<a class="sourceLine" id="cb10-10" data-line-number="10">    <span class="kw">in</span></a>
+<a class="sourceLine" id="cb10-11" data-line-number="11">      \xs <span class="ot">-&gt;</span> <span class="dv">0</span> <span class="fu">===</span> spanWidth tab xs</a>
+<a class="sourceLine" id="cb10-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb10-13" data-line-number="13"><span class="ot">test_SpanWidth_all_Fixed0 ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb10-14" data-line-number="14">test_SpanWidth_all_Fixed0 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb10-15" data-line-number="15">  testProperty <span class="st">&quot;all Fixed0&quot;</span></a>
+<a class="sourceLine" id="cb10-16" data-line-number="16">    prop_SpanWidth_all_Fixed0</a></code></pre></div>
+<p>A list of spans with <span class="math inline">\(k\)</span> width 1 characters has width <span class="math inline">\(k\)</span>.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1">prop_SpanWidth_all_Fixed1</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">NonNegative</span> <span class="dt">Int</span> <span class="co">-- number of spans</span></a>
+<a class="sourceLine" id="cb11-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span>    <span class="co">-- tab width</span></a>
+<a class="sourceLine" id="cb11-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">prop_SpanWidth_all_Fixed1 m t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">  forAll (genAll <span class="dt">Fixed1</span> m) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb11-7" data-line-number="7">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb11-8" data-line-number="8">      <span class="dt">NonNegative</span> k <span class="fu">=</span> m</a>
+<a class="sourceLine" id="cb11-9" data-line-number="9">      <span class="dt">Positive</span> tab <span class="fu">=</span> t</a>
+<a class="sourceLine" id="cb11-10" data-line-number="10">    <span class="kw">in</span></a>
+<a class="sourceLine" id="cb11-11" data-line-number="11">      \xs <span class="ot">-&gt;</span> k <span class="fu">===</span> spanWidth tab xs</a>
+<a class="sourceLine" id="cb11-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb11-13" data-line-number="13"><span class="ot">test_SpanWidth_all_Fixed1 ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb11-14" data-line-number="14">test_SpanWidth_all_Fixed1 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-15" data-line-number="15">  testProperty <span class="st">&quot;all Fixed1&quot;</span></a>
+<a class="sourceLine" id="cb11-16" data-line-number="16">    prop_SpanWidth_all_Fixed1</a></code></pre></div>
+<p>A list of spans with <span class="math inline">\(k\)</span> width 2 characters has width <span class="math inline">\(2k\)</span>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">prop_SpanWidth_all_Fixed2</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">NonNegative</span> <span class="dt">Int</span> <span class="co">-- number of spans</span></a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span>    <span class="co">-- tab width</span></a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">prop_SpanWidth_all_Fixed2 m t <span class="fu">=</span></a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">  forAll (genAll <span class="dt">Fixed2</span> m) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb12-8" data-line-number="8">      <span class="dt">NonNegative</span> k <span class="fu">=</span> m</a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">      <span class="dt">Positive</span> tab <span class="fu">=</span> t</a>
+<a class="sourceLine" id="cb12-10" data-line-number="10">    <span class="kw">in</span></a>
+<a class="sourceLine" id="cb12-11" data-line-number="11">      \xs <span class="ot">-&gt;</span> (<span class="dv">2</span><span class="fu">*</span>k) <span class="fu">===</span> spanWidth tab xs</a>
+<a class="sourceLine" id="cb12-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb12-13" data-line-number="13"><span class="ot">test_SpanWidth_all_Fixed2 ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb12-14" data-line-number="14">test_SpanWidth_all_Fixed2 <span class="fu">=</span></a>
+<a class="sourceLine" id="cb12-15" data-line-number="15">  testProperty <span class="st">&quot;all Fixed2&quot;</span></a>
+<a class="sourceLine" id="cb12-16" data-line-number="16">    prop_SpanWidth_all_Fixed2</a></code></pre></div>
+<p>For good measure, some concrete examples to check our intuition about <code>spanWidth</code>.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1">prop_SpanWidth_examples</a>
+<a class="sourceLine" id="cb13-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">prop_SpanWidth_examples tab xs w <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb13-7" data-line-number="7">    w <span class="fu">==</span> spanWidth tab xs</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb13-9" data-line-number="9"><span class="ot">test_SpanWidth_examples ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb13-10" data-line-number="10">test_SpanWidth_examples <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-11" data-line-number="11">  testGroup <span class="st">&quot;spanWidth examples&quot;</span></a>
+<a class="sourceLine" id="cb13-12" data-line-number="12">    [ testCases</a>
+<a class="sourceLine" id="cb13-13" data-line-number="13">      (uncurry3 prop_SpanWidth_examples)</a>
+<a class="sourceLine" id="cb13-14" data-line-number="14">      [ ( <span class="st">&quot;all width 1&quot;</span></a>
+<a class="sourceLine" id="cb13-15" data-line-number="15">        , ( <span class="dv">5</span></a>
+<a class="sourceLine" id="cb13-16" data-line-number="16">          , fromFreqList</a>
+<a class="sourceLine" id="cb13-17" data-line-number="17">              [ (<span class="dv">5</span>, <span class="dt">Fixed1</span>) ]</a>
+<a class="sourceLine" id="cb13-18" data-line-number="18">          , <span class="dv">5</span></a>
+<a class="sourceLine" id="cb13-19" data-line-number="19">          )</a>
+<a class="sourceLine" id="cb13-20" data-line-number="20">        )</a>
+<a class="sourceLine" id="cb13-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb13-22" data-line-number="22">      , ( <span class="st">&quot;mixed, no tabs&quot;</span></a>
+<a class="sourceLine" id="cb13-23" data-line-number="23">        , ( <span class="dv">5</span></a>
+<a class="sourceLine" id="cb13-24" data-line-number="24">          , fromFreqList</a>
+<a class="sourceLine" id="cb13-25" data-line-number="25">              [ (<span class="dv">2</span>, <span class="dt">Fixed1</span>), (<span class="dv">3</span>, <span class="dt">Fixed0</span>), (<span class="dv">3</span>, <span class="dt">Fixed2</span>) ]</a>
+<a class="sourceLine" id="cb13-26" data-line-number="26">          , <span class="dv">8</span></a>
+<a class="sourceLine" id="cb13-27" data-line-number="27">          )</a>
+<a class="sourceLine" id="cb13-28" data-line-number="28">        )</a>
+<a class="sourceLine" id="cb13-29" data-line-number="29"></a>
+<a class="sourceLine" id="cb13-30" data-line-number="30">      , ( <span class="st">&quot;only tabs&quot;</span></a>
+<a class="sourceLine" id="cb13-31" data-line-number="31">        , ( <span class="dv">5</span></a>
+<a class="sourceLine" id="cb13-32" data-line-number="32">          , fromFreqList</a>
+<a class="sourceLine" id="cb13-33" data-line-number="33">              [ (<span class="dv">4</span>, <span class="dt">Stretchy</span>) ]</a>
+<a class="sourceLine" id="cb13-34" data-line-number="34">          , <span class="dv">20</span></a>
+<a class="sourceLine" id="cb13-35" data-line-number="35">          )</a>
+<a class="sourceLine" id="cb13-36" data-line-number="36">        )</a>
+<a class="sourceLine" id="cb13-37" data-line-number="37"></a>
+<a class="sourceLine" id="cb13-38" data-line-number="38">      , ( <span class="st">&quot;interleaved tabs&quot;</span></a>
+<a class="sourceLine" id="cb13-39" data-line-number="39">        , ( <span class="dv">5</span></a>
+<a class="sourceLine" id="cb13-40" data-line-number="40">          , fromFreqList</a>
+<a class="sourceLine" id="cb13-41" data-line-number="41">              [ (<span class="dv">1</span>, <span class="dt">Fixed1</span>), (<span class="dv">1</span>, <span class="dt">Stretchy</span>)</a>
+<a class="sourceLine" id="cb13-42" data-line-number="42">              , (<span class="dv">1</span>, <span class="dt">Fixed1</span>), (<span class="dv">1</span>, <span class="dt">Stretchy</span>) ]</a>
+<a class="sourceLine" id="cb13-43" data-line-number="43">          , <span class="dv">10</span></a>
+<a class="sourceLine" id="cb13-44" data-line-number="44">          )</a>
+<a class="sourceLine" id="cb13-45" data-line-number="45">        )</a>
+<a class="sourceLine" id="cb13-46" data-line-number="46"></a>
+<a class="sourceLine" id="cb13-47" data-line-number="47">      , ( <span class="st">&quot;full width tabs&quot;</span></a>
+<a class="sourceLine" id="cb13-48" data-line-number="48">        , ( <span class="dv">6</span></a>
+<a class="sourceLine" id="cb13-49" data-line-number="49">          , fromFreqList</a>
+<a class="sourceLine" id="cb13-50" data-line-number="50">              [ (<span class="dv">6</span>, <span class="dt">Fixed1</span>), (<span class="dv">1</span>, <span class="dt">Stretchy</span>)</a>
+<a class="sourceLine" id="cb13-51" data-line-number="51">              , (<span class="dv">3</span>, <span class="dt">Fixed2</span>), (<span class="dv">1</span>, <span class="dt">Stretchy</span>) ]</a>
+<a class="sourceLine" id="cb13-52" data-line-number="52">          , <span class="dv">24</span></a>
+<a class="sourceLine" id="cb13-53" data-line-number="53">          )</a>
+<a class="sourceLine" id="cb13-54" data-line-number="54">        )</a>
+<a class="sourceLine" id="cb13-55" data-line-number="55">      ]</a>
+<a class="sourceLine" id="cb13-56" data-line-number="56">    ]</a></code></pre></div>
+<h2 id="type-level-numbers">Type level numbers</h2>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="ot">test_ScreenOffset_type_nats ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">test_ScreenOffset_type_nats <span class="fu">=</span></a>
+<a class="sourceLine" id="cb14-3" data-line-number="3">  testGroup <span class="st">&quot;Type level nat parameters&quot;</span></a>
+<a class="sourceLine" id="cb14-4" data-line-number="4">    [ test_ScreenOffset_withWidth_toWidth</a>
+<a class="sourceLine" id="cb14-5" data-line-number="5">    , test_ScreenOffset_withTab_toTab</a>
+<a class="sourceLine" id="cb14-6" data-line-number="6">    ]</a></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1">prop_ScreenOffset_withWidth_toWidth</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">NonNegative</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb15-5" data-line-number="5">prop_ScreenOffset_withWidth_toWidth (<span class="dt">NonNegative</span> k) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb15-6" data-line-number="6">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb15-7" data-line-number="7">    k <span class="fu">==</span> withWidth k toWidth</a>
+<a class="sourceLine" id="cb15-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb15-9" data-line-number="9"><span class="ot">test_ScreenOffset_withWidth_toWidth ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb15-10" data-line-number="10">test_ScreenOffset_withWidth_toWidth <span class="fu">=</span></a>
+<a class="sourceLine" id="cb15-11" data-line-number="11">  testProperty <span class="st">&quot;k == withWidth k toWidth&quot;</span></a>
+<a class="sourceLine" id="cb15-12" data-line-number="12">    prop_ScreenOffset_withWidth_toWidth</a></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">prop_ScreenOffset_withTab_toTab</a>
+<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">NonNegative</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb16-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb16-5" data-line-number="5">prop_ScreenOffset_withTab_toTab (<span class="dt">NonNegative</span> k) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb16-7" data-line-number="7">    k <span class="fu">==</span> withTab k toTab</a>
+<a class="sourceLine" id="cb16-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb16-9" data-line-number="9"><span class="ot">test_ScreenOffset_withTab_toTab ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb16-10" data-line-number="10">test_ScreenOffset_withTab_toTab <span class="fu">=</span></a>
+<a class="sourceLine" id="cb16-11" data-line-number="11">  testProperty <span class="st">&quot;k == withTab k toTab&quot;</span></a>
+<a class="sourceLine" id="cb16-12" data-line-number="12">    prop_ScreenOffset_withTab_toTab</a></code></pre></div>
+<h2 id="takechunk-properties">takeChunk properties</h2>
+<p><code>takeChunk</code> is a hideously intricate function, so we’d better put some effort into testing it. Fortunately there are several simple properties it should satisfy.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="ot">test_TakeChunk ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">test_TakeChunk <span class="fu">=</span></a>
+<a class="sourceLine" id="cb17-3" data-line-number="3">  testGroup <span class="st">&quot;takeChunk properties&quot;</span></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">    [ test_TakeChunk_width_succeeds</a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">    , test_TakeChunk_take_width_bound</a>
+<a class="sourceLine" id="cb17-6" data-line-number="6">    , test_TakeChunk_take_not_empty</a>
+<a class="sourceLine" id="cb17-7" data-line-number="7">    , test_TakeChunk_cat_factor</a>
+<a class="sourceLine" id="cb17-8" data-line-number="8">    , test_TakeChunk_shrink_tail</a>
+<a class="sourceLine" id="cb17-9" data-line-number="9">    , test_TakeChunk_length</a>
+<a class="sourceLine" id="cb17-10" data-line-number="10">    , test_TakeChunk_rest_empty</a>
+<a class="sourceLine" id="cb17-11" data-line-number="11">    , test_TakeChunk_examples</a>
+<a class="sourceLine" id="cb17-12" data-line-number="12">    ]</a></code></pre></div>
+<p>If the input span width exceeds the screen width, <code>takeChunk</code> succeeds.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1">prop_TakeChunk_width_succeeds</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2">   , cprop_TakeChunk_width_succeeds</a>
+<a class="sourceLine" id="cb18-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb18-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb18-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb18-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb18-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb18-8" data-line-number="8">prop_TakeChunk_width_succeeds</a>
+<a class="sourceLine" id="cb18-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb18-10" data-line-number="10">  <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb18-11" data-line-number="11">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> (spanWidth tab xs) <span class="fu">~&lt;</span> width</a>
+<a class="sourceLine" id="cb18-12" data-line-number="12">    <span class="dt">Just</span> _  <span class="ot">-&gt;</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb18-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb18-14" data-line-number="14">cprop_TakeChunk_width_succeeds</a>
+<a class="sourceLine" id="cb18-15" data-line-number="15">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb18-16" data-line-number="16">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb18-17" data-line-number="17">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb18-18" data-line-number="18">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb18-19" data-line-number="19">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb18-20" data-line-number="20">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb18-21" data-line-number="21">  prop_TakeChunk_width_succeeds u v xs</a>
+<a class="sourceLine" id="cb18-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb18-23" data-line-number="23"><span class="ot">test_TakeChunk_width_succeeds ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb18-24" data-line-number="24">test_TakeChunk_width_succeeds <span class="fu">=</span></a>
+<a class="sourceLine" id="cb18-25" data-line-number="25">  testProperty <span class="st">&quot;If span width &gt; screen width, takeChunk succeeds&quot;</span></a>
+<a class="sourceLine" id="cb18-26" data-line-number="26">    cprop_TakeChunk_width_succeeds</a></code></pre></div>
+<p>The width of the taken chunk is bounded, with the exact bound depending on the last span of positive width appearing in the chunk.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1">prop_TakeChunk_take_width_bound</a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">   , cprop_TakeChunk_take_width_bound</a>
+<a class="sourceLine" id="cb19-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb19-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb19-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb19-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb19-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb19-8" data-line-number="8">prop_TakeChunk_take_width_bound</a>
+<a class="sourceLine" id="cb19-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb19-10" data-line-number="10">  <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb19-11" data-line-number="11">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb19-12" data-line-number="12">    <span class="dt">Just</span> (as, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb19-13" data-line-number="13">      <span class="kw">let</span> w <span class="fu">=</span> spanWidth tab as <span class="kw">in</span></a>
+<a class="sourceLine" id="cb19-14" data-line-number="14">      <span class="kw">case</span> lastSpanWithPositiveWidth as <span class="kw">of</span></a>
+<a class="sourceLine" id="cb19-15" data-line-number="15">        <span class="dt">Nothing</span>       <span class="ot">-&gt;</span> error <span class="st">&quot;prop_TakeChunk_take_width_bound&quot;</span></a>
+<a class="sourceLine" id="cb19-16" data-line-number="16">        <span class="dt">Just</span> <span class="dt">Stretchy</span> <span class="ot">-&gt;</span> w <span class="fu">~&lt;=</span> (width <span class="fu">+</span> tab <span class="fu">-</span> <span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb19-17" data-line-number="17">        <span class="dt">Just</span> _        <span class="ot">-&gt;</span> w <span class="fu">~&lt;=</span> width</a>
+<a class="sourceLine" id="cb19-18" data-line-number="18"></a>
+<a class="sourceLine" id="cb19-19" data-line-number="19">cprop_TakeChunk_take_width_bound</a>
+<a class="sourceLine" id="cb19-20" data-line-number="20">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb19-21" data-line-number="21">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb19-22" data-line-number="22">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb19-23" data-line-number="23">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb19-24" data-line-number="24">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb19-25" data-line-number="25">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb19-26" data-line-number="26">  prop_TakeChunk_take_width_bound u v xs</a>
+<a class="sourceLine" id="cb19-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb19-28" data-line-number="28"><span class="ot">test_TakeChunk_take_width_bound ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb19-29" data-line-number="29">test_TakeChunk_take_width_bound <span class="fu">=</span></a>
+<a class="sourceLine" id="cb19-30" data-line-number="30">  testProperty <span class="st">&quot;taken chunk width is bounded&quot;</span></a>
+<a class="sourceLine" id="cb19-31" data-line-number="31">    cprop_TakeChunk_take_width_bound</a></code></pre></div>
+<p>If the input is not empty and the width is at least 2, then the taken chunk is not empty.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1">prop_TakeChunk_take_not_empty</a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">   , cprop_TakeChunk_take_not_empty</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb20-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb20-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb20-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb20-8" data-line-number="8">prop_TakeChunk_take_not_empty</a>
+<a class="sourceLine" id="cb20-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb20-10" data-line-number="10">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb20-11" data-line-number="11">    <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb20-12" data-line-number="12">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb20-13" data-line-number="13">      <span class="dt">Just</span> (as, _) <span class="ot">-&gt;</span> not <span class="fu">$</span> isEmptyRLE as</a>
+<a class="sourceLine" id="cb20-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb20-15" data-line-number="15">cprop_TakeChunk_take_not_empty</a>
+<a class="sourceLine" id="cb20-16" data-line-number="16">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb20-17" data-line-number="17">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb20-18" data-line-number="18">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb20-19" data-line-number="19">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb20-20" data-line-number="20">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb20-21" data-line-number="21">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb20-22" data-line-number="22">  prop_TakeChunk_take_not_empty u v xs</a>
+<a class="sourceLine" id="cb20-23" data-line-number="23"></a>
+<a class="sourceLine" id="cb20-24" data-line-number="24"><span class="ot">test_TakeChunk_take_not_empty ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb20-25" data-line-number="25">test_TakeChunk_take_not_empty <span class="fu">=</span></a>
+<a class="sourceLine" id="cb20-26" data-line-number="26">  testProperty <span class="st">&quot;taken chunk is not empty&quot;</span></a>
+<a class="sourceLine" id="cb20-27" data-line-number="27">    cprop_TakeChunk_take_not_empty</a></code></pre></div>
+<p>The result of <code>takeChunk</code> is a cat factorization of the original list.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">prop_TakeChunk_cat_factor</a>
+<a class="sourceLine" id="cb21-2" data-line-number="2">   , cprop_TakeChunk_cat_factor</a>
+<a class="sourceLine" id="cb21-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb21-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb21-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb21-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb21-8" data-line-number="8">prop_TakeChunk_cat_factor</a>
+<a class="sourceLine" id="cb21-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb21-10" data-line-number="10">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb21-11" data-line-number="11">    <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb21-12" data-line-number="12">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb21-13" data-line-number="13">      <span class="dt">Just</span> (as, bs) <span class="ot">-&gt;</span> xs <span class="fu">==</span> (as <span class="fu">&lt;&gt;</span> bs)</a>
+<a class="sourceLine" id="cb21-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb21-15" data-line-number="15">cprop_TakeChunk_cat_factor</a>
+<a class="sourceLine" id="cb21-16" data-line-number="16">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb21-17" data-line-number="17">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb21-18" data-line-number="18">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb21-19" data-line-number="19">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb21-20" data-line-number="20">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb21-21" data-line-number="21">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb21-22" data-line-number="22">  prop_TakeChunk_cat_factor u v xs</a>
+<a class="sourceLine" id="cb21-23" data-line-number="23"></a>
+<a class="sourceLine" id="cb21-24" data-line-number="24"><span class="ot">test_TakeChunk_cat_factor ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb21-25" data-line-number="25">test_TakeChunk_cat_factor <span class="fu">=</span></a>
+<a class="sourceLine" id="cb21-26" data-line-number="26">  testProperty <span class="st">&quot;takeChunk is a cat factorization&quot;</span></a>
+<a class="sourceLine" id="cb21-27" data-line-number="27">    cprop_TakeChunk_cat_factor</a></code></pre></div>
+<p>If <code>takeChunk</code> succeeds, then the chunked tail is shorter than the original list.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1">prop_TakeChunk_shrink_tail</a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">   , cprop_TakeChunk_shrink_tail</a>
+<a class="sourceLine" id="cb22-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb22-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb22-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb22-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb22-8" data-line-number="8">prop_TakeChunk_shrink_tail</a>
+<a class="sourceLine" id="cb22-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-10" data-line-number="10">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb22-11" data-line-number="11">    <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb22-12" data-line-number="12">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb22-13" data-line-number="13">      <span class="dt">Just</span> (_,bs) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb22-14" data-line-number="14">        (runLength <span class="fu">$</span> value bs) <span class="fu">&lt;</span> (runLength <span class="fu">$</span> value xs)</a>
+<a class="sourceLine" id="cb22-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb22-16" data-line-number="16">cprop_TakeChunk_shrink_tail</a>
+<a class="sourceLine" id="cb22-17" data-line-number="17">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-18" data-line-number="18">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb22-19" data-line-number="19">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb22-20" data-line-number="20">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb22-21" data-line-number="21">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb22-22" data-line-number="22">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb22-23" data-line-number="23">  prop_TakeChunk_shrink_tail u v xs</a>
+<a class="sourceLine" id="cb22-24" data-line-number="24"></a>
+<a class="sourceLine" id="cb22-25" data-line-number="25"><span class="ot">test_TakeChunk_shrink_tail ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb22-26" data-line-number="26">test_TakeChunk_shrink_tail <span class="fu">=</span></a>
+<a class="sourceLine" id="cb22-27" data-line-number="27">  testProperty <span class="st">&quot;takeChunk shrinks its input&quot;</span></a>
+<a class="sourceLine" id="cb22-28" data-line-number="28">    cprop_TakeChunk_shrink_tail</a></code></pre></div>
+<p><code>takeChunk</code> preserves length</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1">prop_TakeChunk_length</a>
+<a class="sourceLine" id="cb23-2" data-line-number="2">   , cprop_TakeChunk_length</a>
+<a class="sourceLine" id="cb23-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb23-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb23-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb23-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb23-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb23-8" data-line-number="8">prop_TakeChunk_length</a>
+<a class="sourceLine" id="cb23-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb23-10" data-line-number="10">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb23-11" data-line-number="11">    <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb23-12" data-line-number="12">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb23-13" data-line-number="13">      <span class="dt">Just</span> (as, bs) <span class="ot">-&gt;</span> (runLength <span class="fu">$</span> value xs) <span class="fu">==</span></a>
+<a class="sourceLine" id="cb23-14" data-line-number="14">        (runLength <span class="fu">$</span> value as) <span class="fu">+</span> (runLength <span class="fu">$</span> value bs)</a>
+<a class="sourceLine" id="cb23-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb23-16" data-line-number="16">cprop_TakeChunk_length</a>
+<a class="sourceLine" id="cb23-17" data-line-number="17">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb23-18" data-line-number="18">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb23-19" data-line-number="19">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb23-20" data-line-number="20">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb23-21" data-line-number="21">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb23-22" data-line-number="22">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb23-23" data-line-number="23">  prop_TakeChunk_length</a>
+<a class="sourceLine" id="cb23-24" data-line-number="24"></a>
+<a class="sourceLine" id="cb23-25" data-line-number="25"><span class="ot">test_TakeChunk_length ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb23-26" data-line-number="26">test_TakeChunk_length <span class="fu">=</span></a>
+<a class="sourceLine" id="cb23-27" data-line-number="27">  testProperty <span class="st">&quot;takeChunk preserves length&quot;</span></a>
+<a class="sourceLine" id="cb23-28" data-line-number="28">    cprop_TakeChunk_length</a></code></pre></div>
+<p>If the remainder of a chunked list is empty, then the taken chunk should be <em>full</em> – its width should equal that of the terminal window or, if the last block with positive width is stretchy, should be between the terminal window width and width plus tab.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1">prop_TakeChunk_rest_empty</a>
+<a class="sourceLine" id="cb24-2" data-line-number="2">   , cprop_TakeChunk_rest_empty</a>
+<a class="sourceLine" id="cb24-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb24-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb24-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb24-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb24-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb24-8" data-line-number="8">prop_TakeChunk_rest_empty</a>
+<a class="sourceLine" id="cb24-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb24-10" data-line-number="10">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb24-11" data-line-number="11">    <span class="kw">case</span> takeChunk width tab xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb24-12" data-line-number="12">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb24-13" data-line-number="13">      <span class="dt">Just</span> (as, bs) <span class="ot">-&gt;</span> <span class="kw">if</span> not <span class="fu">$</span> isEmptyRLE bs</a>
+<a class="sourceLine" id="cb24-14" data-line-number="14">        <span class="kw">then</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb24-15" data-line-number="15">        <span class="kw">else</span> </a>
+<a class="sourceLine" id="cb24-16" data-line-number="16">          <span class="kw">let</span> w <span class="fu">=</span> spanWidth tab as <span class="kw">in</span></a>
+<a class="sourceLine" id="cb24-17" data-line-number="17">          <span class="kw">case</span> lastSpanWithPositiveWidth as <span class="kw">of</span></a>
+<a class="sourceLine" id="cb24-18" data-line-number="18">            <span class="dt">Nothing</span>       <span class="ot">-&gt;</span> error <span class="st">&quot;prop_TakeChunk_take_width_bound&quot;</span></a>
+<a class="sourceLine" id="cb24-19" data-line-number="19">            <span class="dt">Just</span> <span class="dt">Stretchy</span> <span class="ot">-&gt;</span> (width <span class="fu">~&lt;=</span> w) <span class="fu">.&amp;&amp;.</span> (w <span class="fu">~&lt;=</span> (width <span class="fu">+</span> tab <span class="fu">-</span> <span class="dv">1</span>))</a>
+<a class="sourceLine" id="cb24-20" data-line-number="20">            <span class="dt">Just</span> _        <span class="ot">-&gt;</span> w <span class="fu">===</span> width</a>
+<a class="sourceLine" id="cb24-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb24-22" data-line-number="22">cprop_TakeChunk_rest_empty</a>
+<a class="sourceLine" id="cb24-23" data-line-number="23">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb24-24" data-line-number="24">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb24-25" data-line-number="25">    <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs)</a>
+<a class="sourceLine" id="cb24-26" data-line-number="26">    <span class="fu">&amp;&amp;</span> (spanWidth tab xs <span class="fu">&gt;</span> <span class="dv">0</span>) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb24-27" data-line-number="27">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb24-28" data-line-number="28">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb24-29" data-line-number="29">  prop_TakeChunk_rest_empty u v xs</a>
+<a class="sourceLine" id="cb24-30" data-line-number="30"></a>
+<a class="sourceLine" id="cb24-31" data-line-number="31"><span class="ot">test_TakeChunk_rest_empty ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb24-32" data-line-number="32">test_TakeChunk_rest_empty <span class="fu">=</span></a>
+<a class="sourceLine" id="cb24-33" data-line-number="33">  testProperty <span class="st">&quot;remainder is only empty if taken chunk is full&quot;</span></a>
+<a class="sourceLine" id="cb24-34" data-line-number="34">    cprop_TakeChunk_rest_empty</a></code></pre></div>
+<p>For good measure, some examples to check our intuition about <code>takeChunk</code>.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1">prop_TakeChunk_examples</a>
+<a class="sourceLine" id="cb25-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb25-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">RunLengthEncoding</span> <span class="dt">Span</span>, <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span>)</a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb25-5" data-line-number="5">prop_TakeChunk_examples w t xs result <span class="fu">=</span></a>
+<a class="sourceLine" id="cb25-6" data-line-number="6">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb25-7" data-line-number="7">    result <span class="fu">===</span> takeChunk w t xs</a>
+<a class="sourceLine" id="cb25-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb25-9" data-line-number="9"><span class="ot">test_TakeChunk_examples ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb25-10" data-line-number="10">test_TakeChunk_examples <span class="fu">=</span></a>
+<a class="sourceLine" id="cb25-11" data-line-number="11">  testGroup <span class="st">&quot;takeChunk examples&quot;</span></a>
+<a class="sourceLine" id="cb25-12" data-line-number="12">    [ testCases</a>
+<a class="sourceLine" id="cb25-13" data-line-number="13">      (uncurry4 prop_TakeChunk_examples)</a>
+<a class="sourceLine" id="cb25-14" data-line-number="14">      [ ( <span class="st">&quot;#1&quot;</span></a>
+<a class="sourceLine" id="cb25-15" data-line-number="15">        , ( <span class="dv">2</span></a>
+<a class="sourceLine" id="cb25-16" data-line-number="16">          , <span class="dv">1</span></a>
+<a class="sourceLine" id="cb25-17" data-line-number="17">          , fromFreqList</a>
+<a class="sourceLine" id="cb25-18" data-line-number="18">              [ (<span class="dv">1</span>,<span class="dt">Stretchy</span>), (<span class="dv">2</span>,<span class="dt">Fixed1</span>) ]</a>
+<a class="sourceLine" id="cb25-19" data-line-number="19">          , <span class="dt">Just</span></a>
+<a class="sourceLine" id="cb25-20" data-line-number="20">            ( fromFreqList</a>
+<a class="sourceLine" id="cb25-21" data-line-number="21">                [(<span class="dv">1</span>,<span class="dt">Stretchy</span>), (<span class="dv">1</span>,<span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb25-22" data-line-number="22">            , fromFreqList</a>
+<a class="sourceLine" id="cb25-23" data-line-number="23">                [(<span class="dv">1</span>,<span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb25-24" data-line-number="24">            )</a>
+<a class="sourceLine" id="cb25-25" data-line-number="25">          )</a>
+<a class="sourceLine" id="cb25-26" data-line-number="26">        )</a>
+<a class="sourceLine" id="cb25-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb25-28" data-line-number="28">      , ( <span class="st">&quot;#2&quot;</span></a>
+<a class="sourceLine" id="cb25-29" data-line-number="29">        , ( <span class="dv">2</span></a>
+<a class="sourceLine" id="cb25-30" data-line-number="30">          , <span class="dv">1</span></a>
+<a class="sourceLine" id="cb25-31" data-line-number="31">          , fromFreqList</a>
+<a class="sourceLine" id="cb25-32" data-line-number="32">              [ (<span class="dv">1</span>,<span class="dt">Fixed1</span>), (<span class="dv">1</span>,<span class="dt">Fixed0</span>) ]</a>
+<a class="sourceLine" id="cb25-33" data-line-number="33">          , <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb25-34" data-line-number="34">          )</a>
+<a class="sourceLine" id="cb25-35" data-line-number="35">        )</a>
+<a class="sourceLine" id="cb25-36" data-line-number="36"></a>
+<a class="sourceLine" id="cb25-37" data-line-number="37">      , ( <span class="st">&quot;#3&quot;</span></a>
+<a class="sourceLine" id="cb25-38" data-line-number="38">        , ( <span class="dv">3</span></a>
+<a class="sourceLine" id="cb25-39" data-line-number="39">          , <span class="dv">2</span></a>
+<a class="sourceLine" id="cb25-40" data-line-number="40">          , fromFreqList</a>
+<a class="sourceLine" id="cb25-41" data-line-number="41">              [ (<span class="dv">5</span>,<span class="dt">Stretchy</span>) ]</a>
+<a class="sourceLine" id="cb25-42" data-line-number="42">          , <span class="dt">Just</span></a>
+<a class="sourceLine" id="cb25-43" data-line-number="43">              ( fromFreqList [(<span class="dv">2</span>,<span class="dt">Stretchy</span>)]</a>
+<a class="sourceLine" id="cb25-44" data-line-number="44">              , fromFreqList [(<span class="dv">3</span>,<span class="dt">Stretchy</span>)]</a>
+<a class="sourceLine" id="cb25-45" data-line-number="45">              )</a>
+<a class="sourceLine" id="cb25-46" data-line-number="46">          )</a>
+<a class="sourceLine" id="cb25-47" data-line-number="47">        )</a>
+<a class="sourceLine" id="cb25-48" data-line-number="48"></a>
+<a class="sourceLine" id="cb25-49" data-line-number="49">      ]</a>
+<a class="sourceLine" id="cb25-50" data-line-number="50">    ]</a></code></pre></div>
+<h2 id="takechunks-properties">takeChunks properties</h2>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1"><span class="ot">test_TakeChunks ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb26-2" data-line-number="2">test_TakeChunks <span class="fu">=</span></a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">  localOption (<span class="dt">QuickCheckTests</span> <span class="dv">500</span>) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">  testGroup <span class="st">&quot;takeChunks properties&quot;</span></a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">    [ test_TakeChunks_cat_factor</a>
+<a class="sourceLine" id="cb26-6" data-line-number="6">    , test_TakeChunks_take_size_upper_bound</a>
+<a class="sourceLine" id="cb26-7" data-line-number="7">    , test_TakeChunks_take_size_lower_bound</a>
+<a class="sourceLine" id="cb26-8" data-line-number="8">    , test_TakeChunks_rest_size_upper_bound</a>
+<a class="sourceLine" id="cb26-9" data-line-number="9">    ]</a></code></pre></div>
+<p><code>takeChunks</code> should give a cat factorization.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1">prop_TakeChunks_cat_factor</a>
+<a class="sourceLine" id="cb27-2" data-line-number="2">   , cprop_TakeChunks_cat_factor</a>
+<a class="sourceLine" id="cb27-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb27-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb27-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb27-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb27-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb27-8" data-line-number="8">prop_TakeChunks_cat_factor</a>
+<a class="sourceLine" id="cb27-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-10" data-line-number="10">  property <span class="fu">$</span></a>
+<a class="sourceLine" id="cb27-11" data-line-number="11">    <span class="kw">let</span> (uss, vs) <span class="fu">=</span> takeChunks width tab xs <span class="kw">in</span></a>
+<a class="sourceLine" id="cb27-12" data-line-number="12">    xs <span class="fu">==</span> mconcat (uss <span class="fu">++</span> [vs])</a>
+<a class="sourceLine" id="cb27-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb27-14" data-line-number="14">cprop_TakeChunks_cat_factor</a>
+<a class="sourceLine" id="cb27-15" data-line-number="15">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-16" data-line-number="16">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>) <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb27-17" data-line-number="17">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb27-18" data-line-number="18">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb27-19" data-line-number="19">  cover <span class="dv">50</span> (runLength (value xs) <span class="fu">&gt;</span> <span class="dv">100</span>) <span class="st">&quot;|xs| &gt; 100&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb27-20" data-line-number="20">  prop_TakeChunks_cat_factor u v xs</a>
+<a class="sourceLine" id="cb27-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb27-22" data-line-number="22"><span class="ot">test_TakeChunks_cat_factor ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb27-23" data-line-number="23">test_TakeChunks_cat_factor <span class="fu">=</span></a>
+<a class="sourceLine" id="cb27-24" data-line-number="24">  testProperty <span class="st">&quot;takeChunks yields a cat factorization&quot;</span></a>
+<a class="sourceLine" id="cb27-25" data-line-number="25">    cprop_TakeChunks_cat_factor</a></code></pre></div>
+<p>The widths of the taken chunks are bounded above.</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1">prop_TakeChunks_take_size_upper_bound</a>
+<a class="sourceLine" id="cb28-2" data-line-number="2">   , cprop_TakeChunks_take_size_upper_bound</a>
+<a class="sourceLine" id="cb28-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb28-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb28-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb28-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb28-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb28-8" data-line-number="8">prop_TakeChunks_take_size_upper_bound</a>
+<a class="sourceLine" id="cb28-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb28-10" data-line-number="10">  <span class="kw">let</span> (as,_) <span class="fu">=</span> takeChunks width tab xs <span class="kw">in</span></a>
+<a class="sourceLine" id="cb28-11" data-line-number="11">    conjoin <span class="fu">$</span> map checkBound as</a>
+<a class="sourceLine" id="cb28-12" data-line-number="12">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb28-13" data-line-number="13">    checkBound zs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb28-14" data-line-number="14">      <span class="kw">let</span> w <span class="fu">=</span> spanWidth tab zs <span class="kw">in</span></a>
+<a class="sourceLine" id="cb28-15" data-line-number="15">      <span class="kw">case</span> lastSpanWithPositiveWidth zs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-16" data-line-number="16">        <span class="dt">Nothing</span>       <span class="ot">-&gt;</span> error <span class="st">&quot;prop_TakeChunks_take_size_upper_bound&quot;</span></a>
+<a class="sourceLine" id="cb28-17" data-line-number="17">        <span class="dt">Just</span> <span class="dt">Stretchy</span> <span class="ot">-&gt;</span> w <span class="fu">~&lt;=</span> (width <span class="fu">+</span> tab <span class="fu">-</span> <span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb28-18" data-line-number="18">        <span class="dt">Just</span> _        <span class="ot">-&gt;</span> w <span class="fu">~&lt;=</span> width</a>
+<a class="sourceLine" id="cb28-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb28-20" data-line-number="20">cprop_TakeChunks_take_size_upper_bound</a>
+<a class="sourceLine" id="cb28-21" data-line-number="21">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb28-22" data-line-number="22">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>) <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb28-23" data-line-number="23">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb28-24" data-line-number="24">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb28-25" data-line-number="25">  cover <span class="dv">50</span> (runLength (value xs) <span class="fu">&gt;</span> <span class="dv">100</span>) <span class="st">&quot;|xs| &gt; 100&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb28-26" data-line-number="26">  prop_TakeChunks_take_size_upper_bound u v xs</a>
+<a class="sourceLine" id="cb28-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb28-28" data-line-number="28"><span class="ot">test_TakeChunks_take_size_upper_bound ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb28-29" data-line-number="29">test_TakeChunks_take_size_upper_bound <span class="fu">=</span></a>
+<a class="sourceLine" id="cb28-30" data-line-number="30">  testProperty <span class="st">&quot;taken chunk size is bounded above&quot;</span></a>
+<a class="sourceLine" id="cb28-31" data-line-number="31">    cprop_TakeChunks_take_size_upper_bound</a></code></pre></div>
+<p>The widths of the taken chunks are bounded below.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1">prop_TakeChunks_take_size_lower_bound</a>
+<a class="sourceLine" id="cb29-2" data-line-number="2">   , cprop_TakeChunks_take_size_lower_bound</a>
+<a class="sourceLine" id="cb29-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb29-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb29-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb29-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb29-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb29-8" data-line-number="8">prop_TakeChunks_take_size_lower_bound</a>
+<a class="sourceLine" id="cb29-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-10" data-line-number="10">  <span class="kw">let</span> (as,_) <span class="fu">=</span> takeChunks width tab xs <span class="kw">in</span></a>
+<a class="sourceLine" id="cb29-11" data-line-number="11">    conjoin <span class="fu">$</span> map checkBound as</a>
+<a class="sourceLine" id="cb29-12" data-line-number="12">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-13" data-line-number="13">    checkBound zs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-14" data-line-number="14">      <span class="kw">let</span> w <span class="fu">=</span> spanWidth tab zs <span class="kw">in</span></a>
+<a class="sourceLine" id="cb29-15" data-line-number="15">      <span class="kw">case</span> lastSpanWithPositiveWidth zs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-16" data-line-number="16">        <span class="dt">Nothing</span>     <span class="ot">-&gt;</span> error <span class="st">&quot;prop_TakeChunks_take_size_lower_bound (1)&quot;</span></a>
+<a class="sourceLine" id="cb29-17" data-line-number="17">        <span class="dt">Just</span> <span class="dt">Fixed0</span> <span class="ot">-&gt;</span> error <span class="st">&quot;prop_TakeChunks_take_size_lower_bound (2)&quot;</span></a>
+<a class="sourceLine" id="cb29-18" data-line-number="18">        <span class="dt">Just</span> _      <span class="ot">-&gt;</span> (width <span class="fu">-</span> <span class="dv">1</span>) <span class="fu">~&lt;=</span> w</a>
+<a class="sourceLine" id="cb29-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb29-20" data-line-number="20">cprop_TakeChunks_take_size_lower_bound</a>
+<a class="sourceLine" id="cb29-21" data-line-number="21">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-22" data-line-number="22">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>) <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb29-23" data-line-number="23">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb29-24" data-line-number="24">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb29-25" data-line-number="25">  cover <span class="dv">50</span> (runLength (value xs) <span class="fu">&gt;</span> <span class="dv">100</span>) <span class="st">&quot;|xs| &gt; 100&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb29-26" data-line-number="26">  prop_TakeChunks_take_size_lower_bound u v xs</a>
+<a class="sourceLine" id="cb29-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb29-28" data-line-number="28"><span class="ot">test_TakeChunks_take_size_lower_bound ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb29-29" data-line-number="29">test_TakeChunks_take_size_lower_bound <span class="fu">=</span></a>
+<a class="sourceLine" id="cb29-30" data-line-number="30">  testProperty <span class="st">&quot;taken chunk size is bounded above&quot;</span></a>
+<a class="sourceLine" id="cb29-31" data-line-number="31">    cprop_TakeChunks_take_size_lower_bound</a></code></pre></div>
+<p>The width of the remainder is bounded above.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" data-line-number="1">prop_TakeChunks_rest_size_upper_bound</a>
+<a class="sourceLine" id="cb30-2" data-line-number="2">   , cprop_TakeChunks_rest_size_upper_bound</a>
+<a class="sourceLine" id="cb30-3" data-line-number="3"><span class="ot">  ::</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb30-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">Positive</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb30-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span></a>
+<a class="sourceLine" id="cb30-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb30-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb30-8" data-line-number="8">prop_TakeChunks_rest_size_upper_bound</a>
+<a class="sourceLine" id="cb30-9" data-line-number="9">  (<span class="dt">Positive</span> width) (<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb30-10" data-line-number="10">  <span class="kw">let</span></a>
+<a class="sourceLine" id="cb30-11" data-line-number="11">    (_,bs) <span class="fu">=</span> takeChunks width tab xs</a>
+<a class="sourceLine" id="cb30-12" data-line-number="12">    w <span class="fu">=</span> spanWidth tab bs</a>
+<a class="sourceLine" id="cb30-13" data-line-number="13">  <span class="kw">in</span></a>
+<a class="sourceLine" id="cb30-14" data-line-number="14">    <span class="kw">case</span> lastSpanWithPositiveWidth bs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb30-15" data-line-number="15">      <span class="dt">Nothing</span>       <span class="ot">-&gt;</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb30-16" data-line-number="16">      <span class="dt">Just</span> <span class="dt">Stretchy</span> <span class="ot">-&gt;</span> w <span class="fu">~&lt;=</span> (width <span class="fu">+</span> tab <span class="fu">-</span> <span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb30-17" data-line-number="17">      <span class="dt">Just</span> _        <span class="ot">-&gt;</span> w <span class="fu">~&lt;=</span> width</a>
+<a class="sourceLine" id="cb30-18" data-line-number="18"></a>
+<a class="sourceLine" id="cb30-19" data-line-number="19">cprop_TakeChunks_rest_size_upper_bound</a>
+<a class="sourceLine" id="cb30-20" data-line-number="20">  u<span class="fu">@</span>(<span class="dt">Positive</span> width) v<span class="fu">@</span>(<span class="dt">Positive</span> tab) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb30-21" data-line-number="21">  (width <span class="fu">&gt;=</span> <span class="dv">2</span>) <span class="fu">&amp;&amp;</span> (not <span class="fu">$</span> isEmptyRLE xs) <span class="fu">==&gt;</span></a>
+<a class="sourceLine" id="cb30-22" data-line-number="22">  cover <span class="dv">40</span> (width <span class="fu">&gt;</span> tab) <span class="st">&quot;width &gt; tab&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb30-23" data-line-number="23">  cover <span class="dv">50</span> (width <span class="fu">&gt;</span> <span class="dv">30</span>) <span class="st">&quot;width &gt; 30&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb30-24" data-line-number="24">  cover <span class="dv">50</span> (runLength (value xs) <span class="fu">&gt;</span> <span class="dv">100</span>) <span class="st">&quot;|xs| &gt; 100&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb30-25" data-line-number="25">  prop_TakeChunks_rest_size_upper_bound u v xs</a>
+<a class="sourceLine" id="cb30-26" data-line-number="26"></a>
+<a class="sourceLine" id="cb30-27" data-line-number="27"><span class="ot">test_TakeChunks_rest_size_upper_bound ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb30-28" data-line-number="28">test_TakeChunks_rest_size_upper_bound <span class="fu">=</span></a>
+<a class="sourceLine" id="cb30-29" data-line-number="29">  testProperty <span class="st">&quot;rest size is bounded above&quot;</span></a>
+<a class="sourceLine" id="cb30-30" data-line-number="30">    cprop_TakeChunks_rest_size_upper_bound</a></code></pre></div>
+<h2 id="screenoffset-is-a-monoid">ScreenOffset is a monoid</h2>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" data-line-number="1"><span class="ot">test_ScreenOffset_Monoid ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb31-2" data-line-number="2">test_ScreenOffset_Monoid <span class="fu">=</span></a>
+<a class="sourceLine" id="cb31-3" data-line-number="3">  testGroup <span class="st">&quot;ScreenOffset is a monoid&quot;</span></a>
+<a class="sourceLine" id="cb31-4" data-line-number="4">    [ test_ScreenOffset_Monoid_neutral_left</a>
+<a class="sourceLine" id="cb31-5" data-line-number="5">    , test_ScreenOffset_Monoid_neutral_right</a>
+<a class="sourceLine" id="cb31-6" data-line-number="6">    , localOption (<span class="dt">QuickCheckTests</span> <span class="dv">500</span>) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb31-7" data-line-number="7">        test_ScreenOffset_Monoid_associativity</a>
+<a class="sourceLine" id="cb31-8" data-line-number="8">    , test_ScreenOffset_Monoid_unique_right_identity</a>
+<a class="sourceLine" id="cb31-9" data-line-number="9">    , test_ScreenOffset_Monoid_unique_left_identity</a>
+<a class="sourceLine" id="cb31-10" data-line-number="10">    ]</a></code></pre></div>
+<p>Left identity law:</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" data-line-number="1">prop_ScreenOffset_Monoid_neutral_left</a>
+<a class="sourceLine" id="cb32-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb32-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb32-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb32-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb32-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb32-7" data-line-number="7">prop_ScreenOffset_Monoid_neutral_left _ _ x <span class="fu">=</span></a>
+<a class="sourceLine" id="cb32-8" data-line-number="8">  x <span class="fu">===</span> (mempty <span class="fu">&lt;&gt;</span> x)</a>
+<a class="sourceLine" id="cb32-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb32-10" data-line-number="10"><span class="ot">test_ScreenOffset_Monoid_neutral_left ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb32-11" data-line-number="11">test_ScreenOffset_Monoid_neutral_left <span class="fu">=</span></a>
+<a class="sourceLine" id="cb32-12" data-line-number="12">  testGroup <span class="st">&quot;Left identity law&quot;</span></a>
+<a class="sourceLine" id="cb32-13" data-line-number="13">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb32-14" data-line-number="14">        prop_ScreenOffset_Monoid_neutral_left nat30 nat8</a>
+<a class="sourceLine" id="cb32-15" data-line-number="15">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb32-16" data-line-number="16">        prop_ScreenOffset_Monoid_neutral_left nat30 nat4</a>
+<a class="sourceLine" id="cb32-17" data-line-number="17">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb32-18" data-line-number="18">        prop_ScreenOffset_Monoid_neutral_left nat15 nat2</a>
+<a class="sourceLine" id="cb32-19" data-line-number="19">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb32-20" data-line-number="20">        prop_ScreenOffset_Monoid_neutral_left nat8 nat2</a>
+<a class="sourceLine" id="cb32-21" data-line-number="21">    ]</a></code></pre></div>
+<p>Right identity law:</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" data-line-number="1">prop_ScreenOffset_Monoid_neutral_right</a>
+<a class="sourceLine" id="cb33-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb33-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb33-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb33-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb33-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb33-7" data-line-number="7">prop_ScreenOffset_Monoid_neutral_right _ _ x <span class="fu">=</span></a>
+<a class="sourceLine" id="cb33-8" data-line-number="8">  x <span class="fu">===</span> (x <span class="fu">&lt;&gt;</span> mempty)</a>
+<a class="sourceLine" id="cb33-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb33-10" data-line-number="10"><span class="ot">test_ScreenOffset_Monoid_neutral_right ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb33-11" data-line-number="11">test_ScreenOffset_Monoid_neutral_right <span class="fu">=</span></a>
+<a class="sourceLine" id="cb33-12" data-line-number="12">  testGroup <span class="st">&quot;Right identity law&quot;</span></a>
+<a class="sourceLine" id="cb33-13" data-line-number="13">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb33-14" data-line-number="14">        prop_ScreenOffset_Monoid_neutral_right nat30 nat8</a>
+<a class="sourceLine" id="cb33-15" data-line-number="15">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb33-16" data-line-number="16">        prop_ScreenOffset_Monoid_neutral_right nat30 nat4</a>
+<a class="sourceLine" id="cb33-17" data-line-number="17">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb33-18" data-line-number="18">        prop_ScreenOffset_Monoid_neutral_right nat15 nat2</a>
+<a class="sourceLine" id="cb33-19" data-line-number="19">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb33-20" data-line-number="20">        prop_ScreenOffset_Monoid_neutral_right nat8 nat2</a>
+<a class="sourceLine" id="cb33-21" data-line-number="21">    ]</a></code></pre></div>
+<p>Associativity law:</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" data-line-number="1">prop_ScreenOffset_Monoid_associativity</a>
+<a class="sourceLine" id="cb34-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb34-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb34-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb34-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb34-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb34-7" data-line-number="7">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb34-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb34-9" data-line-number="9">prop_ScreenOffset_Monoid_associativity _ _ a b c <span class="fu">=</span></a>
+<a class="sourceLine" id="cb34-10" data-line-number="10">  (a <span class="fu">&lt;&gt;</span> (b <span class="fu">&lt;&gt;</span> c)) <span class="fu">===</span> ((a <span class="fu">&lt;&gt;</span> b) <span class="fu">&lt;&gt;</span> c)</a>
+<a class="sourceLine" id="cb34-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb34-12" data-line-number="12"><span class="ot">test_ScreenOffset_Monoid_associativity ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb34-13" data-line-number="13">test_ScreenOffset_Monoid_associativity <span class="fu">=</span></a>
+<a class="sourceLine" id="cb34-14" data-line-number="14">  testGroup <span class="st">&quot;Associativity law&quot;</span></a>
+<a class="sourceLine" id="cb34-15" data-line-number="15">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb34-16" data-line-number="16">        prop_ScreenOffset_Monoid_associativity nat30 nat8</a>
+<a class="sourceLine" id="cb34-17" data-line-number="17">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb34-18" data-line-number="18">        prop_ScreenOffset_Monoid_associativity nat30 nat4</a>
+<a class="sourceLine" id="cb34-19" data-line-number="19">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb34-20" data-line-number="20">        prop_ScreenOffset_Monoid_associativity nat15 nat2</a>
+<a class="sourceLine" id="cb34-21" data-line-number="21">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb34-22" data-line-number="22">        prop_ScreenOffset_Monoid_associativity nat8 nat2</a>
+<a class="sourceLine" id="cb34-23" data-line-number="23">    ]</a></code></pre></div>
+<p>If <span class="math inline">\(ab = a\)</span>, then <span class="math inline">\(b = 1\)</span>.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" data-line-number="1">prop_ScreenOffset_Monoid_unique_right_identity</a>
+<a class="sourceLine" id="cb35-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb35-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb35-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb35-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb35-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb35-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb35-8" data-line-number="8">prop_ScreenOffset_Monoid_unique_right_identity _ _ a b <span class="fu">=</span></a>
+<a class="sourceLine" id="cb35-9" data-line-number="9">  <span class="kw">if</span> (a <span class="fu">&lt;&gt;</span> b) <span class="fu">==</span> b</a>
+<a class="sourceLine" id="cb35-10" data-line-number="10">    <span class="kw">then</span> mempty <span class="fu">===</span> a</a>
+<a class="sourceLine" id="cb35-11" data-line-number="11">    <span class="kw">else</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb35-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb35-13" data-line-number="13"><span class="ot">test_ScreenOffset_Monoid_unique_right_identity ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb35-14" data-line-number="14">test_ScreenOffset_Monoid_unique_right_identity <span class="fu">=</span></a>
+<a class="sourceLine" id="cb35-15" data-line-number="15">  testGroup <span class="st">&quot;Right identity is unique&quot;</span></a>
+<a class="sourceLine" id="cb35-16" data-line-number="16">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb35-17" data-line-number="17">        prop_ScreenOffset_Monoid_unique_right_identity nat30 nat8</a>
+<a class="sourceLine" id="cb35-18" data-line-number="18">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb35-19" data-line-number="19">        prop_ScreenOffset_Monoid_unique_right_identity nat30 nat4</a>
+<a class="sourceLine" id="cb35-20" data-line-number="20">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb35-21" data-line-number="21">        prop_ScreenOffset_Monoid_unique_right_identity nat15 nat2</a>
+<a class="sourceLine" id="cb35-22" data-line-number="22">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb35-23" data-line-number="23">        prop_ScreenOffset_Monoid_unique_right_identity nat8 nat2</a>
+<a class="sourceLine" id="cb35-24" data-line-number="24">    ]</a></code></pre></div>
+<p>If <span class="math inline">\(ba = a\)</span>, then <span class="math inline">\(b = 1\)</span>.</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1">prop_ScreenOffset_Monoid_unique_left_identity</a>
+<a class="sourceLine" id="cb36-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb36-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb36-4" data-line-number="4">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb36-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb36-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb36-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb36-8" data-line-number="8">prop_ScreenOffset_Monoid_unique_left_identity _ _ a b <span class="fu">=</span></a>
+<a class="sourceLine" id="cb36-9" data-line-number="9">  <span class="kw">if</span> (b <span class="fu">&lt;&gt;</span> a) <span class="fu">==</span> b</a>
+<a class="sourceLine" id="cb36-10" data-line-number="10">    <span class="kw">then</span> mempty <span class="fu">===</span> a</a>
+<a class="sourceLine" id="cb36-11" data-line-number="11">    <span class="kw">else</span> property <span class="dt">True</span></a>
+<a class="sourceLine" id="cb36-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb36-13" data-line-number="13"><span class="ot">test_ScreenOffset_Monoid_unique_left_identity ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb36-14" data-line-number="14">test_ScreenOffset_Monoid_unique_left_identity <span class="fu">=</span></a>
+<a class="sourceLine" id="cb36-15" data-line-number="15">  testGroup <span class="st">&quot;Left identity is unique&quot;</span></a>
+<a class="sourceLine" id="cb36-16" data-line-number="16">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb36-17" data-line-number="17">        prop_ScreenOffset_Monoid_unique_left_identity nat30 nat8</a>
+<a class="sourceLine" id="cb36-18" data-line-number="18">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb36-19" data-line-number="19">        prop_ScreenOffset_Monoid_unique_left_identity nat30 nat4</a>
+<a class="sourceLine" id="cb36-20" data-line-number="20">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb36-21" data-line-number="21">        prop_ScreenOffset_Monoid_unique_left_identity nat15 nat2</a>
+<a class="sourceLine" id="cb36-22" data-line-number="22">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb36-23" data-line-number="23">        prop_ScreenOffset_Monoid_unique_left_identity nat8 nat2</a>
+<a class="sourceLine" id="cb36-24" data-line-number="24">    ]</a></code></pre></div>
+<h2 id="applyscreenoffset-is-a-monoid-action">applyScreenOffset is a monoid action</h2>
+<p>A monoid action of <span class="math inline">\(M\)</span> on a set <span class="math inline">\(A\)</span> is equivalent to a monoid homomorphism from <span class="math inline">\(M\)</span> to the monoid of transformations on <span class="math inline">\(A\)</span>. At least I think it is!</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" data-line-number="1"><span class="ot">test_ScreenOffset_MonoidAction ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb37-2" data-line-number="2">test_ScreenOffset_MonoidAction <span class="fu">=</span></a>
+<a class="sourceLine" id="cb37-3" data-line-number="3">  testGroup <span class="st">&quot;ScreenOffset monoid action&quot;</span></a>
+<a class="sourceLine" id="cb37-4" data-line-number="4">    [ test_ScreenOffset_MonoidAction_identity</a>
+<a class="sourceLine" id="cb37-5" data-line-number="5">    , localOption (<span class="dt">QuickCheckTests</span> <span class="dv">500</span>) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb37-6" data-line-number="6">        test_ScreenOffset_MonoidAction_product</a>
+<a class="sourceLine" id="cb37-7" data-line-number="7">    , localOption (<span class="dt">QuickCheckTests</span> <span class="dv">500</span>) <span class="fu">$</span></a>
+<a class="sourceLine" id="cb37-8" data-line-number="8">        test_ScreenOffset_MonoidAction_welldefined</a>
+<a class="sourceLine" id="cb37-9" data-line-number="9">    , test_ScreenOffset_applyBlockOffset_examples</a>
+<a class="sourceLine" id="cb37-10" data-line-number="10">    ]</a></code></pre></div>
+<p>The action preserves the identity:</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" data-line-number="1">prop_ScreenOffset_MonoidAction_identity</a>
+<a class="sourceLine" id="cb38-2" data-line-number="2"><span class="ot">  ::</span> forall w t</a>
+<a class="sourceLine" id="cb38-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb38-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb38-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb38-6" data-line-number="6">  <span class="ot">-&gt;</span> (<span class="dt">Int</span>, <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb38-7" data-line-number="7">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb38-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb38-9" data-line-number="9">prop_ScreenOffset_MonoidAction_identity _ _ off pos <span class="fu">=</span></a>
+<a class="sourceLine" id="cb38-10" data-line-number="10">  pos</a>
+<a class="sourceLine" id="cb38-11" data-line-number="11">    <span class="fu">===</span> applyScreenOffset (mempty<span class="ot"> ::</span> <span class="dt">ScreenOffset</span> w t) pos</a>
+<a class="sourceLine" id="cb38-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb38-13" data-line-number="13"><span class="ot">test_ScreenOffset_MonoidAction_identity ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb38-14" data-line-number="14">test_ScreenOffset_MonoidAction_identity <span class="fu">=</span></a>
+<a class="sourceLine" id="cb38-15" data-line-number="15">  testGroup <span class="st">&quot;Identity law&quot;</span></a>
+<a class="sourceLine" id="cb38-16" data-line-number="16">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb38-17" data-line-number="17">        prop_ScreenOffset_MonoidAction_identity nat30 nat8</a>
+<a class="sourceLine" id="cb38-18" data-line-number="18">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb38-19" data-line-number="19">        prop_ScreenOffset_MonoidAction_identity nat30 nat4</a>
+<a class="sourceLine" id="cb38-20" data-line-number="20">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb38-21" data-line-number="21">        prop_ScreenOffset_MonoidAction_identity nat15 nat2</a>
+<a class="sourceLine" id="cb38-22" data-line-number="22">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb38-23" data-line-number="23">        prop_ScreenOffset_MonoidAction_identity nat8 nat2</a>
+<a class="sourceLine" id="cb38-24" data-line-number="24">    ]</a></code></pre></div>
+<p>And the action preserves products:</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1">prop_ScreenOffset_MonoidAction_product</a>
+<a class="sourceLine" id="cb39-2" data-line-number="2"><span class="ot">  ::</span> forall w t</a>
+<a class="sourceLine" id="cb39-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb39-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb39-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb39-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb39-7" data-line-number="7">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb39-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb39-9" data-line-number="9">prop_ScreenOffset_MonoidAction_product pw _ x y <span class="fu">=</span></a>
+<a class="sourceLine" id="cb39-10" data-line-number="10">  forAll (genValidCoords pw) <span class="fu">$</span> \(u,v) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb39-11" data-line-number="11">  (applyScreenOffset (x <span class="fu">&lt;&gt;</span> y) (u,v))</a>
+<a class="sourceLine" id="cb39-12" data-line-number="12">    <span class="fu">===</span> (applyScreenOffset y <span class="fu">$</span> applyScreenOffset x (u,v))</a>
+<a class="sourceLine" id="cb39-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb39-14" data-line-number="14"><span class="ot">test_ScreenOffset_MonoidAction_product ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb39-15" data-line-number="15">test_ScreenOffset_MonoidAction_product <span class="fu">=</span></a>
+<a class="sourceLine" id="cb39-16" data-line-number="16">  testGroup <span class="st">&quot;product law&quot;</span></a>
+<a class="sourceLine" id="cb39-17" data-line-number="17">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb39-18" data-line-number="18">        prop_ScreenOffset_MonoidAction_product nat30 nat8</a>
+<a class="sourceLine" id="cb39-19" data-line-number="19">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb39-20" data-line-number="20">        prop_ScreenOffset_MonoidAction_product nat30 nat4</a>
+<a class="sourceLine" id="cb39-21" data-line-number="21">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb39-22" data-line-number="22">        prop_ScreenOffset_MonoidAction_product nat15 nat2</a>
+<a class="sourceLine" id="cb39-23" data-line-number="23">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb39-24" data-line-number="24">        prop_ScreenOffset_MonoidAction_product nat8 nat2</a>
+<a class="sourceLine" id="cb39-25" data-line-number="25">    , testProperty <span class="st">&quot;3/1&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb39-26" data-line-number="26">        prop_ScreenOffset_MonoidAction_product nat3 nat1</a>
+<a class="sourceLine" id="cb39-27" data-line-number="27">    ]</a></code></pre></div>
+<p>The action is well defined on valid coordinates:</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" data-line-number="1">prop_ScreenOffset_MonoidAction_welldefined</a>
+<a class="sourceLine" id="cb40-2" data-line-number="2"><span class="ot">  ::</span> forall w t</a>
+<a class="sourceLine" id="cb40-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb40-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w <span class="ot">-&gt;</span> <span class="dt">Proxy</span> t</a>
+<a class="sourceLine" id="cb40-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb40-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb40-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb40-8" data-line-number="8">prop_ScreenOffset_MonoidAction_welldefined pw _ off <span class="fu">=</span></a>
+<a class="sourceLine" id="cb40-9" data-line-number="9">  <span class="kw">let</span> w <span class="fu">=</span> toWidth pw <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-10" data-line-number="10">  forAll (genValidCoords pw) <span class="fu">$</span> \pos<span class="fu">@</span>(_,k) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb40-11" data-line-number="11">    <span class="kw">let</span> (x,y) <span class="fu">=</span> applyScreenOffset off pos <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-12" data-line-number="12">    (<span class="dv">0</span> <span class="fu">&lt;=</span> x) <span class="fu">.&amp;&amp;.</span> (x <span class="fu">&lt;</span> w) <span class="fu">.&amp;&amp;.</span> (k <span class="fu">&lt;=</span> y)</a>
+<a class="sourceLine" id="cb40-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb40-14" data-line-number="14"><span class="ot">test_ScreenOffset_MonoidAction_welldefined ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb40-15" data-line-number="15">test_ScreenOffset_MonoidAction_welldefined <span class="fu">=</span></a>
+<a class="sourceLine" id="cb40-16" data-line-number="16">  testGroup <span class="st">&quot;welldefined law&quot;</span></a>
+<a class="sourceLine" id="cb40-17" data-line-number="17">    [ testProperty <span class="st">&quot;30/8&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb40-18" data-line-number="18">        prop_ScreenOffset_MonoidAction_welldefined nat30 nat8</a>
+<a class="sourceLine" id="cb40-19" data-line-number="19">    , testProperty <span class="st">&quot;30/4&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb40-20" data-line-number="20">        prop_ScreenOffset_MonoidAction_welldefined nat30 nat4</a>
+<a class="sourceLine" id="cb40-21" data-line-number="21">    , testProperty <span class="st">&quot;15/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb40-22" data-line-number="22">        prop_ScreenOffset_MonoidAction_welldefined nat15 nat2</a>
+<a class="sourceLine" id="cb40-23" data-line-number="23">    , testProperty <span class="st">&quot;8/2&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb40-24" data-line-number="24">        prop_ScreenOffset_MonoidAction_welldefined nat8 nat2</a>
+<a class="sourceLine" id="cb40-25" data-line-number="25">    ]</a></code></pre></div>
+<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" data-line-number="1">prop_ScreenOffset_applyBlockOffset_examples</a>
+<a class="sourceLine" id="cb41-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb41-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> <span class="dt">Span</span> <span class="ot">-&gt;</span> (<span class="dt">Int</span>, <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb41-4" data-line-number="4">  <span class="ot">-&gt;</span> (<span class="dt">Int</span>, <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb41-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb41-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb41-7" data-line-number="7">prop_ScreenOffset_applyBlockOffset_examples w t rle x y <span class="fu">=</span></a>
+<a class="sourceLine" id="cb41-8" data-line-number="8">  y <span class="fu">===</span> applyBlockOffset w t rle x</a>
+<a class="sourceLine" id="cb41-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb41-10" data-line-number="10"><span class="ot">test_ScreenOffset_applyBlockOffset_examples ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb41-11" data-line-number="11">test_ScreenOffset_applyBlockOffset_examples <span class="fu">=</span></a>
+<a class="sourceLine" id="cb41-12" data-line-number="12">  testGroup <span class="st">&quot;applyBlockOffset examples&quot;</span></a>
+<a class="sourceLine" id="cb41-13" data-line-number="13">    [ testCases</a>
+<a class="sourceLine" id="cb41-14" data-line-number="14">      (uncurry3 <span class="fu">$</span> prop_ScreenOffset_applyBlockOffset_examples <span class="dv">8</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb41-15" data-line-number="15">      [ ( <span class="st">&quot;#1&quot;</span></a>
+<a class="sourceLine" id="cb41-16" data-line-number="16">        , ( fromFreqList [(<span class="dv">10</span>,<span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb41-17" data-line-number="17">          , (<span class="dv">0</span>,<span class="dv">0</span>)</a>
+<a class="sourceLine" id="cb41-18" data-line-number="18">          , (<span class="dv">2</span>,<span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb41-19" data-line-number="19">          )</a>
+<a class="sourceLine" id="cb41-20" data-line-number="20">        )</a>
+<a class="sourceLine" id="cb41-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb41-22" data-line-number="22">      , ( <span class="st">&quot;#2&quot;</span></a>
+<a class="sourceLine" id="cb41-23" data-line-number="23">        , ( fromFreqList [(<span class="dv">11</span>,<span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb41-24" data-line-number="24">          , (<span class="dv">0</span>,<span class="dv">0</span>)</a>
+<a class="sourceLine" id="cb41-25" data-line-number="25">          , (<span class="dv">3</span>,<span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb41-26" data-line-number="26">          )</a>
+<a class="sourceLine" id="cb41-27" data-line-number="27">        )</a>
+<a class="sourceLine" id="cb41-28" data-line-number="28">      ]</a>
+<a class="sourceLine" id="cb41-29" data-line-number="29">    ]</a></code></pre></div>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" data-line-number="1">prop_ScreenOffset_eq_examples</a>
+<a class="sourceLine" id="cb42-2" data-line-number="2"><span class="ot">  ::</span> forall w t</a>
+<a class="sourceLine" id="cb42-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t )</a>
+<a class="sourceLine" id="cb42-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb42-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">ScreenOffset</span> w t</a>
+<a class="sourceLine" id="cb42-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">Property</span></a>
+<a class="sourceLine" id="cb42-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb42-8" data-line-number="8">prop_ScreenOffset_eq_examples x y <span class="fu">=</span></a>
+<a class="sourceLine" id="cb42-9" data-line-number="9">  x <span class="fu">===</span> y</a>
+<a class="sourceLine" id="cb42-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb42-11" data-line-number="11"><span class="ot">test_ScreenOffset_eq_examples ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb42-12" data-line-number="12">test_ScreenOffset_eq_examples <span class="fu">=</span></a>
+<a class="sourceLine" id="cb42-13" data-line-number="13">  testGroup <span class="st">&quot;Examples&quot;</span></a>
+<a class="sourceLine" id="cb42-14" data-line-number="14">    [ <span class="kw">let</span></a>
+<a class="sourceLine" id="cb42-15" data-line-number="15">        z <span class="fu">=</span> defNoNewlines nat3 nat1 [(<span class="dv">1</span>, <span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb42-16" data-line-number="16">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb42-17" data-line-number="17">        testProperty <span class="st">&quot;#1&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb42-18" data-line-number="18">          prop_ScreenOffset_eq_examples</a>
+<a class="sourceLine" id="cb42-19" data-line-number="19">            (defNoNewlines nat3 nat1 [(<span class="dv">4</span>, <span class="dt">Fixed1</span>)])</a>
+<a class="sourceLine" id="cb42-20" data-line-number="20">            (z <span class="fu">&lt;&gt;</span> z <span class="fu">&lt;&gt;</span> z <span class="fu">&lt;&gt;</span> z)</a>
+<a class="sourceLine" id="cb42-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb42-22" data-line-number="22">    , <span class="kw">let</span></a>
+<a class="sourceLine" id="cb42-23" data-line-number="23">        z <span class="fu">=</span> defNoNewlines nat3 nat1 [(<span class="dv">1</span>, <span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb42-24" data-line-number="24">        w <span class="fu">=</span> defWithNewlines nat3 nat1 [] <span class="dv">1</span> [(<span class="dv">1</span>, <span class="dt">Fixed1</span>)]</a>
+<a class="sourceLine" id="cb42-25" data-line-number="25">      <span class="kw">in</span></a>
+<a class="sourceLine" id="cb42-26" data-line-number="26">        testGroup <span class="st">&quot;#2&quot;</span></a>
+<a class="sourceLine" id="cb42-27" data-line-number="27">          [ testProperty <span class="st">&quot;zzw&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb42-28" data-line-number="28">            prop_ScreenOffset_eq_examples</a>
+<a class="sourceLine" id="cb42-29" data-line-number="29">              (defWithNewlines nat3 nat1 [(<span class="dv">2</span>, <span class="dt">Fixed1</span>)] <span class="dv">1</span> [(<span class="dv">1</span>, <span class="dt">Fixed1</span>)])</a>
+<a class="sourceLine" id="cb42-30" data-line-number="30">              (z <span class="fu">&lt;&gt;</span> z <span class="fu">&lt;&gt;</span> w)</a>
+<a class="sourceLine" id="cb42-31" data-line-number="31"></a>
+<a class="sourceLine" id="cb42-32" data-line-number="32">          , testProperty <span class="st">&quot;zzzw&quot;</span> <span class="fu">$</span></a>
+<a class="sourceLine" id="cb42-33" data-line-number="33">            prop_ScreenOffset_eq_examples</a>
+<a class="sourceLine" id="cb42-34" data-line-number="34">              (defWithNewlines nat3 nat1 [(<span class="dv">3</span>, <span class="dt">Fixed1</span>)] <span class="dv">1</span> [(<span class="dv">1</span>, <span class="dt">Fixed1</span>)])</a>
+<a class="sourceLine" id="cb42-35" data-line-number="35">              (z <span class="fu">&lt;&gt;</span> z <span class="fu">&lt;&gt;</span> z <span class="fu">&lt;&gt;</span> w)</a>
+<a class="sourceLine" id="cb42-36" data-line-number="36">          ]</a>
+<a class="sourceLine" id="cb42-37" data-line-number="37">    ]</a></code></pre></div>
+<h2 id="test-suite">Test Suite</h2>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1"><span class="ot">test_ScreenOffset ::</span> <span class="dt">TestTree</span></a>
+<a class="sourceLine" id="cb43-2" data-line-number="2">test_ScreenOffset <span class="fu">=</span></a>
+<a class="sourceLine" id="cb43-3" data-line-number="3">  testGroup <span class="st">&quot;ScreenOffset&quot;</span></a>
+<a class="sourceLine" id="cb43-4" data-line-number="4">    [ test_SpanWidth</a>
+<a class="sourceLine" id="cb43-5" data-line-number="5">    , test_ScreenOffset_type_nats</a>
+<a class="sourceLine" id="cb43-6" data-line-number="6">    , test_TakeChunk</a>
+<a class="sourceLine" id="cb43-7" data-line-number="7">    , test_TakeChunks</a>
+<a class="sourceLine" id="cb43-8" data-line-number="8">    , test_ScreenOffset_Monoid</a>
+<a class="sourceLine" id="cb43-9" data-line-number="9">    , test_ScreenOffset_MonoidAction</a>
+<a class="sourceLine" id="cb43-10" data-line-number="10">    , test_ScreenOffset_eq_examples</a>
+<a class="sourceLine" id="cb43-11" data-line-number="11">    ]</a></code></pre></div>
+</body>
+</html>

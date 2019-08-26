@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Ned.Data.RunLengthEncoding</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <style type="text/css">
+  /* Kudos to Pascal Hertleif                  */
+  /* https://gist.github.com/killercup/5917178 */
+  
+  html {
+    font-size: 100%;
+    overflow-y: scroll;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  body {
+    color: #444;
+    font-family: Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 1em;
+    margin: auto;
+    max-width: 42em;
+    background: #fefefe;
+  }
+  
+  a {
+    color: #0645ad;
+    text-decoration: none;
+  }
+  
+  a:visited {
+    color: #0b0080;
+  }
+  
+  a:hover {
+    color: #06e;
+  }
+  
+  a:active {
+    color: #faa700;
+  }
+  
+  a:focus {
+    outline: thin dotted;
+  }
+  
+  *::-moz-selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #000;
+  }
+  
+  *::selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #000;
+  }
+  
+  a::-moz-selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #0645ad;
+  }
+  
+  a::selection {
+    background: rgba(255, 255, 0, 0.3);
+    color: #0645ad;
+  }
+  
+  p {
+    margin: 1em 0;
+  }
+  
+  img {
+    max-width: 100%;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #111;
+    line-height: 125%;
+    margin-top: 2em;
+    font-weight: normal;
+  }
+  
+  h4, h5, h6 {
+    font-weight: bold;
+  }
+  
+  h1 {
+    font-size: 2.5em;
+  }
+  
+  h2 {
+    font-size: 2em;
+  }
+  
+  h3 {
+    font-size: 1.5em;
+  }
+  
+  h4 {
+    font-size: 1.2em;
+  }
+  
+  h5 {
+    font-size: 1em;
+  }
+  
+  h6 {
+    font-size: 0.9em;
+  }
+  
+  blockquote {
+    display: block;
+    color: #666666;
+    margin: 0;
+    padding-left: 3em;
+    border-left: 0.5em #EEE solid;
+  }
+  
+  hr {
+    display: block;
+    height: 2px;
+    border: 0;
+    border-top: 1px solid #aaa;
+    border-bottom: 1px solid #eee;
+    margin: 1em 0;
+    padding: 0;
+  }
+  
+  pre, code, kbd, samp {
+    color: #000;
+    font-family: monospace, monospace;
+    _font-family: 'courier new', monospace;
+    font-size: 0.98em;
+  }
+  
+  pre {
+    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  
+  b, strong {
+    font-weight: bold;
+  }
+  
+  dfn {
+    font-style: italic;
+  }
+  
+  ins {
+    background: #ff9;
+    color: #000;
+    text-decoration: none;
+  }
+  
+  mark {
+    background: #ff0;
+    color: #000;
+    font-style: italic;
+    font-weight: bold;
+  }
+  
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+  
+  sup {
+    top: -0.5em;
+  }
+  
+  sub {
+    bottom: -0.25em;
+  }
+  
+  ul, ol {
+    margin: 1em 0;
+    padding: 0 0 0 2em;
+  }
+  
+  li p:last-child {
+    margin-bottom: 0;
+  }
+  
+  ul ul, ol ol {
+    margin: .3em 0;
+  }
+  
+  dl {
+    margin-bottom: 1em;
+  }
+  
+  dt {
+    font-weight: bold;
+    margin-bottom: .8em;
+  }
+  
+  dd {
+    margin: 0 0 .8em 2em;
+  }
+  
+  dd:last-child {
+    margin-bottom: 0;
+  }
+  
+  img {
+    border: 0;
+    -ms-interpolation-mode: bicubic;
+    vertical-align: middle;
+  }
+  
+  figure {
+    display: block;
+    text-align: center;
+    margin: 1em 0;
+  }
+  
+  figure img {
+    border: none;
+    margin: 0 auto;
+  }
+  
+  figcaption {
+    font-size: 0.8em;
+    font-style: italic;
+    margin: 0 0 .8em;
+  }
+  
+  table {
+    margin-bottom: 2em;
+    border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    border-spacing: 0;
+    border-collapse: collapse;
+  }
+  
+  table th {
+    padding: .2em 1em;
+    background-color: #eee;
+    border-top: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+  }
+  
+  table td {
+    padding: .2em 1em;
+    border-top: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+    vertical-align: top;
+  }
+  
+  .author {
+    font-size: 1.2em;
+    text-align: center;
+  }
+  
+  .sourceCode {
+    background-color: #eee;
+  }
+  
+  @media only screen and (min-width: 480px) {
+    body {
+      font-size: 14px;
+    }
+  }
+  @media only screen and (min-width: 768px) {
+    body {
+      font-size: 16px;
+    }
+  }
+  @media print {
+    * {
+      background: transparent !important;
+      color: black !important;
+      filter: none !important;
+      -ms-filter: none !important;
+    }
+  
+    body {
+      font-size: 12pt;
+      max-width: 100%;
+    }
+  
+    a, a:visited {
+      text-decoration: underline;
+    }
+  
+    hr {
+      height: 1px;
+      border: 0;
+      border-bottom: 1px solid black;
+    }
+  
+    a[href]:after {
+      content: " (" attr(href) ")";
+    }
+  
+    abbr[title]:after {
+      content: " (" attr(title) ")";
+    }
+  
+    .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after {
+      content: "";
+    }
+  
+    pre, blockquote {
+      border: 1px solid #999;
+      padding-right: 1em;
+      page-break-inside: avoid;
+    }
+  
+    tr, img {
+      page-break-inside: avoid;
+    }
+  
+    img {
+      max-width: 100% !important;
+    }
+  
+    @page :left {
+      margin: 15mm 20mm 15mm 10mm;
+  }
+  
+    @page :right {
+      margin: 15mm 10mm 15mm 20mm;
+  }
+  
+    p, h2, h3 {
+      orphans: 3;
+      widows: 3;
+    }
+  
+    h2, h3 {
+      page-break-after: avoid;
+    }
+  }
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Ned.Data.RunLengthEncoding</h1>
+</header>
+<h2 id="contents">Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#run-length-encoding">Run Length Encoding</a>
+<ul>
+<li><a href="#queries">Queries</a></li>
+<li><a href="#monoid-instance">Monoid instance</a></li>
+</ul></li>
+</ul>
+<h1 id="introduction">Introduction</h1>
+<p><em>Run length encoding</em> is a basic form of compression for lists. Rather than storing each element of the list, we break the list into contiguous <em>runs</em> of identical elements and then just store the number of times the element appears in the run. Calling this a compression format may seem like a stretch, but it can work well on data containing many such runs or runs of long length.</p>
+<p>There’s another way to think about run length encoding that I like. Recall that the list type constructor corresponds to the free monoid construction on an arbitrary set. With an associative operator we have the handy exponential notation for abbreviating products; rather than <span class="math inline">\(aaa\)</span> we can say <span class="math inline">\(a^3\)</span>. But this is precisely run length encoding!</p>
+<p>We will need this utility type later.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">    MultiParamTypeClasses</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">  , InstanceSigs</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">#-}</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="kw">module</span> <span class="dt">Ned.Data.RunLengthEncoding</span> (</a>
+<a class="sourceLine" id="cb1-7" data-line-number="7">    <span class="dt">RunLengthEncoding</span>(<span class="fu">..</span>)</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8">  , <span class="dt">RunSize</span>(<span class="fu">..</span>)</a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">  , <span class="dt">Run</span>(<span class="fu">..</span>)</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">  <span class="co">-- * Constructors</span></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  , mkRun</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">  , fromFreqList</a>
+<a class="sourceLine" id="cb1-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  <span class="co">-- * Queries</span></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16">  , isEmptyRLE</a>
+<a class="sourceLine" id="cb1-17" data-line-number="17">  , firstRun</a>
+<a class="sourceLine" id="cb1-18" data-line-number="18">  , lastRun</a>
+<a class="sourceLine" id="cb1-19" data-line-number="19">  , toFreqList</a>
+<a class="sourceLine" id="cb1-20" data-line-number="20">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"><span class="kw">import</span> <span class="dt">Data.Foldable</span></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Data.List</span> (intercalate)</a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25"><span class="kw">import</span> <span class="dt">Ned.Data.FingerTree</span></a></code></pre></div>
+<h1 id="run-length-encoding">Run Length Encoding</h1>
+<p>We’ll be using a finger tree to store a run length encoded list, and so we’ll need an appropriate monoid annotation type. We call the monoid type <code>RunSize</code>, giving it two integer parameters: ‘count’ measures a number of runs, and ‘length’ measures the total number of items appearing in all runs.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">RunSize</span> <span class="fu">=</span> <span class="dt">RunSize</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  {<span class="ot"> runCount  ::</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  ,<span class="ot"> runLength ::</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>This type can be made a monoid in the usual way.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Semigroup</span> <span class="dt">RunSize</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  (<span class="dt">RunSize</span> s1 l1) <span class="fu">&lt;&gt;</span> (<span class="dt">RunSize</span> s2 l2) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">    <span class="dt">RunSize</span> (s1 <span class="fu">+</span> s2) (l1 <span class="fu">+</span> l2)</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="kw">instance</span> <span class="dt">Monoid</span> <span class="dt">RunSize</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">  mempty <span class="fu">=</span> <span class="dt">RunSize</span> <span class="dv">0</span> <span class="dv">0</span></a></code></pre></div>
+<p>Next we’ll need a wrapper type to represent value/run length pairs.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Run</span> a <span class="fu">=</span> <span class="dt">Run</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  {<span class="ot"> unRun ::</span> (<span class="dt">Int</span>, a)</a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">mkRun</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">Run</span> a</a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">mkRun k a <span class="fu">=</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">  <span class="kw">if</span> k <span class="fu">&lt;=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">    <span class="kw">then</span> error <span class="fu">$</span> <span class="st">&quot;mkRun: k must be positive, but got &quot;</span> <span class="fu">++</span> show k</a>
+<a class="sourceLine" id="cb4-10" data-line-number="10">    <span class="kw">else</span> <span class="dt">Run</span> (k, a)</a>
+<a class="sourceLine" id="cb4-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb4-12" data-line-number="12"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Run</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-13" data-line-number="13">  fmap f (<span class="dt">Run</span> (k, a)) <span class="fu">=</span> <span class="dt">Run</span> (k, f a)</a>
+<a class="sourceLine" id="cb4-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb4-15" data-line-number="15"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb4-16" data-line-number="16">  <span class="dt">Valued</span> <span class="dt">RunSize</span> (<span class="dt">Run</span> a)</a>
+<a class="sourceLine" id="cb4-17" data-line-number="17">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-18" data-line-number="18">    value (<span class="dt">Run</span> (k, _)) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb4-19" data-line-number="19">      <span class="dt">RunSize</span> <span class="dv">1</span> k</a></code></pre></div>
+<p>We’re finally prepared to defing run length encoded lists in terms of <code>RunSize</code> and <code>Run</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">RunLengthEncoding</span> a <span class="fu">=</span> <span class="dt">RLE</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">  {<span class="ot"> unRLE ::</span> <span class="dt">FingerTree</span> <span class="dt">RunSize</span> (<span class="dt">Run</span> a)</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  } <span class="kw">deriving</span> <span class="dt">Eq</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">  <span class="dt">Valued</span> <span class="dt">RunSize</span> (<span class="dt">RunLengthEncoding</span> a)</a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">    value (<span class="dt">RLE</span> x) <span class="fu">=</span> value x</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb5-10" data-line-number="10"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">  <span class="dt">Functor</span> <span class="dt">RunLengthEncoding</span></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-13" data-line-number="13">    fmap f (<span class="dt">RLE</span> x) <span class="fu">=</span> <span class="dt">RLE</span> <span class="fu">$</span> fmapFT (fmap f) x</a></code></pre></div>
+<p>It will be handy to view run length encoded lists as <em>frequency lists</em>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">toFreqList</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">RunLengthEncoding</span> a <span class="ot">-&gt;</span> [(<span class="dt">Int</span>, a)]</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">toFreqList (<span class="dt">RLE</span> x) <span class="fu">=</span> map unRun <span class="fu">$</span> toList x</a></code></pre></div>
+<p>And we can give a <code>Foldable</code> instance for run length encoded lists.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">instance</span> <span class="dt">Foldable</span> <span class="dt">RunLengthEncoding</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">  foldr</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3"><span class="ot">    ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> a <span class="ot">-&gt;</span> b</a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">  foldr f e (<span class="dt">RLE</span> xs) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    <span class="kw">let</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">      rep g n a <span class="fu">=</span> <span class="kw">if</span> n <span class="fu">&lt;=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7">        <span class="kw">then</span> a</a>
+<a class="sourceLine" id="cb7-8" data-line-number="8">        <span class="kw">else</span> rep g (n<span class="fu">-</span><span class="dv">1</span>) (g a)</a>
+<a class="sourceLine" id="cb7-9" data-line-number="9">    <span class="kw">in</span> <span class="kw">case</span> unsnoc xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb7-10" data-line-number="10">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> e</a>
+<a class="sourceLine" id="cb7-11" data-line-number="11">      <span class="dt">Just</span> (<span class="dt">Run</span> (k, a), ys) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-12" data-line-number="12">        foldr f (rep (f a) k e) (<span class="dt">RLE</span> ys)</a></code></pre></div>
+<h2 id="queries">Queries</h2>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">isEmptyRLE</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">RunLengthEncoding</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">isEmptyRLE (<span class="dt">RLE</span> xs) <span class="fu">=</span> isEmptyFT xs</a></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1">firstRun</a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">RunLengthEncoding</span> a</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Run</span> a, <span class="dt">RunLengthEncoding</span> a)</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">firstRun (<span class="dt">RLE</span> x) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">  <span class="kw">case</span> uncons x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">    <span class="dt">Just</span> (a, as) <span class="ot">-&gt;</span> <span class="dt">Just</span> (a, <span class="dt">RLE</span> as)</a></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">lastRun</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">RunLengthEncoding</span> a</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Run</span> a, <span class="dt">RunLengthEncoding</span> a)</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">lastRun (<span class="dt">RLE</span> x) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">  <span class="kw">case</span> unsnoc x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">    <span class="dt">Just</span> (a, as) <span class="ot">-&gt;</span> <span class="dt">Just</span> (a, <span class="dt">RLE</span> as)</a></code></pre></div>
+<h2 id="monoid-instance">Monoid instance</h2>
+<p>The <code>Semigroup</code> product on run length encoded lists combines the innermost runs, to maintain the invariant that no two adjacent runs have the same value.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">  ( <span class="dt">Eq</span> a</a>
+<a class="sourceLine" id="cb11-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (<span class="dt">RunLengthEncoding</span> a)</a>
+<a class="sourceLine" id="cb11-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">    (<span class="dt">RLE</span> as) <span class="fu">&lt;&gt;</span> (<span class="dt">RLE</span> bs) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">      <span class="kw">case</span> uncons bs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb11-7" data-line-number="7">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">RLE</span> as</a>
+<a class="sourceLine" id="cb11-8" data-line-number="8">        <span class="dt">Just</span> (<span class="dt">Run</span> (kb, b), bs&#39;) <span class="ot">-&gt;</span> <span class="kw">case</span> unsnoc as <span class="kw">of</span></a>
+<a class="sourceLine" id="cb11-9" data-line-number="9">          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">RLE</span> bs</a>
+<a class="sourceLine" id="cb11-10" data-line-number="10">          <span class="dt">Just</span> (<span class="dt">Run</span> (ka, a), as&#39;) <span class="ot">-&gt;</span> <span class="dt">RLE</span> <span class="fu">$</span> mconcat <span class="fu">$</span> <span class="kw">if</span> a <span class="fu">==</span> b</a>
+<a class="sourceLine" id="cb11-11" data-line-number="11">            <span class="kw">then</span> [ as&#39;, fromListFT [ <span class="dt">Run</span> (ka<span class="fu">+</span>kb, a) ], bs&#39; ]</a>
+<a class="sourceLine" id="cb11-12" data-line-number="12">            <span class="kw">else</span> [ as, bs ]</a>
+<a class="sourceLine" id="cb11-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb11-14" data-line-number="14"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb11-15" data-line-number="15">  ( <span class="dt">Eq</span> a</a>
+<a class="sourceLine" id="cb11-16" data-line-number="16">  ) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">RunLengthEncoding</span> a)</a>
+<a class="sourceLine" id="cb11-17" data-line-number="17">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-18" data-line-number="18">    mempty <span class="fu">=</span> <span class="dt">RLE</span> mempty</a></code></pre></div>
+<p>With the semigroup instance in hand we can define a left inverse for <code>toFreqList</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1">fromFreqList</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Eq</span> a )</a>
+<a class="sourceLine" id="cb12-3" data-line-number="3">  <span class="ot">=&gt;</span> [(<span class="dt">Int</span>, a)] <span class="ot">-&gt;</span> <span class="dt">RunLengthEncoding</span> a</a>
+<a class="sourceLine" id="cb12-4" data-line-number="4">fromFreqList <span class="fu">=</span> foldr f mempty <span class="fu">.</span> filter p</a>
+<a class="sourceLine" id="cb12-5" data-line-number="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb12-6" data-line-number="6">    f (k,a) xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb12-7" data-line-number="7">      (<span class="dt">RLE</span> <span class="fu">$</span> fromListFT [mkRun k a]) <span class="fu">&lt;&gt;</span> xs</a>
+<a class="sourceLine" id="cb12-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb12-9" data-line-number="9">    p (k,_) <span class="fu">=</span> k <span class="fu">&gt;</span> <span class="dv">0</span></a></code></pre></div>
+<p>And with <code>fromFreqList</code> in hand we can give a handy <code>Show</code> instance.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">  ( <span class="dt">Show</span> a</a>
+<a class="sourceLine" id="cb13-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Show</span> (<span class="dt">RunLengthEncoding</span> a)</a>
+<a class="sourceLine" id="cb13-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb13-5" data-line-number="5">    show xs <span class="fu">=</span></a>
+<a class="sourceLine" id="cb13-6" data-line-number="6">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb13-7" data-line-number="7"><span class="ot">        toPairs ::</span> <span class="dt">RunLengthEncoding</span> a <span class="ot">-&gt;</span> [(<span class="dt">Int</span>, a)]</a>
+<a class="sourceLine" id="cb13-8" data-line-number="8">        toPairs z <span class="fu">=</span> <span class="kw">case</span> firstRun z <span class="kw">of</span></a>
+<a class="sourceLine" id="cb13-9" data-line-number="9">          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> []</a>
+<a class="sourceLine" id="cb13-10" data-line-number="10">          <span class="dt">Just</span> (<span class="dt">Run</span> a, ds) <span class="ot">-&gt;</span> a <span class="fu">:</span> toPairs ds</a>
+<a class="sourceLine" id="cb13-11" data-line-number="11">      <span class="kw">in</span> concat</a>
+<a class="sourceLine" id="cb13-12" data-line-number="12">        [ <span class="st">&quot;(fromFreqList [&quot;</span></a>
+<a class="sourceLine" id="cb13-13" data-line-number="13">        , intercalate <span class="st">&quot;,&quot;</span> <span class="fu">$</span> map show <span class="fu">$</span> toPairs xs</a>
+<a class="sourceLine" id="cb13-14" data-line-number="14">        , <span class="st">&quot;])&quot;</span></a>
+<a class="sourceLine" id="cb13-15" data-line-number="15">        ]</a></code></pre></div>
+</body>
+</html>

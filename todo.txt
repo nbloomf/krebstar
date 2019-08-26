@@ -1,0 +1,350 @@
+FEATURES TO IMPLEMENT IN ORDER OF PRIORITY
+==========================================
+1. File load and save!!!!
+    - Show file name
+3. Respond to basic mouse click events
+4. Raw headless mode: list of actions
+    - (v. useful for automated testing)
+
+
+- Split into sublibraries (new cabal feature)
+  - reflect nat
+  - finger trees
+  - text boxes
+  - lang: embeddable strongly typed concatenative scripting language
+  - ned
+
+- lang
+  - initial algebras and terminal coalgebras
+  - case analysis for data
+  - rename data to poly
+  - built in standard library
+    - Bool, List
+    - int arithmetic
+    - string operations
+  - char and string words
+  - need intrinsic functions for
+    - working with primitives
+    - doing IO?
+  - colored prompt
+  - print help
+  - schemata
+    - compose:
+    - shuffle:a1:a2:a3:...:ak
+  - need to work out how extensability works.
+
+
+
+ISSUES
+======
+1. Implement tiled panels
+3. Command box is messed up
+5. Crop panel components to size
+
+Test lib ideas
+==============
+- built in primitives for testing state machines with invariants
+- happy path also provides for running individual tests from the shell
+
+types:
+  - integer: ..., -1, 0, 1, 2, ...
+  - string: "", "a", "foobar"
+  - logical address: lNcN
+  - "entity" (character, line, word, etc)
+  - regular expression
+  - lists?
+primitives:
+  - move
+  - ins
+  - del
+  - 'repeat'
+  - save
+
+Need a 'sublanguage' for expressing locations in the text, both absolute (line & column) and relative (this line, this character, two lines before this line). Other commands can use this, e.g. move, select, delete
+
+permute.1.2.3
+
+
+
+l4c5 move
+
+2 "a" ins
+
+2 c del
+
+CLEANUP
+=======
+- FingerTree: get rid of takeWhile.. in favor of break prefix
+- add finger tree, zip, and buffer tests to use the validate* functions
+- clean up buffer constructor mess
+
+TESTS TO WRITE
+==============
+- cursor up moves the cursor up
+- cursor down moves the cursor down
+- moving cursor over newlines is wonky
+
+
+Features
+========
+- built in command language
+- configurable keymapping
+- load command dictionary from a file (and reload)
+- debug mode that dumps repro steps to a log file in a parseable format
+
+
+
+
+apply :: $S ($S -> $R) -> $R
+
+quote :: $S a -> $S ($R -> $R a)
+
+compose :: $S ($B -> $C) ($A -> $B) -> $S ($A -> $C)
+
+swap :: $S a b -> $S b a
+
+-- universal algebra, redundant
+cond :: $S a a Bool -> $S a
+
+-- get rid of this in favor of terminal coalgebras
+while :: $S ($S -> $R Bool) ($R -> $S) -> $S
+
+ideas:
+- Two kinds of arrows: $S -o $R and a -> b. can we
+  still do type inference?
+- /cond/ is the universal algebra map for bool.
+  can we define it using a schema on initial algebras?
+- what about /while/? Can it be thought of as generic to
+  initial algebras?
+- how about /swap/? Would be cool to have a schema for
+  built in arbitrary 'permutation' operators
+
+
+
+
+
+We have three mechanisms for introducing new constructed types: using a /polynomial functor declaration/ or an /initial algebra declaration/, or a /terminal coalgebra declaration/.
+
+Polynomial functors are declared as follows:
+
+data 'T' a1 a2 ... ak
+  = 'T_1' u11 u12 ... u1k1
+  | 'T_2' u21 u22 ... u2k2
+  ...
+  | 'T_m' um1 um2 ... umkm
+
+where
+- k is in [0..]
+- each ki is in [0..]
+- each uij is a type depending at most on the variables a1 ... ak.
+
+When a polynomial functor is declared, some new values are also defined implicitly:
+
+Constructors:
+
+T_1 :: $S u11 u12 ... u1k1 -> $S (T a1 a2 ... ak)
+T_2 :: $S u11 u12 ... u1k2 -> $S (T a1 a2 ... ak)
+...
+T_m :: $S u11 u12 ... u1km -> $S (T a1 a2 ... ak)
+
+And a destructor:
+
+analyze:T
+  :: $S (!R. $R u11 u12 ... u1k1 -o $R a)
+        (!R. $R u21 u22 ... u2k2 -o $R a) ...
+        (!R. $R um1 um2 ... umkm -o $R a)
+        (T a1 a2 ... ak)
+  -o $S a
+
+Moreover, these functions satisfy specific laws: (the case axioms)
+
+f1 f2 ... fm (T_i ui1 ui2 ... uiki) analyze:T
+===
+ui1 ui2 ... uiki fi
+
+example-
+
+data Unit
+  = Unit
+
+Unit :: $S -o $S Unit
+
+analyze:Unit :: $S (!R. $R -o $R a) Unit -o $S a
+
+data Bool
+  = True
+  | False
+
+analyze:Bool is if/then/else
+
+analyze:Bool :: $S (!R. $R -o $R a) (!R. $R -o $R a) Bool -o $S a
+
+Once we've declared a polynomial functor, we can then declare an initial algebra.
+
+Suppose T is defined as above, with
+- k > 1
+- ak does not appear in at least one of the T_i
+
+then we can define
+
+algebra 'A' a1 a2 ... a(k-1) of 'T'
+  = 'A_1' u11 u12 ... u1k1
+  | 'A_2' u21 u22 ... u2k2
+  ...
+  | 'A_m' um1 um2 ... umkm
+
+identical to the constructors for T /except/ that all occurrences of ak
+in the signature are replaced by A a1 a2 ... a(k-1).
+
+We get some more functions for free:
+
+Constructors:
+
+A_1 :: $S u11 u12 ... u1k1 -o $S (A a1 a2 ... a(k-1))
+A_2 :: $S u11 u12 ... u1k2 -o $S (A a1 a2 ... a(k-1))
+...
+A_m :: $S u11 u12 ... u1km -o $S (A a1 a2 ... a(k-1))
+
+Destructor:
+
+analyze:A
+  :: $S (!R. $R u11 u12 ... u1k1 -o $R a)
+        (!R. $R u21 u22 ... u2k2 -o $R a) ...
+        (!R. $R um1 um2 ... umkm -o $R a)
+        (A a1 a2 ... a(k-1))
+  -o $S a
+
+again, all occurrences of ak are replaced by A a1 a2 ... a(k-1).
+
+The constructors and destructor satisfy a similar list of case axioms.
+
+Catamorphism:
+
+cata:A
+  :: $S (!R. $R u11 u12 ... u1k1 -o $R b)
+        (!R. $R u21 u22 ... u2k2 -o $R b) ...
+        (!R. $R um1 um2 ... umkm -o $R b)
+        (A a1 a2 ... a(k-1))
+  -o $S b
+
+where all occurrences of ak are replaced by b.
+
+We also have a list of catamorphism laws.
+
+example:
+
+data List' a x
+  = Nil'
+  | Cons' a x
+
+Nil' :: $S -o $S (List' a x)
+Cons' :: $S a x -o $S (List' a x)
+
+algebra List a of List'
+  = Nil
+  | Cons a (List a)
+
+Nil  :: $S -o $S (List a)
+Cons :: $S a (List a) -o $S (List a)
+
+cata:List
+  :: $S (!R. $R -o $R b)
+        (!R. $R a b -o $R b)
+        (List a)
+  -o $S b
+
+
+
+Once we've declared a polynomial functor, we can then declare a terminal coalgebra.
+
+Suppose T is defined as above, with
+- k > 1
+
+then we can define
+
+coalgebra 'A' a1 a2 ... a(k-1) of 'T'
+  = 'A_1' u11 u12 ... u1k1
+  | 'A_2' u21 u22 ... u2k2
+  ...
+  | 'A_m' um1 um2 ... umkm
+
+
+
+Effect Tokens
+=============
+
+Idea: if we drop `dup` and `pop` from the language, maybe 
+we can handle effects using functions that take an 'effect token' parameter,
+where the semantics of the language let us control how values of the token type
+can exist. For instance an IO token that is constructed exactly once at run time
+and passed around, so that functions that need to perform IO have to have access to the token
+(and can only do this one at a time.)
+
+print :: $S +IO String -o $S +IO
+
+
+
+
+
+
+
+
+
+Declarations
+------------
+
+data 'T' a1 a2 ... ak
+  = 'T_1' u11 u12 ... u1k1
+  | 'T_2' u21 u22 ... u2k2
+  ...
+  | 'T_m' um1 um2 ... umkm
+
+Effect:
+- add words 'T_1' ... 'T_m' to the dictionary
+- add word cases:T to the dictionary
+- add case axioms
+
+algebra 'A' a1 a2 ... a(k-1) of 'T'
+  = 'A_1' u11 u12 ... u1k1
+  | 'A_2' u21 u22 ... u2k2
+  ...
+  | 'A_m' um1 um2 ... umkm
+
+Effect:
+- add words 'A_i' to the dictionary
+- add case:A to the dictionary
+- add cata:A to the dictionary
+- add case axioms
+- add cata axioms 
+
+coalgebra 'A' a1 a2 ... a(k-1) of 'T'
+  = 'A_1' u11 u12 ... u1k1
+  | 'A_2' u21 u22 ... u2k2
+  ...
+  | 'A_m' um1 um2 ... umkm
+
+Effect:
+- add words 'A_i' to the dictionary
+- add case:A to the dictionary
+- add ana:A to the dictionary
+- add case axioms
+- add ana axioms 
+
+
+
+Theorems
+--------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
