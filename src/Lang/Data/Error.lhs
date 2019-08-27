@@ -16,7 +16,7 @@
 > data SourceError
 >   = WordAlreadyDefined Atom
 >   | WordAlreadyTyped Atom
->   | SignatureMismatch Arrow Arrow
+>   | SignatureMismatch Scheme Scheme
 >   | DuplicateDataConst [Atom]
 >   | ExtraneousVars
 >   deriving (Eq, Show)

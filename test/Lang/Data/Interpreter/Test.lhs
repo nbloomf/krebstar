@@ -47,7 +47,7 @@
 >   :: ([Command], Either ReplError DataStack)
 >   -> Property
 > prop_InterpretAll_examples (cs, result) =
->   let Id actual = runRuntime (interpretAll cs) initRuntimeState in
+>   let Id actual = runRuntime (interpretAll cs) (initRuntimeState (const Nothing) (const Nothing)) in
 >   case (result, actual) of
 >     (Left err1, Left err2) -> err1 === err2
 >     (Right st1, Right (st2, env2)) -> conjoin

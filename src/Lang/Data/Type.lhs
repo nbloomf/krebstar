@@ -35,9 +35,13 @@
 Type Grammar
 ============
 
-> data Arrow
->   = ForAll Vars Stack Stack
+> data Scheme
+>   = ForAll Vars Arrow
 >   deriving (Show)
+> 
+> data Arrow
+>   = Arrow Stack Stack
+>   deriving (Eq, Show)
 > 
 > data Stack
 >   = Stack (V Stack) [Type]
@@ -59,9 +63,14 @@ Type Grammar
 >   = C String
 >   deriving (Eq, Ord, Show)
 
+
+
+> instance PrettyPrint Scheme where
+>   pretty (ForAll vars arr) = pretty arr
+
 > instance PrettyPrint Arrow where
->   pretty (ForAll vars s1 s2) = mconcat
->     [ "forall ", pretty vars, ". ", pretty s1, " -> ", pretty s2
+>   pretty (Arrow s1 s2) = mconcat
+>     [ pretty s1, " -> ", pretty s2
 >     ]
 > 
 > instance PrettyPrint Stack where
@@ -178,11 +187,17 @@ GetVars
 >   getFreeVars :: t -> Vars
 >   getBinders :: t -> Vars
 > 
+> instance GetVars Scheme where
+>   getFreeVars (ForAll vs arr) =
+>     (getFreeVars arr) `toss` vs
+>   getBinders (ForAll vs arr) =
+>     vs <> (getBinders arr)
+> 
 > instance GetVars Arrow where
->   getFreeVars (ForAll vs s1 s2) =
->     ((getFreeVars s1) <> (getFreeVars s2)) `toss` vs
->   getBinders (ForAll vs s1 s2) =
->     vs <> (getBinders s1) <> (getBinders s2)
+>   getFreeVars (Arrow s1 s2) =
+>     (getFreeVars s1) <> (getFreeVars s2)
+>   getBinders (Arrow s1 s2) =
+>     (getBinders s1) <> (getBinders s2)
 > 
 > instance GetVars Stack where
 >   getFreeVars (Stack x ts) =
@@ -244,10 +259,14 @@ Normalization
 > class Normalize t where
 >   normalize :: t -> t
 > 
+> instance Normalize Scheme where
+>   normalize (ForAll vs arr) =
+>     let us = meet (getFreeVars arr) vs
+>     in ForAll us (normalize arr)
+> 
 > instance Normalize Arrow where
->   normalize a@(ForAll vs s1 s2) =
->     let us = meet (getFreeVars s1 <> getFreeVars s2) vs
->     in ForAll us (normalize s1) (normalize s2)
+>   normalize (Arrow s1 s2) =
+>     Arrow (normalize s1) (normalize s2)
 > 
 > instance Normalize Stack where
 >   normalize (Stack x ts) =
@@ -294,6 +313,13 @@ Fresh Int Monad
 >   k <- freshInt
 >   return $ V (x ++ show k)
 
+
+
+
+
+Renaming
+========
+
 > class Rename t where
 >   -- Give bound vars unique names
 >   renameBoundN :: String -> String -> t -> N t
@@ -303,9 +329,9 @@ Fresh Int Monad
 >   -- args not chosen carefully.
 >   subsN :: String -> String -> Subs -> t -> N t
 > 
-> instance Rename Arrow where
->   renameBoundN tX sX arr = do
->     let ForAll (Vars sv tv) s1 s2 = normalize arr
+> instance Rename Scheme where
+>   renameBoundN tX sX sch = do
+>     let ForAll (Vars sv tv) arr = normalize sch
 >     sv' <- mapM (\x -> freshVar sX >>= \y -> return (x,y)) sv
 >     tv' <- mapM (\x -> freshVar tX >>= \y -> return (x,y)) tv
 >     let
@@ -313,16 +339,26 @@ Fresh Int Monad
 >       tv'' = map (\(x,y) -> (x, TyVar y)) tv'
 >       s = Subs (M.fromList sv'') (M.fromList tv'')
 >       vars = Vars (map snd sv') (map snd tv')
->     s1' <- subsN tX sX s s1 >>= renameBoundN tX sX
->     s2' <- subsN tX sX s s2 >>= renameBoundN tX sX
->     return $ ForAll vars s1' s2'
+>     arr' <- subsN tX sX s arr >>= renameBoundN tX sX
+>     return $ ForAll vars arr'
+> 
+>   subsN tX sX s sch = do
+>     ForAll vars arr <- renameBoundN tX sX sch
+>     let s' = undefineOn s vars
+>     arr' <- subsN tX sX s' arr
+>     return $ ForAll vars arr'
+> 
+> instance Rename Arrow where
+>   renameBoundN tX sX (Arrow s1 s2) = do
+>     s1' <- renameBoundN tX sX s1
+>     s2' <- renameBoundN tX sX s2
+>     return $ Arrow s1' s2'
 > 
 >   subsN tX sX s arr = do
->     ForAll vars s1 s2 <- renameBoundN tX sX arr
->     let s' = undefineOn s vars
->     s1' <- subsN tX sX s' s1
->     s2' <- subsN tX sX s' s2
->     return $ ForAll vars s1' s2'
+>     Arrow s1 s2 <- renameBoundN tX sX arr
+>     s1' <- subsN tX sX s s1
+>     s2' <- subsN tX sX s s2
+>     return $ Arrow s1' s2'
 > 
 > instance Rename Stack where
 >   renameBoundN tX sX (Stack x ts) = do
@@ -409,11 +445,11 @@ Fresh Int Monad
 
 
 
-> instance Eq Arrow where
->   a1 == a2 =
+> instance Eq Scheme where
+>   s1 == s2 =
 >     let
->       b1@(ForAll q1@(Vars u1 v1) s1 t1) = renameBinders a1
->       b2@(ForAll q2@(Vars u2 v2) s2 t2) = renameBinders a2
+>       b1@(ForAll q1@(Vars u1 v1) arr1) = renameBinders s1
+>       b2@(ForAll q2@(Vars u2 v2) arr2) = renameBinders s2
 >       vars = q1 <> q2 <> getFreeVars b1 <> getFreeVars b2 <> getBinders b1 <> getBinders b2
 >       tX = freshPrefixT vars
 >       sX = freshPrefixS vars
@@ -428,8 +464,7 @@ Fresh Int Monad
 >       y2 = zip v2 tvars
 >       w2 = Subs (M.fromList x2) (M.fromList y2)
 >     in and
->       [ (subs w1 s1) == (subs w2 s2)
->       , (subs w1 t1) == (subs w2 t2)
+>       [ (subs w1 arr1) == (subs w2 arr2)
 >       ]
 
 
@@ -440,26 +475,26 @@ Type Environment
 ================
 
 > data TypeEnv = TypeEnv
->   { atomEnv :: M.Map Atom Arrow
->   , builtinEnv :: BuiltIn -> Maybe Arrow
+>   { atomEnv :: M.Map Atom Scheme
+>   , builtinEnv :: BuiltIn -> Maybe Scheme
 >   }
 
 > emptyTypeEnv
->   :: (BuiltIn -> Maybe Arrow) -> TypeEnv
+>   :: (BuiltIn -> Maybe Scheme) -> TypeEnv
 > emptyTypeEnv builtins =
 >   TypeEnv mempty builtins
 
-> lookupAtom :: TypeEnv -> Atom -> Infer Arrow
+> lookupAtom :: TypeEnv -> Atom -> Infer Scheme
 > lookupAtom env atom =
 >   case M.lookup atom (atomEnv env) of
 >     Nothing -> throw $ AtomNotDefined atom
->     Just arr -> return arr
+>     Just sch -> return sch
 
-> lookupBuiltIn :: TypeEnv -> BuiltIn -> Infer Arrow
+> lookupBuiltIn :: TypeEnv -> BuiltIn -> Infer Scheme
 > lookupBuiltIn env builtin =
 >   case (builtinEnv env) builtin of
 >     Nothing -> throw $ UnrecognizedBuiltIn builtin
->     Just arr -> return arr
+>     Just sch -> return sch
 
 
 
@@ -520,8 +555,8 @@ Infer Monad
 >   | OccursCheckType (V Type) Type
 >   | OccursCheckStack (V Stack) Stack 
 >   | OccursCheckStackList (V Stack) [Type]
->   | BinderCountMismatch Arrow Arrow
->   | EscapeCheck Arrow Arrow
+>   | BinderCountMismatch Scheme Scheme
+>   | EscapeCheck Scheme Scheme
 
 >   | CannotMatchType Type Type
 >   | CannotMatchStack Stack Stack
@@ -553,11 +588,11 @@ Unification
 >     [x',y'] = renameAllBinders [x,y]
 >   unifyNF x' y'
 > 
-> instance Unify Arrow where
+> instance Unify Scheme where
 >   unifyNF x y = do
 >     let
->       ForAll (Vars us1 vs1) s1 t1 = x
->       ForAll (Vars us2 vs2) s2 t2 = y
+>       ForAll (Vars us1 vs1) arr1 = x
+>       ForAll (Vars us2 vs2) arr2 = y
 >     if ((length us1) /= (length us2)) || ((length vs1) /= (length vs2))
 >       then throw $ BinderCountMismatch x y
 >       else do
@@ -572,10 +607,8 @@ Unification
 >             { _ty = M.fromList $ zipWith (\x v -> (x, TyVar v)) vs2 vs'
 >             , _st = M.fromList $ zipWith (\x v -> (x, Stack v [])) us2 us'
 >             }
->         sub1 <- unifyNF (subs sk1 t1) (subs sk2 t2)
->         sub2 <- unifyNF (subs (sub1 <> sk1) s1) (subs (sub1 <> sk2) s2)
+>         sub <- unifyNF (subs sk1 arr1) (subs sk2 arr2)
 >         let
->           sub = sub2 <> sub1
 >           esc = meet (Vars us' vs') (getFreeVars sub)
 >           mat = meet (Vars us' vs') (dom sub)
 >         if esc /= mempty
@@ -583,6 +616,12 @@ Unification
 >           else if mat /= mempty
 >             then throw $ EscapeCheck x y
 >             else return sub
+> 
+> instance Unify Arrow where
+>   unifyNF (Arrow s1 t1) (Arrow s2 t2) = do
+>     sub1 <- unifyNF t1 t2
+>     sub2 <- unifyNF (subs sub1 s1) (subs sub1 s2)
+>     return (sub2 <> sub1)
 > 
 > instance Unify Stack where
 >   unifyNF x@(Stack x1 ts1) y@(Stack x2 ts2) = case (x1,x2) of
@@ -703,11 +742,11 @@ Goal: if match x y = s then subs s x === y
 >   s <- matchNF x' y'
 >   return $ filterTrivial s
 > 
-> instance Match Arrow where
+> instance Match Scheme where
 >   matchNF x y = do
 >     let
->       ForAll (Vars us1 vs1) s1 t1 = x
->       ForAll (Vars us2 vs2) s2 t2 = y
+>       ForAll (Vars us1 vs1) arr1 = x
+>       ForAll (Vars us2 vs2) arr2 = y
 >     if ((length us1) /= (length us2)) || ((length vs1) /= (length vs2))
 >       then throw $ BinderCountMismatch x y
 >       else do
@@ -722,19 +761,23 @@ Goal: if match x y = s then subs s x === y
 >             { _ty = M.fromList $ zipWith (\x v -> (x, TyVar v)) vs2 vs'
 >             , _st = M.fromList $ zipWith (\x v -> (x, Stack v [])) us2 us'
 >             }
->         sub1 <- matchNF (subs sk1 t1) (subs sk2 t2)
->         sub2 <- matchNF (subs sk1 s1) (subs sk2 s2)
->         case unionSubs sub1 sub2 of
->           Nothing -> throw $ CannotMatchArrow x y
->           Just sub ->
->             let
->               esc = meet (Vars us' vs') (getFreeVars $ filterTrivial sub)
->               mat = meet (Vars us' vs') (dom $ filterTrivial sub)
->             in if esc /= mempty
->               then throw $ EscapeCheck x y
->               else if mat /= mempty
->                 then throw $ EscapeCheck x y
->                 else return sub
+>         sub <- matchNF (subs sk1 arr1) (subs sk2 arr2)
+>         let
+>           esc = meet (Vars us' vs') (getFreeVars $ filterTrivial sub)
+>           mat = meet (Vars us' vs') (dom $ filterTrivial sub)
+>         if esc /= mempty
+>           then throw $ EscapeCheck x y
+>           else if mat /= mempty
+>             then throw $ EscapeCheck x y
+>             else return sub
+> 
+> instance Match Arrow where
+>   matchNF x@(Arrow s1 t1) y@(Arrow s2 t2) = do
+>     sub1 <- matchNF t1 t2
+>     sub2 <- matchNF s1 s2
+>     case unionSubs sub1 sub2 of
+>       Nothing -> throw $ CannotMatchArrow x y
+>       Just sub -> return sub
 > 
 > instance Match Stack where
 >   matchNF x@(Stack x1 ts1) y@(Stack x2 ts2) = case (x1,x2) of
@@ -814,23 +857,20 @@ Goal: if match x y = s then subs s x === y
 
 
 > -- 'is generic instance of'
-> (<<<) :: Arrow -> Arrow -> Bool
+> (<<<) :: Scheme -> Scheme -> Bool
 > (<<<) x y =
 >   let
 >     [u,v] = renameAllBinders [x,y]
->     ForAll xs1 s1 t1 = u
->     ForAll xs2 s2 t2 = v
->     z = do
->       sub1 <- matchNF s1 s2
->       sub2 <- matchNF t1 t2
->       return $ unionSubs sub1 sub2
+>     ForAll xs1 arr1 = u
+>     ForAll xs2 arr2 = v
+>     z = matchNF arr1 arr2
 >   in case runInfer (emptyTypeEnv $ const (Just idArrow)) z of
->     Right (Just sub) ->
+>     Right sub ->
 >       isSubsetOf (dom (filterTrivial sub)) xs1
 >     _ -> False
 
-> idArrow :: Arrow
-> idArrow = ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+> idArrow :: Scheme
+> idArrow = ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 
 
 
@@ -852,11 +892,11 @@ Goal: subs s u <<< subs s v
 >     [x',y'] = renameAllBinders [x,y]
 >   subsumeNF x' y'
 > 
-> instance Subsume Arrow where
+> instance Subsume Scheme where
 >   subsumeNF x y = do
 >     let
->       ForAll (Vars us1 vs1) s1 t1 = x
->       ForAll ws@(Vars us2 vs2) s2 t2 = y
+>       ForAll (Vars us1 vs1) arr1 = x
+>       ForAll ws@(Vars us2 vs2) arr2 = y
 >     do
 >       us' <- fmap (map Skolem) $ mapM (const unique) us1
 >       vs' <- fmap (map Skolem) $ mapM (const unique) vs1
@@ -865,10 +905,9 @@ Goal: subs s u <<< subs s v
 >           { _ty = M.fromList $ zipWith (\x v -> (x, TyVar v)) vs1 vs'
 >           , _st = M.fromList $ zipWith (\x v -> (x, Stack v [])) us1 us'
 >           }
->       sub1 <- subsumeNF t2 (subs sk t1)
->       sub2 <- subsumeNF (subs sub1 s2) (subs (sub1 <> sk) s1)
+>       sub1 <- subsumeNF arr2 (subs sk arr1)
 >       let
->         sub = undefineOn (sub2 <> sub1) ws
+>         sub = undefineOn sub1 ws
 >         esc = meet (Vars us' vs') (getFreeVars sub)
 >         mat = meet ws (dom sub)
 >       if esc /= mempty
@@ -876,6 +915,9 @@ Goal: subs s u <<< subs s v
 >           else if (mat /= mempty) || not (noSkolems (dom sub))
 >             then throw $ EscapeCheck x y
 >             else return sub
+> 
+> instance Subsume Arrow where
+>   subsumeNF = unifyNF
 > 
 > instance Subsume Stack where
 >   subsumeNF = unifyNF
@@ -887,42 +929,43 @@ Goal: subs s u <<< subs s v
 
 
 
-> quantify :: HasCallStack => Arrow -> Arrow
-> quantify (ForAll _ s1 s2) =
+> quantify :: HasCallStack => Arrow -> Scheme
+> quantify (Arrow s1 s2) =
 >   let vars = (getFreeVars s1) <> (getFreeVars s2)
->   in ForAll vars s1 s2
+>   in ForAll vars (Arrow s1 s2)
 
-> composeArrows :: HasCallStack => Arrow -> Arrow -> Infer Arrow
+> composeArrows :: HasCallStack => Scheme -> Scheme -> Infer Scheme
 > composeArrows x y = do
 >   let
 >     [x', y'] = renameAllBinders [x, y]
->     ForAll _ h1@(Stack s1 us1) k1@(Stack t1 vs1) = x'
->     ForAll _ h2@(Stack s2 us2) k2@(Stack t2 vs2) = y'
+>     ForAll _ (Arrow h1@(Stack s1 us1) k1@(Stack t1 vs1)) = x'
+>     ForAll _ (Arrow h2@(Stack s2 us2) k2@(Stack t2 vs2)) = y'
 >     (ps, z) = zipTail us2 vs1
 >   sub <- subsumePairs ps
 >   case z of
 >     Nothing -> if t1 == s2
->       then return $ quantify $ ForAll mempty h1 k2
->       else let sub2 = Subs (M.fromList [(t1, Stack s2 [])]) mempty in
+>       then return $ quantify $
+>         Arrow (subs sub h1) (subs sub k2)
+>       else let sub2 = subs sub $ Subs (M.fromList [(t1, Stack s2 [])]) mempty in
 >         case unionSubs sub sub2 of
 >           Nothing -> return $ quantify $
->             ForAll mempty (subs sub h1) (subs sub k2)
+>             Arrow (subs sub h1) (subs sub k2)
 >           Just sub3 -> return $ quantify $
->             ForAll mempty (subs sub3 h1) (subs sub3 k2)
+>             Arrow (subs sub3 h1) (subs sub3 k2)
 >     Just (Right us) -> do
->       let sub2 = Subs (M.fromList [(s2, Stack t1 us)]) mempty
+>       let sub2 = subs sub $ Subs (M.fromList [(s2, Stack t1 us)]) mempty
 >       case unionSubs sub sub2 of
 >         Nothing -> return $ quantify $
->           ForAll mempty (subs sub h1) (subs sub k2)
+>           Arrow (subs sub h1) (subs sub k2)
 >         Just sub3 -> return $ quantify $
->           ForAll mempty (subs sub3 h1) (subs sub3 k2)
+>           Arrow (subs sub3 h1) (subs sub3 k2)
 >     Just (Left vs) -> do
->       let sub2 = Subs (M.fromList [(t1, Stack s2 vs)]) mempty
+>       let sub2 = subs sub $  Subs (M.fromList [(t1, Stack s2 vs)]) mempty
 >       case unionSubs sub sub2 of
 >         Nothing -> return $ quantify $
->           ForAll mempty (subs sub h1) (subs sub k2)
+>           Arrow (subs sub h1) (subs sub k2)
 >         Just sub3 -> return $ quantify $
->           ForAll mempty (subs sub3 h1) (subs sub3 k2)
+>           Arrow (subs sub3 h1) (subs sub3 k2)
 > 
 > zipTail
 >   :: HasCallStack => [a] -> [b]
@@ -944,23 +987,26 @@ Goal: subs s u <<< subs s v
 >     sub2 <- subsumePairs $ map (\(a,b) -> (subs sub1 a, subs sub1 b)) rest
 >     return $ sub2 <> sub1
 
-> infer :: HasCallStack => Phrase -> Infer Arrow
+> infer :: HasCallStack => Phrase -> Infer Scheme
 > infer phrase = do
 >   env <- getLocalTypeEnv
 >   case phrase of
->     Silence -> return $ ForAll (Vars [V "S"] [])
->       (Stack (V "S") []) (Stack (V "S") [])
+>     Silence -> return $ ForAll (Vars [V "S"] []) $
+>       Arrow (Stack (V "S") []) (Stack (V "S") [])
 >     Then word rest -> do
 >       arr1 <- case word of
 >         Only atom -> lookupAtom env atom
 >         BuiltIn b -> lookupBuiltIn env b
 >         Quote quote -> do
->           arr2 <- infer quote
->           return $ ForAll (Vars [V "S"] [])
->             (Stack (V "S") [])
->             (Stack (V "S") [TyArr arr2])
+>           ForAll vars arr2 <- infer quote
+>           let s = freshPrefixS vars
+>           return $ ForAll ((Vars [V s] []) <> vars) $ Arrow
+>             (Stack (V s) [])
+>             (Stack (V s) [TyArr arr2])
 >       arr2 <- infer rest
 >       composeArrows arr1 arr2
+
+
 
 
 > {-

@@ -49,13 +49,13 @@
 >   testGroup "Parsing Modules"
 >     [ testCases prop_Parse_examples
 >       [ ( "#1"
->         , ( "@define foo :: forall S. S -> S == #id\n@end"
+>         , ( "@define foo :: S -> S == #id\n@end"
 >           , Module
 >               [ Definition
 >                   (Atom "foo")
 >                   (Then (BuiltIn BuiltIn_Id) Silence)
 >                   (ForAll
->                     (Vars [V "S"] [])
+>                     (Vars [V "S"] []) $ Arrow
 >                     (Stack (V "S") [])
 >                     (Stack (V "S") []))]
 >           )

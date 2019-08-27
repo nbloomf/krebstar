@@ -32,7 +32,7 @@
 > initRuntimeState
 >   :: ( Monad m )
 >   => (String -> Maybe (Runtime m ()))
->   -> (String -> Maybe Arrow)
+>   -> (String -> Maybe Scheme)
 >   -> RuntimeState m
 > initRuntimeState act arrow = RuntimeState
 >   { _rtActions = Actions
@@ -172,7 +172,7 @@
 
 > inferType
 >   :: ( Monad m )
->   => Phrase -> Runtime m Arrow
+>   => Phrase -> Runtime m Scheme
 > inferType phrase = Runtime $ \st -> do
 >   let env = _rtTypes st
 >   case runInfer env $ infer phrase of
@@ -202,7 +202,7 @@
 
 > defineAtom
 >   :: ( Monad m )
->   => Atom -> Arrow -> Runtime m () -> Runtime m ()
+>   => Atom -> Scheme -> Runtime m () -> Runtime m ()
 > defineAtom atom arr act = do
 >   mutateActions $ \dict -> dict
 >     { _atomActions = M.insert atom act $ _atomActions dict }
@@ -212,7 +212,7 @@
 
 > checkType
 >   :: ( Monad m )
->   => Phrase -> Arrow -> Runtime m ()
+>   => Phrase -> Scheme -> Runtime m ()
 > checkType phrase arr1 = Runtime $ \st -> do
 >   let env = _rtTypes st
 >   case runInfer env $ infer phrase of
@@ -269,58 +269,56 @@
 >       Just act -> act
 
 > builtinTypes
->   :: (String -> Maybe Arrow) -> BuiltIn -> Maybe Arrow
+>   :: (String -> Maybe Scheme) -> BuiltIn -> Maybe Scheme
 > builtinTypes custom z = case z of
 >   BuiltIn_Int _ -> Just $
 >     ForAll
->       (Vars [V "S"] [])
+>       (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [TyCon (C "Int")])
 > 
 >   BuiltIn_Char _ -> Just $
 >     ForAll
->       (Vars [V "S"] [])
+>       (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [TyCon (C "Char")])
 > 
 >   BuiltIn_String _ -> Just $
 >     ForAll
->       (Vars [V "S"] [])
+>       (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [TyCon (C "String")])
 > 
 >   BuiltIn_Int_Plus -> Just $
 >     ForAll
->       (Vars [V "S"] [])
+>       (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [TyCon (C "Int"), TyCon (C "Int")])
 >       (Stack (V "S") [TyCon (C "Int")])
 > 
 >   BuiltIn_Int_Times -> Just $
 >     ForAll
->       (Vars [V "S"] [])
+>       (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [TyCon (C "Int"), TyCon (C "Int")])
 >       (Stack (V "S") [TyCon (C "Int")])
 > 
 >   BuiltIn_Id -> Just $
 >     ForAll
->       (Vars [V "S"] [])
+>       (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [])
 > 
 >   BuiltIn_Swap -> Just $
 >     ForAll
->       (Vars [V "S"] [V "a", V "b"])
+>       (Vars [V "S"] [V "a", V "b"]) $ Arrow
 >       (Stack (V "S") [TyVar (V "a"), TyVar (V "b")])
 >       (Stack (V "S") [TyVar (V "b"), TyVar (V "a")])
 > 
 >   BuiltIn_Apply -> Just $
 >     ForAll
->       (Vars [V "S", V "R"] [])
->       (Stack (V "S") [TyArr $
->         ForAll
->           mempty
->           (Stack (V "S") [])
->           (Stack (V "R") [])])
+>       (Vars [V "S", V "R"] []) $ Arrow
+>       (Stack (V "S") [TyArr $ Arrow
+>         (Stack (V "S") [])
+>         (Stack (V "R") [])])
 >       (Stack (V "R") [])
 > 
 >   BuiltIn_Ext str -> custom str

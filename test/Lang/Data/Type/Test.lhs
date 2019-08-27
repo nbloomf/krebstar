@@ -31,6 +31,7 @@
 >     [ test_Vars_Semigroup k
 >     , test_Vars_Seminearring k
 > 
+>     , test_Eq k (Proxy :: Proxy Scheme)
 >     , test_Eq k (Proxy :: Proxy Arrow)
 >     , test_Eq k (Proxy :: Proxy Stack)
 >     , test_Eq k (Proxy :: Proxy Type)
@@ -38,20 +39,24 @@
 >     , test_Subs_augment k
 >     , test_Subs_Semigroup k
 > 
+>     , test_Eq_rename k (Proxy :: Proxy Scheme)
 >     , test_Eq_rename k (Proxy :: Proxy Arrow)
 >     , test_Eq_rename k (Proxy :: Proxy Stack)
 >     , test_Eq_rename k (Proxy :: Proxy Type)
 > 
+>     , test_HasVars_Subs k (Proxy :: Proxy Scheme)
 >     , test_HasVars_Subs k (Proxy :: Proxy Arrow)
 >     , test_HasVars_Subs k (Proxy :: Proxy Stack)
 >     , test_HasVars_Subs k (Proxy :: Proxy Type)
 > 
+>     , test_Unify k (Proxy :: Proxy Scheme)
 >     , test_Unify k (Proxy :: Proxy Arrow)
 >     , test_Unify k (Proxy :: Proxy Stack)
 >     , test_Unify k (Proxy :: Proxy Type)
 > 
 >     , test_Unify_examples
 > 
+>     , test_Match k (Proxy :: Proxy Scheme)
 >     , test_Match k (Proxy :: Proxy Arrow)
 >     , test_Match k (Proxy :: Proxy Stack)
 >     , test_Match k (Proxy :: Proxy Type)
@@ -71,17 +76,25 @@
 >     , test_Infer_examples
 >     ]
 
-> instance Arbitrary Arrow where
+> instance Arbitrary Scheme where
 >   arbitrary = ForAll
->     <$> scale (`div` 3) arbitrary
->     <*> scale (`div` 3) arbitrary
->     <*> scale (`div` 3) arbitrary
+>     <$> scale (`div` 2) arbitrary
+>     <*> scale (`div` 2) arbitrary
 > 
->   shrink (ForAll xs s1 s2) = do
+>   shrink (ForAll xs arr) = do
 >     xs' <- shrink xs
+>     arr' <- shrink arr
+>     return $ ForAll xs' arr'
+
+> instance Arbitrary Arrow where
+>   arbitrary = Arrow
+>     <$> scale (`div` 2) arbitrary
+>     <*> scale (`div` 2) arbitrary
+> 
+>   shrink (Arrow s1 s2) = do
 >     s1' <- shrink s1
 >     s2' <- shrink s2
->     return $ ForAll xs' s1' s2'
+>     return $ Arrow s1' s2'
 > 
 > instance Arbitrary Stack where
 >   arbitrary = do
@@ -341,7 +354,7 @@
 >     [ localOption (QuickCheckTests k) $
 >       testProperty "subs (unify x y) x == subs (unify x y) y" $
 >         \(x :: t) y ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ unify x y of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ unify x y of
 >             Left _ -> True
 >             Right s -> if (subs s x) == (subs s y)
 >               then True
@@ -351,21 +364,21 @@
 >     , localOption (QuickCheckTests k) $
 >       testProperty "unify x x" $
 >         \(x :: t) ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ unify x x of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ unify x x of
 >             Left err -> error $ unlines [ show err ]
 >             Right _ -> True
 > 
 >     , localOption (QuickCheckTests k) $
 >       testProperty "unify x (renameBinders x)" $
 >         \(x :: t) ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ unify x (renameBinders x) of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ unify x (renameBinders x) of
 >             Left err -> error $ unlines [ show err ]
 >             Right _ -> True
 > 
 >     , localOption (QuickCheckTests k) $
 >       testProperty "unify x (normalize x)" $
 >         \(x :: t) ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ unify x (normalize x) of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ unify x (normalize x) of
 >             Left err -> error $ unlines [ show err ]
 >             Right _ -> True
 > 
@@ -373,8 +386,8 @@
 >       testProperty "unify x y == unify y x" $
 >         \(x :: t) y ->
 >           let
->             u = runInfer (emptyTypeEnv $ const idArrow) $ unify x y
->             v = runInfer (emptyTypeEnv $ const idArrow) $ unify y x
+>             u = runInfer (emptyTypeEnv $ const Nothing) $ unify x y
+>             v = runInfer (emptyTypeEnv $ const Nothing) $ unify y x
 >           in case (u,v) of
 >             (Left err, Right _) -> error $ unlines [ show err ]
 >             (Right _, Left err) -> error $ unlines [ show err ]
@@ -388,7 +401,7 @@
 >     [ localOption (QuickCheckTests k) $
 >       testProperty "subs (subsume x y) y <<< subs (subsume x y) x" $
 >         \x y ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ subsume x y of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ subsume x y of
 >             Left _ -> True
 >             Right s -> if (subs s y) <<< (subs s x)
 >               then True
@@ -405,7 +418,7 @@
 >     [ localOption (QuickCheckTests k) $
 >       testProperty "subs (match x y) x == y" $
 >         \(x :: t) y ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ match x y of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ match x y of
 >             Left _ -> True
 >             Right s -> if (subs s x) == y
 >               then True
@@ -415,21 +428,21 @@
 >     , localOption (QuickCheckTests k) $
 >       testProperty "match x x" $
 >         \(x :: t) ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ match x x of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ match x x of
 >             Left err -> error $ show err
 >             Right s -> s === mempty
 > 
 >     , localOption (QuickCheckTests k) $
 >       testProperty "match x (renameBinders x)" $
 >         \(x :: t) ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ match x (renameBinders x) of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ match x (renameBinders x) of
 >             Left err -> error $ show err
 >             Right _ -> True
 > 
 >     , localOption (QuickCheckTests k) $
 >       testProperty "match x (normalize x)" $
 >         \(x :: t) ->
->           case runInfer (emptyTypeEnv $ const idArrow) $ match x (normalize x) of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ match x (normalize x) of
 >             Left err -> error $ show err
 >             Right _ -> True
 > 
@@ -437,7 +450,7 @@
 >       testProperty "match x (subs s x)" $
 >         \(x :: t) s ->
 >           (mempty == meet (getFreeVars x) (getFreeVars s)) ==>
->           case runInfer (emptyTypeEnv $ const idArrow) $ match x (subs s x) of
+>           case runInfer (emptyTypeEnv $ const Nothing) $ match x (subs s x) of
 >             Left err -> error $ show err
 >             Right _ -> True
 >     ]
@@ -450,7 +463,7 @@
 >   => (t, t, Either Err Subs)
 >   -> Property
 > prop_Unify_examples (x, y, r) =
->   r === runInfer (emptyTypeEnv $ const idArrow) (unify x y)
+>   r === runInfer (emptyTypeEnv $ const Nothing) (unify x y)
 
 > test_Unify_examples :: TestTree
 > test_Unify_examples =
@@ -652,7 +665,7 @@
 >   => (t, t, Either Err Subs)
 >   -> Property
 > prop_Match_examples (x, y, r) =
->   r === runInfer (emptyTypeEnv $ const idArrow) (match x y)
+>   r === runInfer (emptyTypeEnv $ const Nothing) (match x y)
 
 > test_Match_examples :: TestTree
 > test_Match_examples =
@@ -741,7 +754,7 @@
 >     ]
 
 > prop_GenericInstance_examples
->   :: (Arrow, Arrow, Bool)
+>   :: (Scheme, Scheme, Bool)
 >   -> Property
 > prop_GenericInstance_examples (x, y, r) =
 >   r === (x <<< y)
@@ -752,43 +765,43 @@
 >     [ testCases
 >       prop_GenericInstance_examples
 >       [ ( "#1: !S. S -> S and !S. S -> S"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           , True
 >           )
 >         )
 > 
 >       , ( "#2: !S. S -> S and T -> T"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [] []) (Stack (V "T") []) (Stack (V "T") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [] []) $ Arrow (Stack (V "T") []) (Stack (V "T") [])
 >           , True
 >           )
 >         )
 > 
 >       , ( "#3: !S. S -> S and T -> U"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [] []) (Stack (V "T") []) (Stack (V "U") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [] []) $ Arrow (Stack (V "T") []) (Stack (V "U") [])
 >           , False
 >           )
 >         )
 > 
 >       , ( "#4: !S. S -> S and T -> T a"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [] []) (Stack (V "T") []) (Stack (V "T") [TyVar (V "a")])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [] []) $ Arrow (Stack (V "T") []) (Stack (V "T") [TyVar (V "a")])
 >           , False
 >           )
 >         )
 > 
 >       , ( "#5: !S. S -> S a and T -> T a"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
->           , ForAll (Vars [] []) (Stack (V "T") []) (Stack (V "T") [TyVar (V "a")])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
+>           , ForAll (Vars [] []) $ Arrow (Stack (V "T") []) (Stack (V "T") [TyVar (V "a")])
 >           , True
 >           )
 >         )
 > 
 >       , ( "#6: !S x. S -> S x and T -> T y"
->         , ( ForAll (Vars [V "S"] [V "x"]) (Stack (V "S") []) (Stack (V "S") [TyVar (V "x")])
->           , ForAll (Vars [] []) (Stack (V "T") []) (Stack (V "T") [TyVar (V "y")])
+>         , ( ForAll (Vars [V "S"] [V "x"]) $ Arrow (Stack (V "S") []) (Stack (V "S") [TyVar (V "x")])
+>           , ForAll (Vars [] []) $ Arrow (Stack (V "T") []) (Stack (V "T") [TyVar (V "y")])
 >           , True
 >           )
 >         )
@@ -803,7 +816,7 @@
 >   => (t, t, Either Err Subs)
 >   -> Property
 > prop_Subsume_examples (x, y, r) =
->   r === runInfer (emptyTypeEnv $ const idArrow) (subsume x y)
+>   r === runInfer (emptyTypeEnv $ const Nothing) (subsume x y)
 
 > test_Subsume_examples :: TestTree
 > test_Subsume_examples =
@@ -811,29 +824,29 @@
 >     [ testCases
 >       prop_Subsume_examples
 >       [ ( "#1: !S. S -> S and !S. S -> S"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           , Right mempty
 >           )
 >         )
 > 
 >       , ( "#2: !S. S -> S and !. S -> S"
->         , ( ForAll (Vars [] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           , Right mempty
 >           )
 >         )
 > 
 >       , ( "#3: !S. S -> T and !S. S -> U"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "T") [])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "U") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "T") [])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "U") [])
 >           , Right $ Subs (M.fromList [(V "U", Stack (V "T") [])]) mempty
 >           )
 >         )
 > 
 >       , ( "#4: !S. S -> S and !S x. S x -> S x"
->         , ( ForAll (Vars [V "S"] [V "x"]) (Stack (V "S") [TyVar (V "x")]) (Stack (V "S") [TyVar (V "x")])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] [V "x"]) $ Arrow (Stack (V "S") [TyVar (V "x")]) (Stack (V "S") [TyVar (V "x")])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           , Right mempty
 >           )
 >         )
@@ -843,10 +856,10 @@
 
 
 > prop_ComposeArrows_examples
->   :: (Arrow, Arrow, Either Err Arrow)
+>   :: (Scheme, Scheme, Either Err Scheme)
 >   -> Property
 > prop_ComposeArrows_examples (x, y, r) =
->   r === runInfer (emptyTypeEnv $ const idArrow) (composeArrows x y)
+>   r === runInfer (emptyTypeEnv $ const Nothing) (composeArrows x y)
 
 > test_ComposeArrows_examples :: TestTree
 > test_ComposeArrows_examples =
@@ -854,44 +867,44 @@
 >     [ testCases
 >       prop_ComposeArrows_examples
 >       [ ( "#1: !S. S -> S and !S. S -> S"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , Right $ ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , Right $ ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           )
 >         )
 > 
 >       , ( "#2: !S. S -> S and !T. T -> T"
->         , ( ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , ForAll (Vars [V "T"] []) (Stack (V "T") []) (Stack (V "T") [])
->           , Right $ ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , ForAll (Vars [V "T"] []) $ Arrow (Stack (V "T") []) (Stack (V "T") [])
+>           , Right $ ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           )
 >         )
 > 
 >       , ( "#3: !a S. S -> S a and !S. S -> S"
->         , ( ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
->           , ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
->           , Right $ ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
+>         , ( ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
+>           , ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
+>           , Right $ ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
 >           )
 >         )
 > 
 >       , ( "#4: !a S. S -> S a and !a S. S a -> S"
->         , ( ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
->           , ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
->           , Right $ ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
+>           , ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
+>           , Right $ ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           )
 >         )
 > 
 >       , ( "#5: !a S. S -> S a and !b S. S b -> S"
->         , ( ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
->           , ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
->           , Right $ ForAll (Vars [V "S"] []) (Stack (V "S") []) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") []) (Stack (V "S") [TyVar (V "a")])
+>           , ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
+>           , Right $ ForAll (Vars [V "S"] []) $ Arrow (Stack (V "S") []) (Stack (V "S") [])
 >           )
 >         )
 > 
 >       , ( "#6: !a b S. S b -> S a and !b S. S b -> S"
->         , ( ForAll (Vars [V "S"] [V "a", V "b"]) (Stack (V "S") [TyVar (V "b")]) (Stack (V "S") [TyVar (V "a")])
->           , ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
->           , Right $ ForAll (Vars [V "S"] [V "a"]) (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
+>         , ( ForAll (Vars [V "S"] [V "a", V "b"]) $ Arrow (Stack (V "S") [TyVar (V "b")]) (Stack (V "S") [TyVar (V "a")])
+>           , ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
+>           , Right $ ForAll (Vars [V "S"] [V "a"]) $ Arrow (Stack (V "S") [TyVar (V "a")]) (Stack (V "S") [])
 >           )
 >         )
 >       ]
@@ -904,7 +917,7 @@
 >   -- !S. S -> S
 >   [ ( Atom "id"
 >     , ForAll
->         (Vars [V "S"] [])
+>         (Vars [V "S"] []) $ Arrow
 >         (Stack (V "S") [])
 >         (Stack (V "S") [])
 >     )
@@ -912,7 +925,7 @@
 >   -- !S. S -> S Int
 >   , ( Atom "2"
 >     , ForAll
->         (Vars [V "S"] [])
+>         (Vars [V "S"] []) $ Arrow
 >         (Stack (V "S") [])
 >         (Stack (V "S") [TyCon (C "Int")])
 >     )
@@ -920,7 +933,7 @@
 >   -- !S. S -> S Char
 >   , ( Atom "'a'"
 >     , ForAll
->         (Vars [V "S"] [])
+>         (Vars [V "S"] []) $ Arrow
 >         (Stack (V "S") [])
 >         (Stack (V "S") [TyCon (C "Char")])
 >     )
@@ -928,11 +941,10 @@
 >   -- !S. S -> S (!R. R -> R)
 >   , ( Atom "q_id"
 >     , ForAll
->         (Vars [V "S"] [])
+>         (Vars [V "S", V "R"] []) $ Arrow
 >         (Stack (V "S") [])
 >         (Stack (V "S") [
->           TyArr $ ForAll
->             (Vars [V "R"] [])
+>           TyArr $ Arrow
 >             (Stack (V "R") [])
 >             (Stack (V "R") [])])
 >     )
@@ -940,21 +952,20 @@
 >   -- !S R. S (S -> R) -> R
 >   , ( Atom "apply"
 >     , ForAll
->         (Vars [V "S", V "R"] [])
+>         (Vars [V "S", V "R"] []) $ Arrow
 >         (Stack (V "S") [
->           TyArr $ ForAll
->             mempty
+>           TyArr $ Arrow
 >             (Stack (V "S") [])
 >             (Stack (V "R") [])])
 >         (Stack (V "R") [])
 >     )
->   ]) (const idArrow)
+>   ]) (const Nothing)
 
 
 
 > prop_Infer_examples
 >   :: ( HasCallStack )
->   => (Phrase, Arrow)
+>   => (Phrase, Scheme)
 >   -> Property
 > prop_Infer_examples (term, arr) =
 >   case runInfer testEnv $ infer term of
@@ -973,7 +984,7 @@
 >       [ ( "#1: id"
 >         , ( Then (Only (Atom "id")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [])
 >           )
@@ -983,7 +994,7 @@
 >         , ( Then (Only (Atom "id")) $
 >               Then (Only (Atom "id")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [])
 >           )
@@ -993,7 +1004,7 @@
 >         , ( Then (Only (Atom "2")) $
 >               Then (Only (Atom "id")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [TyCon (C "Int")])
 >           )
@@ -1003,7 +1014,7 @@
 >         , ( Then (Only (Atom "id")) $
 >               Then (Only (Atom "2")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [TyCon (C "Int")])
 >           )
@@ -1013,7 +1024,7 @@
 >         , ( Then (Only (Atom "2")) $
 >               Then (Only (Atom "2")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [TyCon (C "Int"), TyCon (C "Int")])
 >           )
@@ -1024,7 +1035,7 @@
 >               Then (Only (Atom "2")) $
 >               Then (Only (Atom "2")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [TyCon (C "Int"), TyCon (C "Int"), TyCon (C "Int")])
 >           )
@@ -1034,7 +1045,7 @@
 >         , ( Then (Only (Atom "'a'")) $
 >               Then (Only (Atom "2")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [TyCon (C "Int"), TyCon (C "Char")])
 >           )
@@ -1044,7 +1055,7 @@
 >         , ( Then (Only (Atom "q_id")) $
 >               Then (Only (Atom "apply")) Silence
 >           , ForAll
->               (Vars [V "S"] [])
+>               (Vars [V "S"] []) $ Arrow
 >               (Stack (V "S") [])
 >               (Stack (V "S") [])
 >           )

@@ -86,11 +86,13 @@ block :: { Decl }
   : define_block { $1 }
 
 define_block :: { Decl }
-  : '@define' atom '::' arrow '==' phrase '@end'  { Definition (Atom (fst $2)) $6 $4 }
+  : '@define' atom '::' scheme '==' phrase '@end'  { Definition (Atom (fst $2)) $6 $4 }
+
+scheme :: { Scheme }
+  : arrow { quantify $1 }
 
 arrow :: { Arrow }
-  : 'forall' listOf(svar) '.' stack '->' stack { ForAll (Vars (map (V . fst) $2) []) $4 $6 }
-  | 'forall' listOf(svar) listOf(tvar) '.' stack '->' stack { ForAll (Vars (map (V . fst) $2) (map (V . fst) $3)) $5 $7 }
+  : stack '->' stack { Arrow $1 $3 }
 
 stack :: { Stack }
   : svar    { Stack (V (fst $1)) [] }

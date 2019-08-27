@@ -15,7 +15,7 @@
 
 
 > data Decl
->   = Definition Atom Phrase Arrow
+>   = Definition Atom Phrase Scheme
 >   | DeclareData (String, [Type]) [(Atom, [Type])]
 >   deriving (Eq, Show)
 
@@ -27,7 +27,7 @@
 >   = ProcessError
 >   | St RuntimeError
 >   | InferenceError Atom Err
->   | TypeSigMismatch Arrow Arrow
+>   | TypeSigMismatch Scheme Scheme
 >   deriving (Eq, Show)
 
 
