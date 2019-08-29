@@ -22,3 +22,4 @@ cabal.project.local~
 .ghc.environment.*
 *.DS_Store
 bib/*
+stack.yaml.lock
