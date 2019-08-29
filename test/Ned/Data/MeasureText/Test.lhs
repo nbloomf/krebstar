@@ -34,12 +34,11 @@ Introduction
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.ReflectNat
+> import Kreb.Reflect.Nat
 > import Ned.Data.ScreenOffset
 > import Ned.Data.MeasureText
 > 
 > import Ned.Data.ScreenOffset.Test
-> import Ned.Data.ReflectNat.Test
 
 
 

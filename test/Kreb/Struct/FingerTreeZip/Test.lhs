@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.FingerTreeZip.Test
+title: Kreb.Struct.FingerTreeZip.Test
 ---
 
 
@@ -33,25 +33,27 @@ Introduction
 This test module is a little different. The `FingerTreeZip` module exports some "normal" code, which we can test in the usual way. But it also imports a large class, `Tape`, with no instances. The methods of `Tape` do satisfy several properties, and we'd like to avoid having to rewrite tests for these for each new instance. So in addition to a suite of concrete tests this module exports a parameterized suite of tests for instances of `Tape`. In general individual instances will have other properties that should be tested, but the parameterized family lets us avoid some duplication.
 
 > {-# LANGUAGE
->     ScopedTypeVariables
+>     MultiParamTypeClasses
+>   , ScopedTypeVariables
 >   , KindSignatures
+>   , DeriveGeneric
 > #-}
 > 
-> module Ned.Data.FingerTreeZip.Test (
+> module Kreb.Struct.FingerTreeZip.Test (
 >     test_FingerTreeZip
 >   , test_Tape
 > ) where
 > 
 > import Data.Proxy
+> import GHC.Generics
 > 
 > import Test.QuickCheck
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.FingerTreeZip
-> 
-> import Ned.Data.FingerTree.Test
+> import Kreb.Struct
+> import Kreb.Struct.FingerTree.Test
+> import Kreb.Check
 
 
 

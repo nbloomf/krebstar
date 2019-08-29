@@ -8,15 +8,10 @@ import Test.QuickCheck
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
-import Ned.Data.FingerTree.Test
-import Ned.Data.FingerTreeZip.Test
-import Ned.Data.Seq.Test
-import Ned.Data.ReflectNat.Test
 
 
 import Ned.Data.Buffer.Test
 import Ned.Data.TextBox.Test
-import Ned.Data.RunLengthEncoding.Test
 import Ned.Data.MeasureText.Test
 import Ned.Data.ScreenOffset.Test
 
@@ -33,12 +28,7 @@ main = do
   setEnv "TASTY_QUICKCHECK_TESTS" "10000"
   putStrLn "\n"
   defaultMain $ testGroup "All Tests"
-    [ -- test_FingerTree
-   -- , test_FingerTreeZip
-   -- , test_Seq
-   -- , test_RunLengthEncoding
-   -- , test_ReflectNat
-   -- , test_ScreenOffset
+    [  -- , test_ScreenOffset
    -- , test_MeasureText
    -- , test_Buffer
    --   test_TextBox

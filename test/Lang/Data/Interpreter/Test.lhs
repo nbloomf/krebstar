@@ -21,7 +21,7 @@
 > import Lang.Data.Module
 > import Lang.Data.Runtime
 
-> import Ned.Data.FingerTree.Test
+> import Kreb.Check
 
 > test_Interpreter :: TestTree
 > test_Interpreter =

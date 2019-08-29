@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.Seq.Test
+title: Kreb.Struct.Seq.Test
 ---
 
 
@@ -23,7 +23,7 @@ There's not much to say about `Seq`.
 >   , FlexibleContexts
 > #-}
 > 
-> module Ned.Data.Seq.Test (
+> module Kreb.Struct.Seq.Test (
 >     test_Seq
 > ) where
 > 
@@ -33,12 +33,14 @@ There's not much to say about `Seq`.
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.FingerTreeZip
-> import Ned.Data.Seq
+> import Kreb.Struct.FingerTree
+> import Kreb.Struct.FingerTreeZip
+> import Kreb.Struct.Seq
 > 
-> import Ned.Data.FingerTree.Test
-> import Ned.Data.FingerTreeZip.Test
+> import Kreb.Check
+> 
+> import Kreb.Struct.FingerTree.Test
+> import Kreb.Struct.FingerTreeZip.Test
 
 
 

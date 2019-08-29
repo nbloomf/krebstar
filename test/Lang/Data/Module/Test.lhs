@@ -16,7 +16,7 @@
 > import Lang.Data.Type
 > import Lang.Data.Expr
 
-> import Ned.Data.FingerTree.Test
+> import Kreb.Check
 
 
 

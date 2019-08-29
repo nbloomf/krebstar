@@ -14,6 +14,7 @@ module Ned.Data.Tab (
   , getAbsCursorPosTabs
 
   , alterActivePanelTabs
+  , queryActivePanelTabs
 
   , setTabsDim
   , setTabDim
@@ -26,9 +27,9 @@ import Ned.Data.Settings
 import Ned.Data.Buffer
 import Ned.Data.Panel
 import Ned.Data.Tile
-import Ned.Data.FingerTree
-import Ned.Data.FingerTreeZip
-import Ned.Data.Seq
+import Kreb.Struct.FingerTree
+import Kreb.Struct.FingerTreeZip
+import Kreb.Struct.Seq
 
 data Tab = Tab
   { panels :: Tiled Panel
@@ -121,11 +122,22 @@ alterActivePanelTabs
 alterActivePanelTabs f =
   Tabs . headAlter (alterActivePanelTab f) . unTabs
 
+queryActivePanelTabs
+  :: (Panel -> a) -> Tabs -> Maybe a
+queryActivePanelTabs f =
+  fmap (queryActivePanelTab f) . headRead . unTabs
+
 alterActivePanelTab
   :: (Panel -> Panel) -> Tab -> Tab
 alterActivePanelTab f tab =
   let tiles = panels tab in
   tab { panels = alterFocusTiled f tiles }
+
+queryActivePanelTab
+  :: (Panel -> a) -> Tab -> a
+queryActivePanelTab f tab =
+  let tiles = panels tab in
+  queryFocusTiled f tiles
 
 
 

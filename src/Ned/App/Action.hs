@@ -7,6 +7,7 @@ module Ned.App.Action (
 import Ned.App.State
 import Ned.App.Error
 import Ned.Data
+import Ned.App.Hooks
 
 
 
@@ -59,8 +60,7 @@ data Action
 
   | CharInsertCmdAfter Char
 
-  -- Modifiers
-  | Repeat Int Action
+  | RunCmd
 
   -- Modes
   | SetMode EditorMode
@@ -75,8 +75,8 @@ data Action
 
 performAction
   :: ( Monad m )
-  => Action -> AppState
-  -> m (Then, AppState)
+  => Action -> AppState m
+  -> m (Then, AppState m)
 performAction act st = case act of
   NoOp ->
     return (GoOn, st)
@@ -142,3 +142,29 @@ performAction act st = case act of
     let
       st' = setWindowDim (w,h) st
     return (GoOn, st')
+
+  RunCmd -> do
+    let
+      cmd = queryActivePanel getPanelCmdString st
+      st2 = alterActivePanel (alterPanel
+        [PanelClearCmd]) st
+    case cmd of
+      Nothing -> do
+        let st3 = setLastError "no command" st2
+        return (GoOn, st2)
+      Just str -> do
+        r <- evalHook str st2
+        case r of
+          Left err -> do
+            let st3 = setLastError (show err) st2
+            return (GoOn, st3)
+          Right st' -> return (GoOn, st')
+
+
+
+
+
+
+
+
+

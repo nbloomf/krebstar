@@ -36,19 +36,20 @@ Introduction
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.FingerTreeZip
-> import Ned.Data.ReflectNat
+> import Kreb.Struct.FingerTree
+> import Kreb.Struct.FingerTreeZip
+> import Kreb.Reflect.Nat
 > import Ned.Data.ScreenOffset
 > import Ned.Data.MeasureText
 > import Ned.Data.Buffer
 > import Ned.Data.Glyph
 > 
-> import Ned.Data.FingerTree.Test
-> import Ned.Data.FingerTreeZip.Test
+> import Kreb.Check
+> 
+> import Kreb.Struct.FingerTree.Test
+> import Kreb.Struct.FingerTreeZip.Test
 > import Ned.Data.ScreenOffset.Test
 > import Ned.Data.MeasureText.Test
-> import Ned.Data.ReflectNat.Test
 > import Ned.Data.Glyph.Test
 
 

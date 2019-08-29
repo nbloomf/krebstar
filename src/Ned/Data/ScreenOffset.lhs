@@ -60,8 +60,8 @@ Exposed API
 
 > import Data.Proxy
 
-> import Ned.Data.ReflectNat
-> import Ned.Data.RunLengthEncoding
+> import Kreb.Reflect
+> import Kreb.Struct
 
 
 

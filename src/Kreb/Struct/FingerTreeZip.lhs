@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.FingerTreeZip
+title: Kreb.Struct.FingerTreeZip
 ---
 
 
@@ -35,7 +35,7 @@ These are necessary so we can use the `Valued` type class from `FingerTree` as a
 Exposed API
 ===========
 
-> module Ned.Data.FingerTreeZip (
+> module Kreb.Struct.FingerTreeZip (
 >   -- ** FingerTreeZip
 >     FingerTreeZip(..)
 >   , splitFTZ
@@ -82,7 +82,7 @@ Exposed API
 > import qualified Data.Foldable as Fold
 > import Data.List (unwords)
 >  
-> import Ned.Data.FingerTree
+> import Kreb.Struct.FingerTree
 
 
 

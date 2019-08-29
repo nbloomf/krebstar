@@ -20,7 +20,7 @@
 > import Lang.Data.Module
 > import Lang.Data.Parser
 
-> import Ned.Data.FingerTree.Test
+> import Kreb.Check
 
 > test_Parser :: TestTree
 > test_Parser =

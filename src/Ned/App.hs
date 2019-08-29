@@ -17,6 +17,7 @@ module Ned.App (
 
   , primaryEventLoop
   , initAppState
+  , lift
 ) where
 
 import Ned.Monad
@@ -26,6 +27,7 @@ import Ned.App.Error
 import Ned.App.Action
 import Ned.App.Handler
 import Ned.Data
+
 
 
 

@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.FingerTree
+title: Kreb.Struct.FingerTree
 ---
 
 <blockquote>
@@ -64,7 +64,7 @@ Some of these are essential, while others are just convenient. We will address t
 Exposed API
 ===========
 
-> module Ned.Data.FingerTree (
+> module Kreb.Struct.FingerTree (
 >   -- ** Valued
 >     Valued(..)
 >   , Count(..)

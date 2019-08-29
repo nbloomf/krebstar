@@ -10,7 +10,12 @@
 >   = V_Prim Pri
 >   | V_Eff
 >   | V_Func String [Val]
->   | V_Quote Phrase
+>   | V_Quote [Sus]
+>   deriving (Eq, Show)
+
+> data Sus
+>   = Sus_Put Val
+>   | Sus_Say Phrase
 >   deriving (Eq, Show)
 
 > data Pri
@@ -28,8 +33,13 @@
 >     V_Func f xs -> case xs of
 >       [] -> f
 >       _ -> "(" ++ f ++ " " ++ unwords (map pretty xs) ++ ")"
->     V_Quote expr ->
->       "'[" ++ pretty expr ++ "]"
+>     V_Quote s ->
+>       "'[" ++ (unwords $ map pretty s) ++ "]"
+
+> instance PrettyPrint Sus where
+>   pretty x = case x of
+>     Sus_Put v -> pretty v
+>     Sus_Say p -> pretty p
 
 > instance PrettyPrint Pri where
 >   pretty x = case x of

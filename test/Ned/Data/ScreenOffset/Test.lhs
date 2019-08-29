@@ -41,14 +41,13 @@ Introduction
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.RunLengthEncoding
-> import Ned.Data.ReflectNat
+> import Kreb.Reflect
+> import Kreb.Struct
+> 
 > import Ned.Data.ScreenOffset
 > 
-> import Ned.Data.FingerTree.Test
-> import Ned.Data.RunLengthEncoding.Test
-> import Ned.Data.ReflectNat.Test
+> import Kreb.Struct.FingerTree.Test
+> import Kreb.Struct.RunLengthEncoding.Test
 
 
 

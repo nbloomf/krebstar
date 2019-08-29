@@ -23,7 +23,7 @@
 > import Lang.Data.Expr
 > import Lang.Data.Type
 
-> import Ned.Data.FingerTree.Test
+> import Kreb.Check
 
 > test_Type :: TestTree
 > test_Type = let k = 10000 in

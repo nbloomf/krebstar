@@ -4,6 +4,7 @@ module Ned.Data.Tile (
 
   , getAbsCursorPosTiled
   , alterFocusTiled
+  , queryFocusTiled
 
   , setTiledDim
 
@@ -27,6 +28,10 @@ setTiledDim f dim (Tiled x) =
 alterFocusTiled
   :: (a -> a) -> Tiled a -> Tiled a
 alterFocusTiled f (Tiled a) = Tiled (f a)
+
+queryFocusTiled
+  :: (a -> b) -> Tiled a -> b
+queryFocusTiled f (Tiled a) = f a
 
 mkTiled :: a -> Tiled a
 mkTiled = Tiled

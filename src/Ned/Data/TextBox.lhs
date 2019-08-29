@@ -37,6 +37,7 @@ Introduction
 >   , getTextBoxCursor
 >   , getTextBoxOffset
 >   , getTextBoxBuffer
+>   , getTextBoxString
 
 >   , getTextBoxFocusLineCol
 >   , getTextBoxFocusScreenCoords
@@ -59,8 +60,8 @@ Introduction
 > import Data.List (unlines)
 
 > import Ned.Data.LocalSt
-> import Ned.Data.FingerTree
-> import Ned.Data.FingerTreeZip
+> import Kreb.Struct.FingerTree
+> import Kreb.Struct.FingerTreeZip
 > import Ned.Data.MeasureText
 > import Ned.Data.ScreenOffset
 > import Ned.Data.Buffer
@@ -125,6 +126,12 @@ Queries
 >   :: TextBox -> (Int, Int)
 > getTextBoxScreenCoords box =
 >   querySizedBuffer getBufferScreenCoords
+>     $ textboxBuffer box
+> 
+> getTextBoxString
+>   :: TextBox -> String
+> getTextBoxString box =
+>   querySizedBuffer getBufferString
 >     $ textboxBuffer box
 > 
 > getTextBoxHeight
@@ -256,6 +263,8 @@ Queries
 > 
 >   -- 
 >   | TextBoxResize (Int, Int)
+
+>   | TextBoxClear
 >   deriving (Eq, Show)
 
 > alterTextBox
@@ -293,6 +302,9 @@ Queries
 > 
 >   TextBoxResize dim ->
 >     textboxResize dim
+> 
+>   TextBoxClear ->
+>     textboxClear
 
 
 
@@ -301,6 +313,15 @@ Queries
 -- ================= --
 -- Primitive Actions --
 -- ================= --
+
+> textboxClear
+>   :: TextBox -> TextBox
+> textboxClear box = box
+>   { textboxBuffer = emptySizedBuffer (getTextBoxWidth box) (getTextBoxHeight box)
+>   , textboxOffset = 0
+>   , textboxCursor = (0,0)
+>   }
+
 
 > textBoxInsert
 >   :: Glyph

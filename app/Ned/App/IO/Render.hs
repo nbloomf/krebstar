@@ -11,7 +11,7 @@ import Ned.App.State
 
 
 imageAppState
-  :: AppState -> Image
+  :: ( Monad m ) => AppState m -> Image
 imageAppState st =
   let (w,_) = windowDim st in
   case getActiveTab $ tabbedBuffers st of

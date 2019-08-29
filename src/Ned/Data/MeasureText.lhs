@@ -33,8 +33,8 @@ Introduction
 > 
 > import Data.Proxy
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.RunLengthEncoding
+> import Kreb.Struct
+> 
 > import Ned.Data.ScreenOffset
 
 

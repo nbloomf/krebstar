@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.Seq
+title: Kreb.Struct.Seq
 ---
 
 
@@ -27,7 +27,7 @@ So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type
 > #-}
 > 
 > 
-> module Ned.Data.Seq (
+> module Kreb.Struct.Seq (
 >     Seq()
 >   , emptySeq
 >   , fmapSeq
@@ -35,8 +35,8 @@ So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type
 >   , debugShowSeq
 > ) where
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.FingerTreeZip
+> import Kreb.Struct.FingerTree
+> import Kreb.Struct.FingerTreeZip
 
 
 

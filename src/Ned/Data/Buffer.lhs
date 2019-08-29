@@ -69,6 +69,7 @@ Exposed API
 >   , getBufferBytes
 >   , getBufferLineCol
 >   , getBufferScreenCoords
+>   , getBufferString
 > 
 >   , seekScreenCoords
 > 
@@ -114,9 +115,10 @@ Exposed API
 > import Control.Monad (join)
 > import Debug.Trace
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.FingerTreeZip
-> import Ned.Data.ReflectNat
+> import Kreb.Reflect
+> 
+> import Kreb.Struct.FingerTree
+> import Kreb.Struct.FingerTreeZip
 > import Ned.Data.ScreenOffset
 > import Ned.Data.MeasureText
 > import Ned.Data.Glyph
@@ -467,6 +469,11 @@ Functions for getting the basic parameters of a buffer:
 > getBufferLineCol (Buffer buf) =
 >   let m = value buf :: MeasureText w t in
 >   logicalOffset m
+> 
+> getBufferString
+>   :: ( IsWidth w, IsTab t, Eq a, IsChar a, Valued (MeasureText w t) a )
+>   => Buffer w t a -> String
+> getBufferString = map toChar . unTape
 
 
 

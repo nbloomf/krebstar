@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.RunLengthEncoding.Test
+title: Kreb.Struct.RunLengthEncoding.Test
 ---
 
 
@@ -30,7 +30,7 @@ Introduction
 >   , FlexibleContexts
 > #-}
 > 
-> module Ned.Data.RunLengthEncoding.Test (
+> module Kreb.Struct.RunLengthEncoding.Test (
 >     test_RunLengthEncoding
 > ) where
 > 
@@ -41,11 +41,11 @@ Introduction
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.FingerTree
-> import Ned.Data.RunLengthEncoding
+> import Kreb.Struct.FingerTree
+> import Kreb.Struct.RunLengthEncoding
 > 
-> import Ned.Data.FingerTree.Test
-> import Ned.Data.FingerTreeZip.Test
+> import Kreb.Struct.FingerTree.Test
+> import Kreb.Struct.FingerTreeZip.Test
 
 
 

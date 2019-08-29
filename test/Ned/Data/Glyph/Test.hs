@@ -20,7 +20,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Ned.Data.Glyph
-import Ned.Data.FingerTree
+import Kreb.Struct.FingerTree
 import Ned.Data.MeasureText
 import Ned.Data.ScreenOffset
 import Ned.Data.Buffer

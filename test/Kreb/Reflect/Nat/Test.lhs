@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.ReflectNat.Test
+title: Kreb.Reflect.Nat.Test
 ---
 
 
@@ -16,7 +16,7 @@ Contents
 Introduction
 ============
 
-> module Ned.Data.ReflectNat.Test (
+> module Kreb.Reflect.Nat.Test (
 >     test_ReflectNat
 > ) where
 > 
@@ -26,7 +26,7 @@ Introduction
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data.ReflectNat
+> import Kreb.Reflect.Nat
 
 
 

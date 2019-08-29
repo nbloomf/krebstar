@@ -11,6 +11,8 @@ module Ned.Data.Panel (
 
   , setPanelDim
 
+  , getPanelCmdString
+
   , RenderedPanel(..)
   , updateRenderedPanel
   , getAbsCursorPosPanel
@@ -21,7 +23,7 @@ module Ned.Data.Panel (
 import Data.List (unlines)
 
 import Ned.Data.Settings
-import Ned.Data.FingerTree
+import Kreb.Struct.FingerTree
 import Ned.Data.Buffer
 import Ned.Data.TextBox
 import Ned.Data.Glyph
@@ -37,6 +39,9 @@ data Panel = Panel
   , cmdHeight     :: Int
   , renderedPanel :: Maybe RenderedPanel
   } deriving (Eq, Show)
+
+getPanelCmdString :: Panel -> String
+getPanelCmdString = getTextBoxString . cmdBox
 
 
 initPanel
@@ -131,6 +136,7 @@ instance Semigroup Int where
 data PanelAction
   = PanelAlterText [TextBoxAction]
   | PanelAlterCmd [TextBoxAction]
+  | PanelClearCmd
   deriving (Eq, Show)
 
 alterPanel
@@ -150,6 +156,9 @@ alterPanelPrimitive act = case act of
 
   PanelAlterCmd as ->
     panelAlterCmd as
+
+  PanelClearCmd ->
+    panelClearCmd
 
 
 
@@ -172,6 +181,12 @@ panelAlterCmd
 panelAlterCmd as panel =
   let box = cmdBox panel in
   panel { cmdBox = alterTextBox as box }
+
+panelClearCmd
+  :: Panel -> Panel
+panelClearCmd panel =
+  let box = cmdBox panel in
+  panel { cmdBox = alterTextBox [TextBoxClear] box }
 
 
 

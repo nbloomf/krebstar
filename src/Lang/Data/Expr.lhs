@@ -34,6 +34,8 @@ Term Grammar
 >   | BuiltIn_Id
 >   | BuiltIn_Swap
 >   | BuiltIn_Apply
+>   | BuiltIn_Quote
+>   | BuiltIn_Compose
 > 
 >   | BuiltIn_Ext String
 >   deriving (Eq, Ord, Show)
@@ -66,6 +68,8 @@ Term Grammar
 >     BuiltIn_Id -> "#id"
 >     BuiltIn_Swap -> "#swap"
 >     BuiltIn_Apply -> "#apply"
+>     BuiltIn_Quote -> "#quote"
+>     BuiltIn_Compose -> "#compose"
 
 
 

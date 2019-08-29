@@ -21,18 +21,128 @@ source-repository head
 
 
 
+common test-deps
+  build-depends:
+      QuickCheck >=2.12.6.1
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10.1
+
+
+
+-- ========== --
+-- Kreb Check --
+-- ========== --
+
+library kreb-check
+  default-language: Haskell2010
+  hs-source-dirs: src
+  exposed-modules:
+      Kreb.Check
+  build-depends:
+      base >=4.7 && <5
+    , QuickCheck >=2.12.6.1
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10.1
+
+common kreb-check-mod
+  other-modules:
+      Kreb.Check
+
+
+
+-- ============ --
+-- Kreb Reflect --
+-- ============ --
+
+library kreb-reflect
+  default-language: Haskell2010
+  hs-source-dirs: src
+  exposed-modules:
+      Kreb.Reflect
+    , Kreb.Reflect.Nat
+  build-depends:
+      base >=4.7 && <5
+
+common kreb-reflect-mod
+  other-modules:
+      Kreb.Reflect
+    , Kreb.Reflect.Nat
+
+test-suite kreb-reflect-test
+  import: test-deps
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Kreb/Reflect/Test.lhs
+  other-modules:
+      Kreb.Reflect.Nat.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , kreb-reflect
+
+
+
+-- =========== --
+-- Kreb Struct --
+-- =========== --
+
+library kreb-struct
+  default-language: Haskell2010
+  hs-source-dirs: src
+  exposed-modules:
+      Kreb.Struct
+    , Kreb.Struct.FingerTree
+    , Kreb.Struct.FingerTreeZip
+    , Kreb.Struct.Seq
+    , Kreb.Struct.RunLengthEncoding
+  build-depends:
+      base >=4.7 && <5
+
+common kreb-struct-mod
+  other-modules:
+      Kreb.Struct
+    , Kreb.Struct.FingerTree
+    , Kreb.Struct.FingerTreeZip
+    , Kreb.Struct.Seq
+    , Kreb.Struct.RunLengthEncoding
+
+test-suite kreb-struct-test
+  import:
+      test-deps
+    , kreb-check-mod
+    , kreb-struct-mod
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, src
+  main-is: Kreb/Struct/Test.lhs
+  other-modules:
+      Kreb.Struct.FingerTree.Test
+    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.Seq.Test
+    , Kreb.Struct.RunLengthEncoding.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , kreb-struct
+
+
+
+
+
 library
+  import:
+      kreb-reflect-mod
+    , kreb-struct-mod
   default-language: Haskell2010
   build-tools: alex, happy
   exposed-modules:
       Ned
     , Ned.Debug
     , Ned.Data
-    , Ned.Data.FingerTree
-    , Ned.Data.FingerTreeZip
-    , Ned.Data.Seq
-    , Ned.Data.RunLengthEncoding
-    , Ned.Data.ReflectNat
+
     , Ned.Data.ScreenOffset
     , Ned.Data.MeasureText
     , Ned.Data.Glyph
@@ -44,7 +154,7 @@ library
     , Ned.Data.Panel
     , Ned.Data.Tile
     , Ned.Data.Tab
-    , Ned.Data.Hooks
+    , Ned.App.Hooks
 
     , Lang.Data.Lexer
     , Lang.Data.Parser
@@ -84,6 +194,10 @@ library
     , bytestring >=0.8.10.2
     , containers >=0.6.0.1
 
+    , kreb-reflect
+
+
+
 
 
 executable ned
@@ -116,31 +230,60 @@ executable lang
 
 
 test-suite ned-test
+  import:
+      test-deps
+    , kreb-check-mod
+    , kreb-reflect-mod
+    , kreb-struct-mod
   default-language: Haskell2010
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
-      Ned.Data.FingerTree.Test
-    , Ned.Data.FingerTreeZip.Test
+      Lang.Data.Expr
+    , Lang.Data.PrettyPrint
+    , Lang.Data.Type
     , Ned.Data.Buffer.Test
     , Ned.Data.Glyph.Test
-    , Ned.Data.RunLengthEncoding.Test
     , Ned.Data.ScreenOffset.Test
-    , Ned.Data.ReflectNat.Test
     , Ned.Data.MeasureText.Test
     , Ned.Data.TextBox.Test
-    , Ned.Data.Seq.Test
+
+    , Lang
+    , Lang.Data.Error
+    , Lang.Data.Interpreter
+    , Lang.Data.LexicalGrammar
+    , Lang.Data.Loc
+    , Lang.Data.Module
+    , Lang.Data.Runtime
+    , Lang.Data.Value
+    , Lang.Data.Lexer
+    , Lang.Data.Parser
+    , Ned.Data
+    , Ned.Data.Buffer
+    , Ned.Data.Glyph
+    , Ned.App.Hooks
+    , Ned.Data.LocalSt
+    , Ned.Data.MeasureText
+    , Ned.Data.Panel
+    , Ned.Data.ScreenOffset
+
+    , Ned.Data.Settings
+    , Ned.Data.Tab
+    , Ned.Data.TextBox
+    , Ned.Data.Tile
+
+    , Kreb.Struct.FingerTree.Test
+    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.RunLengthEncoding.Test
 
     , Lang.Data.Type.Test
     , Lang.Data.Module.Test
     , Lang.Data.Interpreter.Test
     , Lang.Data.Parser.Test
-  hs-source-dirs: test
+  hs-source-dirs: test, src
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
-    , ned
-    , QuickCheck >=2.12.6.1
-    , tasty >=1.2
-    , tasty-quickcheck >=0.10.1
     , containers >=0.6.0.1
+    , array >= 0.5.3.0
+    , text >=1.2.3.1

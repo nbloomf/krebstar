@@ -6,13 +6,18 @@ FEATURES TO IMPLEMENT IN ORDER OF PRIORITY
 4. Raw headless mode: list of actions
     - (v. useful for automated testing)
 
+lang features needed
+--------------------
+- compose primitive
+  - 'suspension' in Val
+  - Suspension = Put Val | Say Phrase
+  - V_Quote [Suspension]
+- debug feature: stack traces
+- make sure we parse the empty quotation []
+
 
 - Split into sublibraries (new cabal feature)
-  - reflect nat
-  - finger trees
   - text boxes
-  - lang: embeddable strongly typed concatenative scripting language
-  - ned
 
 - lang
   - initial algebras and terminal coalgebras

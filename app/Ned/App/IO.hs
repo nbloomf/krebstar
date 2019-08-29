@@ -9,6 +9,7 @@ import Ned
 import Ned.App.IO.Event
 import Ned.App.IO.Render
 import Ned.App.State
+import Ned.App.Hooks
 import Ned.Data
 
 
@@ -16,7 +17,7 @@ import Ned.Data
 consoleIO :: IO ()
 consoleIO = do
   (env, dim) <- appEnvIO
-  runApp env (updateStateCache $ initAppState dim) primaryEventLoop
+  runApp env (updateStateCache $ initAppState runtimeStateIO dim) primaryEventLoop
   cleanup env
 
 getTerminalSize :: IO (Int, Int)

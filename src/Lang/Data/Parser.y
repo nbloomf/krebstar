@@ -35,6 +35,8 @@ import Lang.Data.Expr
   'id' { TokenBuiltIn ("#id", $$) }
   'swap' { TokenBuiltIn ("#swap", $$) }
   'apply' { TokenBuiltIn ("#apply", $$) }
+  'quote' { TokenBuiltIn ("#quote", $$) }
+  'compose' { TokenBuiltIn ("#compose", $$) }
 
   'int_plus' { TokenBuiltIn ("#int_plus", $$) }
   'int_times' { TokenBuiltIn ("#int_times", $$) }
@@ -127,6 +129,8 @@ builtin :: { BuiltIn }
   | 'id' { BuiltIn_Id }
   | 'swap' { BuiltIn_Swap }
   | 'apply' { BuiltIn_Apply }
+  | 'quote' { BuiltIn_Quote }
+  | 'compose' { BuiltIn_Compose }
 
   | custom_builtin { BuiltIn_Ext (fst $1) }
 

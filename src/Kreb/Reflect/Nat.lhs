@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.ReflectNat
+title: Kreb.Reflect.Nat
 ---
 
 
@@ -25,7 +25,7 @@ We'll be using this code later on to encode natural numbers in the type of a tex
 >   , Rank2Types
 > #-}
 > 
-> module Ned.Data.ReflectNat (
+> module Kreb.Reflect.Nat (
 >     ReflectNat(..)
 >   , reifyNat
 >   , Zero()

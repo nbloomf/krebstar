@@ -7,7 +7,7 @@ module Ned.Data.Glyph (
   , mkGlyph
 ) where
 
-import Ned.Data.FingerTree
+import Kreb.Struct.FingerTree
 import Ned.Data.ScreenOffset
 import Ned.Data.MeasureText
 

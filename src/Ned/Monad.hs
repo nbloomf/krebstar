@@ -13,6 +13,7 @@ module Ned.Monad (
   , get
   , put
   , mutate
+  , lift
 ) where
 
 import Ned.App.State
@@ -21,15 +22,15 @@ import Ned.App.Error
 import Ned.App.Action
 import Ned.App.Handler
 
-type App m a = ConsoleT (AppEnv m) AppState m a
+type App m a = ConsoleT (AppEnv m) (AppState m) m a
 
-runApp :: (Monad m) => AppEnv m -> AppState -> App m a -> m a
+runApp :: (Monad m) => AppEnv m -> AppState m -> App m a -> m a
 runApp = runConsoleT
 
 
 -- Side effects are managed here.
 data AppEnv m = AppEnv
-  { renderState :: AppState -> m ()
+  { renderState :: AppState m -> m ()
   , getNextEvent :: m AppEvent
   , cleanup :: m ()
   , logMessage :: String -> m ()
@@ -50,7 +51,7 @@ _getNextEvent = do
 _handleEvent :: ( Monad m ) => AppEvent -> App m Then
 _handleEvent event = do
   st <- get
-  (next, st') <- handler st event
+  (next, st') <- lift $ handler st event
   put $ updateStateCache st'
   return next
 

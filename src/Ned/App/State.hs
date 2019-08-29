@@ -1,3 +1,5 @@
+{-# LANGUAGE KindSignatures #-}
+
 module Ned.App.State (
     AppState(..)
   , initAppState
@@ -17,6 +19,7 @@ module Ned.App.State (
   , clearLastError
 
   , alterActivePanel
+  , queryActivePanel
 
   , setWindowDim
 
@@ -27,29 +30,41 @@ module Ned.App.State (
 import Data.List (unlines)
 
 import Ned.Data
+import Lang
 
 
 
-data AppState = AppState
+data AppState (m :: * -> *) = AppState
   { windowDim     :: (Int, Int)
   , editorMode    :: EditorMode
   , absCursorPos  :: (Int, Int)
   , tabbedBuffers :: Tabs
   , statusBar     :: StatusBar
-  } deriving (Eq, Show)
+  , runtimeSt     :: RuntimeState m
+  }
 
-initAppState :: (Int, Int) -> AppState
-initAppState (w,h) = AppState
+instance Show (AppState m) where
+  show st = unlines
+    [ "windowDim = ", show $ windowDim st
+    , "editorMode = ", show $ editorMode st
+    , "absCursorPos = ", show $ absCursorPos st
+    , "tabbedBuffers = ", show $ tabbedBuffers st
+    , "statusBar = ", show $ statusBar st
+    ]
+
+initAppState :: RuntimeState m -> (Int, Int) -> AppState m
+initAppState rts (w,h) = AppState
   { windowDim     = (w,h)
   , editorMode    = NormalMode
   , absCursorPos  = (0,0)
   , tabbedBuffers = initTabs (w,h) 4
   , statusBar     = defaultStatusBar
+  , runtimeSt     = rts
   }
 
 
 setWindowDim
-  :: (Int, Int) -> AppState -> AppState
+  :: (Int, Int) -> AppState m -> AppState m
 setWindowDim dim st =
   let
     (tabs, pos) =
@@ -62,29 +77,29 @@ setWindowDim dim st =
 
 
 
-getEditorMode :: AppState -> EditorMode
+getEditorMode :: AppState m -> EditorMode
 getEditorMode st = editorMode st
 
-setEditorMode :: EditorMode -> AppState -> AppState
+setEditorMode :: EditorMode -> AppState m -> AppState m
 setEditorMode m st = st { editorMode = m }
 
-getAbsCursorPos :: AppState -> (Int, Int)
+getAbsCursorPos :: AppState m -> (Int, Int)
 getAbsCursorPos st = absCursorPos st
 
-modifyAbsCursorPos :: (Int, Int) -> AppState -> AppState
+modifyAbsCursorPos :: (Int, Int) -> AppState m -> AppState m
 modifyAbsCursorPos (dx, dy) st =
   let (x, y) = absCursorPos st in
   st { absCursorPos = (x + dx, y + dy) }
 
 
-updateStateCache :: AppState -> AppState
+updateStateCache :: AppState m -> AppState m
 updateStateCache = foldr (.) id
   [ updateAbsCursorPos
   , updateRenderedState
   ]
 
 
-updateRenderedState :: AppState -> AppState
+updateRenderedState :: AppState m -> AppState m
 updateRenderedState st =
   let
     mode = editorMode st
@@ -96,7 +111,7 @@ updateRenderedState st =
     , statusBar = updateRenderedStatusBar mode sb
     }
 
-updateAbsCursorPos :: AppState -> AppState
+updateAbsCursorPos :: AppState m -> AppState m
 updateAbsCursorPos st =
   let
     dim = windowDim st
@@ -117,18 +132,25 @@ data AppStateAction
 
 alterActivePanel
   :: (Panel -> Panel)
-  -> AppState -> AppState
+  -> AppState m -> AppState m
 alterActivePanel f st =
   let tabs = tabbedBuffers st in
   st { tabbedBuffers = alterActivePanelTabs f tabs }
 
+queryActivePanel
+  :: (Panel -> a)
+  -> AppState m -> Maybe a
+queryActivePanel f st =
+  let tabs = tabbedBuffers st in
+  queryActivePanelTabs f tabs
 
-setLastError :: String -> AppState -> AppState
+
+setLastError :: String -> AppState m -> AppState m
 setLastError msg st =
   let sb = statusBar st in
   st { statusBar = sb { lastError = Just msg } }
 
-clearLastError :: AppState -> AppState
+clearLastError :: AppState m -> AppState m
 clearLastError st =
   let sb = statusBar st in
   st { statusBar = sb { lastError = Nothing } }
@@ -172,7 +194,7 @@ updateRenderedStatusBar m sb =
 
 
 
-renderDebugMessage :: AppState -> String
+renderDebugMessage :: AppState m -> String
 renderDebugMessage st = unlines
   [ "==== State ===="
   , "windowDim: " ++ show (windowDim st)

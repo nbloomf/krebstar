@@ -11,7 +11,7 @@ import Ned.App.Action
 
 handler
   :: ( Monad m )
-  => AppState -> AppEvent -> m (Then, AppState)
+  => AppState m -> AppEvent -> m (Then, AppState m)
 handler st event =
   performAction (eventMapping (getEditorMode st) event) st
 
@@ -67,6 +67,9 @@ eventMapping mode event = case event of
     CommandMode -> case event of
       EventKeyPress (KeyChar c) [] ->
         CharInsertCmdAfter c
+
+      EventKeyPress KeyEnter [] ->
+        RunCmd
 
       _ ->
         SetError $ " eventMapping (Cmd): " ++ show event

@@ -80,6 +80,13 @@
 >   -> m (Either ReplError (a, RuntimeState m))
 > runRuntime (Runtime x) st = x st
 
+> evalRuntime
+>   :: ( Monad m )
+>   => Runtime m a -> RuntimeState m
+>   -> m (Either ReplError a)
+> evalRuntime (Runtime x) st =
+>   fmap (fmap fst) $ x st
+
 
 > getActions
 >   :: ( Monad m )
@@ -151,7 +158,7 @@
 >   => Word -> Runtime m (Runtime m ())
 > lookupActionFor word = case word of
 >   Quote phrase -> return $ mutateStack $ \stk ->
->     Right $ Cons stk (V_Quote phrase)
+>     Right $ Cons stk (V_Quote [Sus_Say phrase])
 >   Only atom -> do
 >     dict <- _atomActions <$> getActions
 >     case M.lookup atom dict of
@@ -260,13 +267,29 @@
 >   BuiltIn_Apply -> do
 >     val <- popStack
 >     case val of
->       V_Quote phrase -> doActionFor phrase
+>       V_Quote s -> mapM_ applySuspension s
 >       _ -> throwErr $ RTE $ ExpectedQuote
+> 
+>   BuiltIn_Quote -> mutateStack $ \stk ->
+>     case stk of
+>       Cons st a -> Right $ Cons st (V_Quote [Sus_Put a])
+>       _ -> Left StackHeadMismatch
+> 
+>   BuiltIn_Compose -> mutateStack $ \stk ->
+>     case stk of
+>       Cons (Cons st (V_Quote s1)) (V_Quote s2) -> Right $ Cons st (V_Quote (s1 ++ s2))
+>       _ -> Left StackHeadMismatch
 > 
 >   BuiltIn_Ext str ->
 >     case custom str of
 >       Nothing -> throwErr $ RTE $ BuiltInUnrecognized str
 >       Just act -> act
+
+> applySuspension
+>   :: ( Monad m ) => Sus -> Runtime m ()
+> applySuspension x = case x of
+>   Sus_Put v -> mutateStack $ \stk -> Right $ Cons stk v
+>   Sus_Say p -> doActionFor p
 
 > builtinTypes
 >   :: (String -> Maybe Scheme) -> BuiltIn -> Maybe Scheme
@@ -320,6 +343,31 @@
 >         (Stack (V "S") [])
 >         (Stack (V "R") [])])
 >       (Stack (V "R") [])
+> 
+>   BuiltIn_Quote -> Just $
+>     ForAll
+>       (Vars [V "S", V "R"] [V "a"]) $ Arrow
+>       (Stack (V "S") [TyVar (V "a")])
+>       (Stack (V "S") [TyArr $ Arrow
+>         (Stack (V "R") [])
+>         (Stack (V "R") [TyVar (V "a")])])
+> 
+>   BuiltIn_Compose -> Just $
+>     ForAll
+>       (Vars [V "S", V "T", V "U", V "V"] []) $ Arrow
+>       (Stack (V "S")
+>         [ TyArr $ Arrow
+>           (Stack (V "U") [])
+>           (Stack (V "V") [])
+>         , TyArr $ Arrow
+>           (Stack (V "T") [])
+>           (Stack (V "U") [])
+>         ])
+>       (Stack (V "S")
+>         [ TyArr $ Arrow
+>           (Stack (V "T") [])
+>           (Stack (V "V") [])
+>         ])
 > 
 >   BuiltIn_Ext str -> custom str
 

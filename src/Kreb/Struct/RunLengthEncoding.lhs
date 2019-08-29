@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.RunLengthEncoding
+title: Kreb.Struct.RunLengthEncoding
 ---
 
 
@@ -28,7 +28,7 @@ We will need this utility type later.
 >   , InstanceSigs
 > #-}
 > 
-> module Ned.Data.RunLengthEncoding (
+> module Kreb.Struct.RunLengthEncoding (
 >     RunLengthEncoding(..)
 >   , RunSize(..)
 >   , Run(..)
@@ -47,7 +47,7 @@ We will need this utility type later.
 > import Data.Foldable
 > import Data.List (intercalate)
 > 
-> import Ned.Data.FingerTree
+> import Kreb.Struct.FingerTree
 
 
 
