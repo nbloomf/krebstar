@@ -9,7 +9,7 @@ import Ned
 import Ned.App.IO.Event
 import Ned.App.IO.Render
 import Ned.App.State
-import Ned.App.Hooks
+import Ned.App.Action
 import Ned.Data
 
 

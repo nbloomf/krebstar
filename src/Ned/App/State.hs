@@ -5,6 +5,8 @@ module Ned.App.State (
   , initAppState
   , EditorMode(..)
 
+  , Hook(..)
+
   , renderDebugMessage
 
   , getEditorMode
@@ -28,6 +30,7 @@ module Ned.App.State (
 ) where
 
 import Data.List (unlines)
+import Control.Monad (ap)
 
 import Ned.Data
 import Lang
@@ -40,7 +43,7 @@ data AppState (m :: * -> *) = AppState
   , absCursorPos  :: (Int, Int)
   , tabbedBuffers :: Tabs
   , statusBar     :: StatusBar
-  , runtimeSt     :: RuntimeState m
+  , runtimeSt     :: RuntimeState (Hook m)
   }
 
 instance Show (AppState m) where
@@ -52,7 +55,7 @@ instance Show (AppState m) where
     , "statusBar = ", show $ statusBar st
     ]
 
-initAppState :: RuntimeState m -> (Int, Int) -> AppState m
+initAppState :: RuntimeState (Hook m) -> (Int, Int) -> AppState m
 initAppState rts (w,h) = AppState
   { windowDim     = (w,h)
   , editorMode    = NormalMode
@@ -61,6 +64,26 @@ initAppState rts (w,h) = AppState
   , statusBar     = defaultStatusBar
   , runtimeSt     = rts
   }
+
+newtype Hook m a = Hook
+  { unHook :: AppState m -> m (a, AppState m)
+  }
+
+instance
+  ( Monad m
+  ) => Monad (Hook m) where
+    return a = Hook $ \st -> return (a, st)
+
+    (Hook x) >>= f = Hook $ \st -> do
+      (a, st2) <- x st
+      unHook (f a) st2
+
+instance ( Monad m ) => Applicative (Hook m) where
+  pure = return
+  (<*>) = ap
+
+instance ( Monad m ) => Functor (Hook m) where
+  fmap f x = x >>= (return . f)
 
 
 setWindowDim

@@ -8,10 +8,6 @@ FEATURES TO IMPLEMENT IN ORDER OF PRIORITY
 
 lang features needed
 --------------------
-- compose primitive
-  - 'suspension' in Val
-  - Suspension = Put Val | Say Phrase
-  - V_Quote [Suspension]
 - debug feature: stack traces
 - make sure we parse the empty quotation []
 
@@ -34,7 +30,6 @@ lang features needed
   - colored prompt
   - print help
   - schemata
-    - compose:
     - shuffle:a1:a2:a3:...:ak
   - need to work out how extensability works.
 

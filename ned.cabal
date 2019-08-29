@@ -154,7 +154,6 @@ library
     , Ned.Data.Panel
     , Ned.Data.Tile
     , Ned.Data.Tab
-    , Ned.App.Hooks
 
     , Lang.Data.Lexer
     , Lang.Data.Parser
