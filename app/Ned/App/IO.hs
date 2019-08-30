@@ -5,6 +5,8 @@ module Ned.App.IO (
 import Graphics.Vty
 import qualified System.Console.Terminal.Size as TS
 
+import Kreb.Text
+
 import Ned
 import Ned.App.IO.Event
 import Ned.App.IO.Render

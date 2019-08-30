@@ -1,4 +1,4 @@
-> module Ned.Data.LocalSt where
+> module Kreb.Control.LocalSt where
 
 
 

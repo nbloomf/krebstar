@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.TextBox.Test
+title: Kreb.Text.TextBox.Test
 ---
 
 
@@ -23,7 +23,7 @@ Introduction
 >   , FlexibleContexts
 > #-}
 
-> module Ned.Data.TextBox.Test (
+> module Kreb.Text.TextBox.Test (
 >     test_TextBox
 > ) where
 > 
@@ -34,9 +34,9 @@ Introduction
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Ned.Data
+> import Kreb.Text
 > 
-> import Ned.Data.Glyph.Test
+> import Kreb.Text.Glyph.Test
 
 
 

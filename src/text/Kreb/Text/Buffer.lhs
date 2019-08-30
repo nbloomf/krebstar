@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.Buffer
+title: Kreb.Text.Buffer
 ---
 
 
@@ -39,7 +39,7 @@ Introduction
 Exposed API
 ===========
 
-> module Ned.Data.Buffer (
+> module Kreb.Text.Buffer (
 >   -- * Buffers
 >     Buffer(..)
 >   , Cell()
@@ -116,12 +116,11 @@ Exposed API
 > import Debug.Trace
 > 
 > import Kreb.Reflect
+> import Kreb.Struct
 > 
-> import Kreb.Struct.FingerTree
-> import Kreb.Struct.FingerTreeZip
-> import Ned.Data.ScreenOffset
-> import Ned.Data.MeasureText
-> import Ned.Data.Glyph
+> import Kreb.Text.ScreenOffset
+> import Kreb.Text.MeasureText
+> import Kreb.Text.Glyph
 
 
 

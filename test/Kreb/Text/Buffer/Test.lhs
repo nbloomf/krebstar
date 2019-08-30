@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.Buffer.Test
+title: Kreb.Text.Buffer.Test
 ---
 
 
@@ -24,7 +24,7 @@ Introduction
 >   , FlexibleContexts
 > #-}
 > 
-> module Ned.Data.Buffer.Test (
+> module Kreb.Text.Buffer.Test (
 >     test_Buffer
 > ) where
 > 
@@ -39,18 +39,15 @@ Introduction
 > import Kreb.Struct.FingerTree
 > import Kreb.Struct.FingerTreeZip
 > import Kreb.Reflect.Nat
-> import Ned.Data.ScreenOffset
-> import Ned.Data.MeasureText
-> import Ned.Data.Buffer
-> import Ned.Data.Glyph
+> import Kreb.Text
 > 
 > import Kreb.Check
 > 
 > import Kreb.Struct.FingerTree.Test
 > import Kreb.Struct.FingerTreeZip.Test
-> import Ned.Data.ScreenOffset.Test
-> import Ned.Data.MeasureText.Test
-> import Ned.Data.Glyph.Test
+> import Kreb.Text.ScreenOffset.Test
+> import Kreb.Text.MeasureText.Test
+> import Kreb.Text.Glyph.Test
 
 
 

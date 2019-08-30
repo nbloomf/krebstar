@@ -1,6 +1,6 @@
 cabal-version:  2.4
 name:           ned
-version:        0.1.0.0
+version:        0.0.0.0
 description:    Please see the README on GitHub at <https://github.com/nbloomf/krebstar#readme>
 homepage:       https://github.com/nbloomf/krebstar#readme
 bug-reports:    https://github.com/nbloomf/krebstar/issues
@@ -35,7 +35,7 @@ common test-deps
 
 library kreb-check
   default-language: Haskell2010
-  hs-source-dirs: src
+  hs-source-dirs: src/check
   exposed-modules:
       Kreb.Check
   build-depends:
@@ -44,9 +44,35 @@ library kreb-check
     , tasty >=1.2
     , tasty-quickcheck >=0.10.1
 
-common kreb-check-mod
-  other-modules:
-      Kreb.Check
+
+
+-- ============ --
+-- Kreb Control --
+-- ============ --
+
+library kreb-control
+  default-language: Haskell2010
+  hs-source-dirs: src/control
+  exposed-modules:
+      Kreb.Control
+    , Kreb.Control.LocalSt
+  build-depends:
+      base >=4.7 && <5
+
+
+
+-- =========== --
+-- Kreb Format --
+-- =========== --
+
+library kreb-format
+  default-language: Haskell2010
+  hs-source-dirs: src/format
+  exposed-modules:
+      Kreb.Format
+  build-depends:
+      base >=4.7 && <5
+    , text >=1.2.3.1
 
 
 
@@ -56,17 +82,12 @@ common kreb-check-mod
 
 library kreb-reflect
   default-language: Haskell2010
-  hs-source-dirs: src
+  hs-source-dirs: src/reflect
   exposed-modules:
       Kreb.Reflect
     , Kreb.Reflect.Nat
   build-depends:
       base >=4.7 && <5
-
-common kreb-reflect-mod
-  other-modules:
-      Kreb.Reflect
-    , Kreb.Reflect.Nat
 
 test-suite kreb-reflect-test
   import: test-deps
@@ -90,7 +111,7 @@ test-suite kreb-reflect-test
 
 library kreb-struct
   default-language: Haskell2010
-  hs-source-dirs: src
+  hs-source-dirs: src/struct
   exposed-modules:
       Kreb.Struct
     , Kreb.Struct.FingerTree
@@ -100,19 +121,9 @@ library kreb-struct
   build-depends:
       base >=4.7 && <5
 
-common kreb-struct-mod
-  other-modules:
-      Kreb.Struct
-    , Kreb.Struct.FingerTree
-    , Kreb.Struct.FingerTreeZip
-    , Kreb.Struct.Seq
-    , Kreb.Struct.RunLengthEncoding
-
 test-suite kreb-struct-test
   import:
       test-deps
-    , kreb-check-mod
-    , kreb-struct-mod
   default-language: Haskell2010
   type: exitcode-stdio-1.0
   hs-source-dirs: test, src
@@ -126,16 +137,59 @@ test-suite kreb-struct-test
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , kreb-check
     , kreb-struct
 
 
 
+-- ========= --
+-- Kreb Text --
+-- ========= --
+
+library kreb-text
+  default-language: Haskell2010
+  hs-source-dirs: src/text
+  exposed-modules:
+      Kreb.Text
+    , Kreb.Text.ScreenOffset
+    , Kreb.Text.MeasureText
+    , Kreb.Text.Glyph
+    , Kreb.Text.Buffer
+    , Kreb.Text.TextBox
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+
+test-suite kreb-text-test
+  import:
+      test-deps
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, src
+  main-is: Kreb/Text/Test.lhs
+  other-modules:
+      Kreb.Text.ScreenOffset.Test
+    , Kreb.Text.MeasureText.Test
+    , Kreb.Text.Glyph.Test
+    , Kreb.Text.Buffer.Test
+    , Kreb.Text.TextBox.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+
+    , kreb-check
+    , kreb-reflect
+    , kreb-struct
+    , kreb-text
+
 
 
 library
-  import:
-      kreb-reflect-mod
-    , kreb-struct-mod
   default-language: Haskell2010
   build-tools: alex, happy
   exposed-modules:
@@ -143,14 +197,6 @@ library
     , Ned.Debug
     , Ned.Data
 
-    , Ned.Data.ScreenOffset
-    , Ned.Data.MeasureText
-    , Ned.Data.Glyph
-    , Ned.Data.Buffer
-
-    , Ned.Data.LocalSt
-
-    , Ned.Data.TextBox
     , Ned.Data.Panel
     , Ned.Data.Tile
     , Ned.Data.Tab
@@ -194,6 +240,9 @@ library
     , containers >=0.6.0.1
 
     , kreb-reflect
+    , kreb-control
+    , kreb-struct
+    , kreb-text
 
 
 
@@ -206,14 +255,62 @@ executable ned
       Ned.App.IO
     , Ned.App.IO.Event
     , Ned.App.IO.Render
-  hs-source-dirs: app
+
+    , Ned
+    , Ned.Debug
+    , Ned.Data
+
+    , Ned.Data.Panel
+    , Ned.Data.Tile
+    , Ned.Data.Tab
+
+    , Lang.Data.Lexer
+    , Lang.Data.Parser
+
+    , Ned.Data.Settings
+
+    , Ned.Monad
+
+    , Lang
+    , Lang.Data.PrettyPrint
+    , Lang.Data.Loc
+    , Lang.Data.Expr
+    , Lang.Data.Type
+    , Lang.Data.Value
+    , Lang.Data.Module
+
+    , Lang.Data.Runtime
+
+    , Lang.Data.Interpreter
+
+    , Lang.Data.Error
+
+    , Lang.Data.LexicalGrammar
+
+
+    , Ned.App
+    , Ned.App.Event
+    , Ned.App.State
+    , Ned.App.Handler
+    , Ned.App.Error
+    , Ned.App.Action
+  hs-source-dirs: app, src
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , ned
     , vty >=5.25.1
     , terminal-size >=0.3.2.1
+    , array >= 0.5.3.0
     , bytestring >=0.8.10.2
+    , containers >=0.6.0.1
+    , text >=1.2.3.1
+    , bytestring >=0.8.10.2
+
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+    , kreb-text
 
 executable lang
   default-language: Haskell2010
@@ -231,9 +328,6 @@ executable lang
 test-suite ned-test
   import:
       test-deps
-    , kreb-check-mod
-    , kreb-reflect-mod
-    , kreb-struct-mod
   default-language: Haskell2010
   type: exitcode-stdio-1.0
   main-is: Test.hs
@@ -241,11 +335,7 @@ test-suite ned-test
       Lang.Data.Expr
     , Lang.Data.PrettyPrint
     , Lang.Data.Type
-    , Ned.Data.Buffer.Test
-    , Ned.Data.Glyph.Test
-    , Ned.Data.ScreenOffset.Test
-    , Ned.Data.MeasureText.Test
-    , Ned.Data.TextBox.Test
+
 
     , Lang
     , Lang.Data.Error
@@ -258,17 +348,10 @@ test-suite ned-test
     , Lang.Data.Lexer
     , Lang.Data.Parser
     , Ned.Data
-    , Ned.Data.Buffer
-    , Ned.Data.Glyph
-    , Ned.App.Hooks
-    , Ned.Data.LocalSt
-    , Ned.Data.MeasureText
     , Ned.Data.Panel
-    , Ned.Data.ScreenOffset
 
     , Ned.Data.Settings
     , Ned.Data.Tab
-    , Ned.Data.TextBox
     , Ned.Data.Tile
 
     , Kreb.Struct.FingerTree.Test
@@ -286,3 +369,8 @@ test-suite ned-test
     , containers >=0.6.0.1
     , array >= 0.5.3.0
     , text >=1.2.3.1
+
+    , kreb-check
+    , kreb-reflect
+    , kreb-struct
+    , kreb-text

@@ -5,6 +5,8 @@
 >   , runtimeStateIO
 > ) where
 
+> import Kreb.Text
+
 > import Ned.App.State
 > import Ned.App.Error
 > import Ned.Data
@@ -60,6 +62,7 @@
 >   | LineDelete
 
 >   | CharInsertCmdAfter Char
+>   | CharBackspaceCmd
 
 >   | RunCmd
 
@@ -113,6 +116,12 @@
 >     let
 >       st' = alterActivePanel (alterPanel
 >         [PanelAlterText [TextBoxBackspace]]) st
+>     return (GoOn, st')
+
+>   CharBackspaceCmd -> do
+>     let
+>       st' = alterActivePanel (alterPanel
+>         [PanelAlterCmd [TextBoxBackspace]]) st
 >     return (GoOn, st')
 
 >   CursorUp -> do
@@ -194,6 +203,18 @@
 >     ForAll (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [])
+>   "#cursor_right" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [])
+>       (Stack (V "S") [])
+>   "#cursor_up" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [])
+>       (Stack (V "S") [])
+>   "#cursor_down" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [])
+>       (Stack (V "S") [])
 >   _ -> Nothing
 
 > editorActionsIO
@@ -201,6 +222,15 @@
 > editorActionsIO str = case str of
 >   "#cursor_left" -> Just $ Runtime $ \rts -> Hook $ \st -> do
 >     (_, st') <- performAction CursorLeft st
+>     return (Right ((), rts), st')
+>   "#cursor_right" -> Just $ Runtime $ \rts -> Hook $ \st -> do
+>     (_, st') <- performAction CursorRight st
+>     return (Right ((), rts), st')
+>   "#cursor_up" -> Just $ Runtime $ \rts -> Hook $ \st -> do
+>     (_, st') <- performAction CursorUp st
+>     return (Right ((), rts), st')
+>   "#cursor_down" -> Just $ Runtime $ \rts -> Hook $ \st -> do
+>     (_, st') <- performAction CursorDown st
 >     return (Right ((), rts), st')
 >   _ -> Nothing
 

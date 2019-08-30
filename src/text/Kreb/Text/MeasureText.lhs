@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.MeasureText
+title: Kreb.Text.MeasureText
 ---
 
 
@@ -21,7 +21,7 @@ Introduction
 >   , ScopedTypeVariables
 > #-}
 > 
-> module Ned.Data.MeasureText (
+> module Kreb.Text.MeasureText (
 >     MeasureText(..)
 >   , LineCol(..)
 >   , mText
@@ -35,7 +35,7 @@ Introduction
 > 
 > import Kreb.Struct
 > 
-> import Ned.Data.ScreenOffset
+> import Kreb.Text.ScreenOffset
 
 
 

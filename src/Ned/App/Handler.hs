@@ -68,6 +68,9 @@ eventMapping mode event = case event of
       EventKeyPress (KeyChar c) [] ->
         CharInsertCmdAfter c
 
+      EventKeyPress KeyBackSpace [] ->
+        CharBackspaceCmd
+
       EventKeyPress KeyEnter [] ->
         RunCmd
 

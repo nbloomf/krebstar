@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.ScreenOffset
+title: Kreb.Text.ScreenOffset
 ---
 
 
@@ -35,7 +35,7 @@ In this module we will develop a monoid of _screen offsets_.
 Exposed API
 ===========
 
-> module Ned.Data.ScreenOffset (
+> module Kreb.Text.ScreenOffset (
 >     ScreenOffset(..)
 >   , Span(..)
 >   , mkNoNewlines

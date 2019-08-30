@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.MeasureText.Test
+title: Kreb.Text.MeasureText.Test
 ---
 
 
@@ -23,7 +23,7 @@ Introduction
 >     ScopedTypeVariables
 > #-}
 > 
-> module Ned.Data.MeasureText.Test (
+> module Kreb.Text.MeasureText.Test (
 >     test_MeasureText
 > ) where
 > 
@@ -35,10 +35,10 @@ Introduction
 > import Test.Tasty.QuickCheck
 > 
 > import Kreb.Reflect.Nat
-> import Ned.Data.ScreenOffset
-> import Ned.Data.MeasureText
+> import Kreb.Text.ScreenOffset
+> import Kreb.Text.MeasureText
 > 
-> import Ned.Data.ScreenOffset.Test
+> import Kreb.Text.ScreenOffset.Test
 
 
 

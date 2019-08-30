@@ -11,8 +11,6 @@ module Ned.App (
   , Button(..)
   , handler
 
-  , Buffer()
-
   , EditorMode(..)
 
   , primaryEventLoop

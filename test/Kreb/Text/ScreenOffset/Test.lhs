@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.ScreenOffset.Test
+title: Kreb.Text.ScreenOffset.Test
 ---
 
 
@@ -29,7 +29,7 @@ Introduction
 >   , Rank2Types
 > #-}
 > 
-> module Ned.Data.ScreenOffset.Test (
+> module Kreb.Text.ScreenOffset.Test (
 >     test_ScreenOffset
 > ) where
 > 
@@ -44,7 +44,7 @@ Introduction
 > import Kreb.Reflect
 > import Kreb.Struct
 > 
-> import Ned.Data.ScreenOffset
+> import Kreb.Text.ScreenOffset
 > 
 > import Kreb.Struct.FingerTree.Test
 > import Kreb.Struct.RunLengthEncoding.Test

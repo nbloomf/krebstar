@@ -24,10 +24,7 @@ import Data.List (unlines)
 
 import Ned.Data.Settings
 import Kreb.Struct.FingerTree
-import Ned.Data.Buffer
-import Ned.Data.TextBox
-import Ned.Data.Glyph
-import Ned.Data.MeasureText
+import Kreb.Text
 
 
 

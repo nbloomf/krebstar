@@ -1,5 +1,5 @@
 ---
-title: Ned.Data.TextBox
+title: Kreb.Text.TextBox
 ---
 
 
@@ -17,7 +17,7 @@ Introduction
 >   , RecordWildCards
 > #-}
 
-> module Ned.Data.TextBox (
+> module Kreb.Text.TextBox (
 >     TextBox(..)
 >   , initTextBox
 >   , mkTextBox
@@ -59,13 +59,12 @@ Introduction
 
 > import Data.List (unlines)
 
-> import Ned.Data.LocalSt
-> import Kreb.Struct.FingerTree
-> import Kreb.Struct.FingerTreeZip
-> import Ned.Data.MeasureText
-> import Ned.Data.ScreenOffset
-> import Ned.Data.Buffer
-> import Ned.Data.Glyph
+> import Kreb.Control
+> import Kreb.Struct
+> import Kreb.Text.MeasureText
+> import Kreb.Text.ScreenOffset
+> import Kreb.Text.Buffer
+> import Kreb.Text.Glyph
 
 
 

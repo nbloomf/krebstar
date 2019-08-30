@@ -2,14 +2,14 @@
     MultiParamTypeClasses
 #-}
 
-module Ned.Data.Glyph (
+module Kreb.Text.Glyph (
     Glyph()
   , mkGlyph
 ) where
 
 import Kreb.Struct.FingerTree
-import Ned.Data.ScreenOffset
-import Ned.Data.MeasureText
+import Kreb.Text.ScreenOffset
+import Kreb.Text.MeasureText
 
 
 

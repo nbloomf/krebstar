@@ -3,7 +3,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Ned.Data.Glyph.Test (
+module Kreb.Text.Glyph.Test (
     IsGlyph(..)
 
   , Ascii(..)
@@ -19,11 +19,11 @@ import Test.QuickCheck
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
-import Ned.Data.Glyph
+import Kreb.Text.Glyph
 import Kreb.Struct.FingerTree
-import Ned.Data.MeasureText
-import Ned.Data.ScreenOffset
-import Ned.Data.Buffer
+import Kreb.Text.MeasureText
+import Kreb.Text.ScreenOffset
+import Kreb.Text.Buffer
 
 instance
   Arbitrary Glyph

@@ -4,6 +4,8 @@ module Ned.App.IO.Render (
 
 import Graphics.Vty
 
+import Kreb.Text
+
 import Ned.App
 import Ned.Data
 import Ned.App.State

@@ -10,10 +10,7 @@ import Test.Tasty.QuickCheck
 
 
 
-import Ned.Data.Buffer.Test
-import Ned.Data.TextBox.Test
-import Ned.Data.MeasureText.Test
-import Ned.Data.ScreenOffset.Test
+
 
 import Lang.Data.Type.Test
 import Lang.Data.Module.Test
@@ -28,10 +25,7 @@ main = do
   setEnv "TASTY_QUICKCHECK_TESTS" "10000"
   putStrLn "\n"
   defaultMain $ testGroup "All Tests"
-    [  -- , test_ScreenOffset
-   -- , test_MeasureText
-   -- , test_Buffer
-   --   test_TextBox
+    [  
 
       test_Type
     , test_Module

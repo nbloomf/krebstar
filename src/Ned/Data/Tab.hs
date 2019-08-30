@@ -24,7 +24,7 @@ module Ned.Data.Tab (
 ) where
 
 import Ned.Data.Settings
-import Ned.Data.Buffer
+import Kreb.Text.Buffer
 import Ned.Data.Panel
 import Ned.Data.Tile
 import Kreb.Struct.FingerTree
