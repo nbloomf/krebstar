@@ -12,8 +12,6 @@ lang features needed
 - make sure we parse the empty quotation []
 
 
-- Split into sublibraries (new cabal feature)
-  - text boxes
 
 - lang
   - initial algebras and terminal coalgebras
@@ -94,14 +92,6 @@ Features
 
 
 
-
-apply :: $S ($S -> $R) -> $R
-
-quote :: $S a -> $S ($R -> $R a)
-
-compose :: $S ($B -> $C) ($A -> $B) -> $S ($A -> $C)
-
-swap :: $S a b -> $S b a
 
 -- universal algebra, redundant
 cond :: $S a a Bool -> $S a

@@ -1,0 +1,357 @@
+cabal-version:  2.4
+name:           krebstar
+version:        0.0.0.0
+description:    Please see the README on GitHub at <https://github.com/nbloomf/krebstar#readme>
+homepage:       https://github.com/nbloomf/krebstar#readme
+bug-reports:    https://github.com/nbloomf/krebstar/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/krebstar
+
+
+
+common test-deps
+  build-depends:
+      QuickCheck >=2.12.6.1
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10.1
+
+
+
+-- ============ --
+-- Kreb Control --
+-- ============ --
+
+library kreb-control
+  default-language: Haskell2010
+  hs-source-dirs: src/control
+  exposed-modules:
+      Kreb.Control
+    , Kreb.Control.LocalSt
+  build-depends:
+      base >=4.7 && <5
+
+
+
+-- ========== --
+-- Kreb Check --
+-- ========== --
+
+library kreb-check
+  default-language: Haskell2010
+  hs-source-dirs: src/check
+  exposed-modules:
+      Kreb.Check
+  build-depends:
+      base >=4.7 && <5
+    , QuickCheck >=2.12.6.1
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10.1
+    , random >=1.1
+
+
+
+-- =========== --
+-- Kreb Format --
+-- =========== --
+
+library kreb-format
+  default-language: Haskell2010
+  hs-source-dirs: src/format
+  exposed-modules:
+      Kreb.Format
+  build-depends:
+      base >=4.7 && <5
+    , text >=1.2.3.1
+
+
+
+-- ============ --
+-- Kreb Reflect --
+-- ============ --
+
+library kreb-reflect
+  default-language: Haskell2010
+  hs-source-dirs: src/reflect
+  exposed-modules:
+      Kreb.Reflect
+    , Kreb.Reflect.Nat
+  build-depends:
+      base >=4.7 && <5
+
+test-suite kreb-reflect-test
+  import: test-deps
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Kreb/Reflect/Test.lhs
+  other-modules:
+      Kreb.Reflect.Nat.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , kreb-reflect
+
+
+
+-- =========== --
+-- Kreb Struct --
+-- =========== --
+
+library kreb-struct
+  default-language: Haskell2010
+  hs-source-dirs: src/struct
+  exposed-modules:
+      Kreb.Struct
+    , Kreb.Struct.FingerTree
+    , Kreb.Struct.FingerTreeZip
+    , Kreb.Struct.Seq
+    , Kreb.Struct.RunLengthEncoding
+  build-depends:
+      base >=4.7 && <5
+
+test-suite kreb-struct-test
+  import:
+      test-deps
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, src
+  main-is: Kreb/Struct/Test.lhs
+  other-modules:
+      Kreb.Struct.FingerTree.Test
+    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.Seq.Test
+    , Kreb.Struct.RunLengthEncoding.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , kreb-check
+    , kreb-struct
+
+
+
+-- ========= --
+-- Kreb Text --
+-- ========= --
+
+library kreb-text
+  default-language: Haskell2010
+  hs-source-dirs: src/text
+  exposed-modules:
+      Kreb.Text
+    , Kreb.Text.ScreenOffset
+    , Kreb.Text.MeasureText
+    , Kreb.Text.Glyph
+    , Kreb.Text.Buffer
+    , Kreb.Text.TextBox
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+
+test-suite kreb-text-test
+  import: test-deps
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, src
+  main-is: Kreb/Text/Test.lhs
+  other-modules:
+      Kreb.Text.ScreenOffset.Test
+    , Kreb.Text.MeasureText.Test
+    , Kreb.Text.Glyph.Test
+    , Kreb.Text.Buffer.Test
+    , Kreb.Text.TextBox.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+
+    , kreb-check
+    , kreb-reflect
+    , kreb-struct
+    , kreb-text
+
+
+
+-- ========= --
+-- Kreb Lang --
+-- ========= --
+
+library kreb-lang
+  default-language: Haskell2010
+  build-tools: alex, happy
+  hs-source-dirs: src/lang
+  exposed-modules:
+      Kreb.Lang
+    , Kreb.Lang.PrettyPrint
+    , Kreb.Lang.Loc
+    , Kreb.Lang.Expr
+    , Kreb.Lang.Type
+    , Kreb.Lang.Value
+    , Kreb.Lang.Module
+    , Kreb.Lang.Lexer
+    , Kreb.Lang.Parser
+    , Kreb.Lang.Runtime
+    , Kreb.Lang.Interpreter
+    , Kreb.Lang.Error
+    , Kreb.Lang.LexicalGrammar
+  build-depends:
+      base >=4.7 && <5
+    , array >= 0.5.3.0
+    , text >=1.2.3.1
+    , containers >=0.6.0.1
+
+test-suite kreb-lang-test
+  import: test-deps
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test/lang
+  main-is: Kreb/Lang/Test.lhs
+  other-modules:
+      Kreb.Lang.Type.Test
+    , Kreb.Lang.Module.Test
+    , Kreb.Lang.Interpreter.Test
+    , Kreb.Lang.Parser.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+
+    , kreb-check
+    , kreb-lang
+
+
+
+-- =========== --
+-- Kreb Editor --
+-- =========== --
+
+library kreb-editor
+  default-language: Haskell2010
+  hs-source-dirs: src/editor
+  exposed-modules:
+      Kreb.Editor
+    , Kreb.Editor.Error
+    , Kreb.Editor.Action
+    , Kreb.Editor.Event
+    , Kreb.Editor.Handler
+    , Kreb.Editor.State
+    , Kreb.Editor.Monad
+    , Kreb.Editor.Panel
+    , Kreb.Editor.Settings
+    , Kreb.Editor.Tab
+    , Kreb.Editor.Tile
+  build-depends:
+      base >=4.7 && <5
+    , bytestring >=0.8.10.2
+
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+    , kreb-text
+    , kreb-lang
+
+
+
+-- =============== --
+-- Kreb Editor CLI --
+-- =============== --
+
+library kreb-editor-cli
+  default-language: Haskell2010
+  hs-source-dirs: src/editor-cli
+  exposed-modules:
+      Kreb.Editor.CLI
+    , Kreb.Editor.CLI.Run
+    , Kreb.Editor.CLI.Event
+    , Kreb.Editor.CLI.Render
+  build-depends:
+      base >=4.7 && <5
+    , vty >=5.25.1
+    , terminal-size >=0.3.2.1
+
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+    , kreb-text
+    , kreb-lang
+    , kreb-editor
+
+
+
+-- ========= --
+-- Kreb Demo --
+-- ========= --
+
+library
+  default-language: Haskell2010
+  exposed-modules:
+      Kreb.Demo
+  hs-source-dirs: src/demo
+  build-depends:
+      base >=4.7 && <5
+    , array >= 0.5.3.0
+    , text >=1.2.3.1
+    , bytestring >=0.8.10.2
+    , containers >=0.6.0.1
+
+    , kreb-check
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+    , kreb-text
+    , kreb-lang
+    , kreb-editor
+
+
+
+
+
+executable krebed
+  default-language: Haskell2010
+  main-is: Main.hs
+  hs-source-dirs: app/krebed
+  ghc-options:
+    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , ned
+    , vty >=5.25.1
+    , terminal-size >=0.3.2.1
+    , array >= 0.5.3.0
+    , bytestring >=0.8.10.2
+    , containers >=0.6.0.1
+    , text >=1.2.3.1
+
+    , kreb-reflect
+    , kreb-control
+    , kreb-struct
+    , kreb-text
+    , kreb-editor
+    , kreb-editor-cli
+
+executable lang
+  default-language: Haskell2010
+  main-is: Main.hs
+  hs-source-dirs: app/kreblang
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , kreb-lang

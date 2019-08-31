@@ -1,3 +1,3 @@
-# Changelog for ned
+# Changelog for krebstar
 
 ## Unreleased changes
