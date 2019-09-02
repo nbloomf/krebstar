@@ -3,6 +3,8 @@ module Kreb.Editor.Monad (
   , runApp
   , AppEnv(..)
 
+  , primaryEventLoop
+
   , _renderState
   , _getNextEvent
   , _handleEvent
@@ -156,3 +158,17 @@ askM1 f a = do
   g <- ask f
   lift $ g a
 
+
+primaryEventLoop
+  :: ( Monad m )
+  => App m (Maybe AppError)
+primaryEventLoop = loop'
+  where
+    loop' = do
+      _renderState
+      next <- _getNextEvent >>= _handleEvent
+      _logDebugMessages
+      case next of
+        Bail err -> return (Just err)
+        Stop     -> return Nothing
+        GoOn     -> loop'

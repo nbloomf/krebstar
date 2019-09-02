@@ -1,3 +1,44 @@
+0.0.1 Checklist
+===============
+- File load and save (primitives and key bindings)
+- Lang initial environment (and CL option)
+- Mock monad for testing
+- Color line numbers
+- Dedicated pane for showing errors
+- Mouse navigation
+- String primitives in kreblang
+- headless mode
+- fix tab
+- undo and redo
+
+
+
+- navigation primitives (go to line, line+col, top, regex after cursor)
+- regex primitives
+
+
+
+
+
+TODO BY SUBPROJECT
+==================
+
+check
+-----
+1. Write it
+2. Rewrite tests in other libs against this
+3. State machine API
+
+format
+------
+1. Write it
+
+
+
+
+
+
+
 FEATURES TO IMPLEMENT IN ORDER OF PRIORITY
 ==========================================
 1. File load and save!!!!

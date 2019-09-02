@@ -3,6 +3,7 @@
 >   , Then(..)
 >   , performAction
 >   , runtimeStateIO
+>   , editorTypes
 > ) where
 
 > import Kreb.Text

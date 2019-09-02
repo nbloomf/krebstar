@@ -3,214 +3,196 @@
 > module Kreb.Format where
 
 > import Prelude hiding (Word)
+> import Data.Function
+> import qualified Data.List as L
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as T
 
-> data TextParams = TextParams
->   { _textIndent :: Int
->   } deriving (Eq, Show)
+> data L = L [T.Text]
+>   deriving (Eq, Show)
+
+> instance Semigroup L where
+>   (L as) <> (L (b:bs)) =
+>     L $ xs0 <> [x <> b] <> map (indent <>) bs
+>     where
+>       (xs0, x) = (init as, last as)
+>       indent = T.pack $ replicate (T.length x) ' '
 > 
-> defaultTextParams :: TextParams
-> defaultTextParams = TextParams
->   { _textIndent = 2
+> instance Monoid L where
+>   mempty = L [mempty]
+
+
+> class
+>   ( Monoid a
+>   ) => Layout a
+>   where
+>     text :: T.Text -> a
+>     flush :: a -> a
+>     render :: a -> T.Text
+
+> instance Layout L where
+>   text s = L [s]
+>   flush (L xs) = L $ xs ++ [mempty]
+>   render (L xs) = T.intercalate (T.singleton ' ') xs
+
+> class
+>   ( Layout a
+>   ) => Doc a
+>   where
+>     opt :: a -> a -> a
+>     bad :: a
+
+> data Ls = Ls [L]
+>   deriving (Eq, Show)
+
+> instance Semigroup Ls where
+>   (Ls as) <> (Ls bs) = Ls (as <> bs)
+> 
+> instance Monoid Ls where
+>   mempty = Ls [mempty]
+
+> instance Doc Ls where
+>   opt (Ls as) (Ls bs) = Ls (as ++ bs)
+>   bad = Ls []
+> 
+> instance Layout Ls where
+>   text s = Ls [text s]
+>   flush (Ls as) = Ls $ map flush as
+>   render (Ls as) = mconcat $ map render as
+
+> instance Semigroup M where
+>   a <> b = M
+>     { maxWidth = max (maxWidth a) (lastWidth a+maxWidth b)
+>     , height = height a + height b
+>     , lastWidth = lastWidth a + lastWidth b
+>     }
+> 
+> instance Monoid M where
+>   mempty = M
+>     { height = 0
+>     , lastWidth = 0
+>     , maxWidth = 0
+>     }
+> 
+> instance Layout M where
+>   text s = M
+>     { height = 0
+>     , maxWidth = T.length s
+>     , lastWidth = T.length s
+>     }
+> 
+>   flush a = M
+>     { maxWidth = maxWidth a
+>     , height = height a + 1
+>     , lastWidth = 0
+>     }
+> 
+>   render m = T.intercalate (T.singleton '\n')
+>     (replicate (height m) (T.pack $ replicate (maxWidth m) 'x') ++
+>     [ T.pack $ replicate (lastWidth m) 'x' ])
+
+
+> measure :: L -> M
+> measure (L xs) = M
+>   { maxWidth = maximum $ map T.length xs
+>   , height = length xs - 1
+>   , lastWidth = T.length $ last xs
 >   }
 
-> class PrettyPrint t where
->   pretty :: t -> Docs
+> data M = M
+>   { height :: Int
+>   , lastWidth :: Int
+>   , maxWidth :: Int
+>   } deriving (Show, Eq, Ord)
 
+> class Poset a where
+>   prec :: a -> a -> Bool
 
-> prettyText
->   :: ( PrettyPrint t )
->   => Maybe Int -> t -> T.Text
-> prettyText =
->   prettyTextWith defaultTextParams
-
-> prettyTextIO
->   :: ( PrettyPrint t )
->   => Maybe Int -> t -> IO ()
-> prettyTextIO w = T.putStrLn . prettyText w
-
-> prettyTextWith
->   :: ( PrettyPrint t )
->   => TextParams -> Maybe Int -> t -> T.Text
-> prettyTextWith p width x =
->   layout $ case width of
->     Nothing -> oneline $ pretty x
->     Just w -> best (_textIndent p) w 0 $ pretty x
-
-> best :: Int -> Int -> Int -> Docs -> Doc
-> best tab w k x = be w k [(0,x)]
->   where
->     be :: Int -> Int -> [(Int, Docs)] -> Doc
->     be w k zs = case zs of
->       [] -> Empty
->       (i,x):xs -> case x of
->         Nil -> be w k xs
->         Cat u v -> be w k ((i,u):(i,v):xs)
->         Nest j u -> be w k $ (i+j, u):xs
->         Text s -> Chars s $ be w (k + T.length s) xs
->         Line s -> Indent i $ be w i xs
->         Dec _ u -> be w k $ (i,u):xs
->         Opt u v -> better w k (be w k ((i,u):xs)) (be w k ((i,v):xs))
-> 
->     better :: Int -> Int -> Doc -> Doc -> Doc
->     better w k x y = if fits (w-k) x then x else y
-> 
->     fits :: Int -> Doc -> Bool
->     fits w x =
->       if w < 0
->         then False
->         else case x of
->           Empty -> True
->           Chars s y -> fits (w - T.length s) y
->           Indent i y -> True
-
-> data Doc
->   = Empty
->   | Chars T.Text Doc
->   | Indent Int Doc
->   deriving (Eq, Show)
-
-> instance Semigroup Doc where
->   x <> y = case y of
->     Empty -> x
->     Chars a z -> Chars a (x <> z)
->     Indent k z -> Indent k (x <> z)
-> 
-> instance Monoid Doc where
->   mempty = Empty
-
-> layout :: Doc -> T.Text
-> layout z = case z of
->   Empty -> ""
->   Chars x doc -> x <> layout doc
->   Indent k doc -> mconcat
->     [ T.singleton '\n'
->     , T.replicate k $ T.singleton ' '
->     , layout doc
+> instance Poset M where
+>   prec m1 m2 = and
+>     [ height m1 <= height m2
+>     , maxWidth m1 <= maxWidth m2
+>     , lastWidth m1 <= lastWidth m2
 >     ]
 
+> pareto :: ( Poset a ) => [a] -> [a]
+> pareto = loop []
+>   where
+>     loop acc [] = acc
+>     loop acc (x:xs) = if any(`prec` x) acc
+>       then loop acc xs
+>       else loop (x:filter (not . (prec x)) acc) xs
 
 
-> data Docs
->   = Nil
->   | Cat Docs Docs
->   | Nest Int Docs
->   | Text T.Text
->   | Line T.Text
->   | Opt Docs Docs
->   | Dec Attr Docs
->   deriving Show
-
-> data Attr
->   = Attr
+> data DM = DM [M]
 >   deriving (Eq, Show)
 
-> strictEq :: Docs -> Docs -> Bool
-> strictEq x y = case (x,y) of
->   (Nil, Nil) ->
->     True
->   (Cat a1 b1, Cat a2 b2) ->
->     (strictEq a1 a2) && (strictEq b1 b2)
->   (Nest k1 a1, Nest k2 a2) ->
->     (k1 == k2) && (strictEq a1 a2)
->   (Text s1, Text s2) ->
->     s1 == s2
->   (Line s1, Line s2) ->
->     s1 == s2
->   (Opt x1 _, Opt x2 _) ->
->     strictEq x1 x2
->   (Dec _ x1, Dec _ x2) ->
->     strictEq x1 x2
->   _ -> False
-
-> group :: Docs -> Docs
-> group x = Opt (flatten x) x
-
-> flatten :: Docs -> Docs
-> flatten z = case z of
->   Nil -> Nil
->   Cat x y -> Cat (flatten x) (flatten y)
->   Nest _ x -> flatten x
->   Text x -> Text x
->   Line x -> Text x
->   Dec a x -> Dec a $ flatten x
->   Opt x _ -> flatten x
-
-> oneline :: Docs -> Doc
-> oneline z = case z of
->   Nil -> Empty
->   Cat x y -> (oneline x) <> (oneline y)
->   Nest _ x -> oneline x
->   Text x -> Chars x Empty
->   Line x -> Chars x Empty
->   Dec a x -> oneline x
->   Opt x _ -> oneline x
-
-> instance Eq Docs where
->   x == y =
->     strictEq (flatten x) (flatten y)
+> instance Semigroup DM where
+>   (DM xs) <> (DM ys) = DM $ pareto $
+>     concat [ filter valid [ x <> y | y <- ys ] | x <- xs ]
 > 
-> instance Semigroup Docs where
->   x <> y = Cat x y
+> instance Monoid DM where
+>   mempty = DM []
+
+> instance Layout DM where
+>   flush (DM xs) = DM $ pareto (map flush xs)
+>   text s = DM $ filter valid [text s]
+>   render (DM xs) = render $ minimum xs
+
+> instance Doc DM where
+>   bad = DM []
+>   opt (DM xs) (DM ys) = DM $ pareto (xs++ys)
+
+> valid' :: M -> Bool
+> valid' x = maxWidth x <= pageWidth
+
+> valid :: M -> Bool
+> valid x = (valid' x) && (fitRibbon x)
+
+> fitRibbon :: M -> Bool
+> fitRibbon m = (height m > 0) || maxWidth m < ribbonLength
+
+> pageWidth = 20
+> ribbonLength = 10
+
+
+> foobar :: (Layout a) => a
+> foobar = text "foobar"
+
+
+> instance Poset (M,L) where
+>   prec (a,_) (b,_) = prec a b
+
+> instance Layout (M,L) where
+>   flush (x,y) = (flush x, flush y)
+>   text s = (text s,text s)
+>   render = render . snd
+
+> data MLS = MLS [(M,L)]
+
+> instance Semigroup MLS where
+>   (MLS xs) <> (MLS ys) = MLS $ pareto $ concat [ filter(valid.fst)[x<>y|y<-ys]|x<-xs]
 > 
-> instance Monoid Docs where
->   mempty = Nil
+> instance Monoid MLS where
+>   mempty = MLS []
 
-> rep :: [(Int, Docs)] -> Docs
-> rep = mconcat . map (uncurry nest)
+> instance Layout MLS where
+>   flush (MLS xs) = MLS $ pareto $ (map flush xs)
+>   text s = MLS $ filter(valid.fst)[text s]
+>   render (MLS xs) = render $ L.minimumBy (compare `on` fst) xs
 
-> nest :: Int -> Docs -> Docs
-> nest = Nest
+> instance Doc MLS where
+>   bad = MLS []
+>   opt (MLS xs) (MLS ys) = MLS $ pareto(xs++ys)
 
-> text :: T.Text -> Docs
-> text = Text
+> x $$ y = flush x <> y
 
-> line :: T.Text -> Docs
-> line = Line
+> hang :: (Doc d) => Int -> d -> d-> d
+> hang n x y = opt (x<>y) (x $$ (nest n y))
 
-> newline :: Docs
-> newline = Line " "
-
-
-> (<+>) :: Docs -> Docs -> Docs
-> x <+> y = x <> text " " <> y
-
-> (</>) :: Docs -> Docs -> Docs
-> x </> y = x <> newline <> y
-
-> (<+/>) :: Docs -> Docs -> Docs
-> x <+/> y = x <> (Opt (text " ") newline) <> y
-
-
-> spread :: [Docs] -> Docs
-> spread = foldl (<+>) mempty
-
-> stack :: [Docs] -> Docs
-> stack = foldl (</>) mempty
-
-> bracket :: T.Text -> Docs -> T.Text -> Docs
-> bracket l x r = group $ text l <> nest 2 (newline <> x) <> newline <> text r
-
-> instance PrettyPrint Docs where
->   pretty = id
-> 
-> instance PrettyPrint () where
->   pretty _ = text "()"
-
-
-
-> instance PrettyPrint String where
->   pretty = text . T.pack . show
-
-> fill :: [Docs] -> Docs
-> fill z = case z of
->   [] -> mempty
->   [x] -> x
->   x:y:xs -> Opt ((flatten x) <+> (fill ((flatten y) : xs))) (x </> (fill (y:xs)))
-
-
-
-fillwords                =  folddoc (<+/>) . map text . words
+> nest :: Layout d => Int -> d -> d
+> nest n y = spaces n <> y
+>   where
+>     spaces n = text (T.pack $ replicate n ' ')
 
 
