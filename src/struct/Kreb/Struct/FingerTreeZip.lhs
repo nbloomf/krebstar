@@ -81,7 +81,8 @@ Exposed API
 > 
 > import qualified Data.Foldable as Fold
 > import Data.List (unwords)
->  
+> 
+> import Kreb.Check ( Arb(..), Prune(..), CoArb(..) )
 > import Kreb.Struct.FingerTree
 
 
@@ -95,6 +96,12 @@ The general strategy for constructing a zipper over a type involves expressing i
 >   { unFingerTreeZip
 >       :: Maybe (FingerTree m a, a, FingerTree m a)
 >   } deriving (Eq, Show)
+> 
+> instance
+>   ( Arb a, Valued m a
+>   ) => Arb (FingerTreeZip m a)
+>   where
+>     arb = FingerTreeZip <$> arb
 > 
 > emptyFTZ :: FingerTreeZip m a
 > emptyFTZ = FingerTreeZip

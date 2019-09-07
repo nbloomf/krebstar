@@ -24,23 +24,22 @@ Introduction
 > #-}
 > 
 > module Kreb.Text.MeasureText.Test (
->     test_MeasureText
+>  --   test_MeasureText
 > ) where
 > 
 > import Data.Proxy
 > import Data.List
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
+> import Kreb.Check
 > import Kreb.Reflect.Nat
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.MeasureText
 > 
 > import Kreb.Text.ScreenOffset.Test
 
-
+> {-
 
 Generators
 ==========
@@ -207,3 +206,5 @@ Test Suite
 >     , localOption (QuickCheckTests 1000)
 >         $ test_MeasureText_Monoid
 >     ]
+
+> -}

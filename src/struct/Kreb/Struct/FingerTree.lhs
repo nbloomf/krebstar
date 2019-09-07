@@ -114,6 +114,10 @@ Exposed API
 
 > import Debug.Trace
 
+> import Kreb.Check
+>   ( Arb(..), Prune(..), CoArb(..)
+>   , MakeTo(..), makeToIntegralWith, makeToExtendWith )
+
 
 
 The Valued Class
@@ -144,6 +148,25 @@ Now lets define a concrete monoid and `Valued` instance for testing. Note that w
 > 
 > instance Monoid Count where
 >   mempty = Count 0
+> 
+> instance Arb Count where
+>   arb = Count <$> arb
+> 
+> instance Prune Count where
+>   prune (Count k) =
+>     map Count $ prune k
+> 
+> instance CoArb Count where
+>   coarb (Count k) = coarb k
+> 
+> instance MakeTo Count where
+>   makeTo = makeToIntegralWith g h
+>     where
+>       g :: Count -> Integer
+>       g (Count k) = fromIntegral k
+> 
+>       h :: Integer -> Count
+>       h k = Count $ fromInteger $ abs k
 
 
 
@@ -987,3 +1010,30 @@ Even the most thoroughly tested code can go wrong sometimes. For when that happe
 >         , p $ showInternalFT' (showNode s) x
 >         , p $ showSome s bs
 >         ]
+
+
+
+> instance
+>   ( Arb a, Valued m a
+>   ) => Arb (FingerTree m a)
+>   where
+>     arb = fromListFT <$> arb
+> 
+> instance
+>   ( Prune a, Valued m a
+>   ) => Prune (FingerTree m a)
+>   where
+>     prune =
+>       map fromListFT . prune . toList
+> 
+> instance
+>   ( CoArb a, Valued m a
+>   ) => CoArb (FingerTree m a)
+>   where
+>     coarb x = coarb (toList x)
+> 
+> instance
+>   ( MakeTo a, Valued m a
+>   ) => MakeTo (FingerTree m a)
+>   where
+>     makeTo = makeToExtendWith makeTo toList fromListFT

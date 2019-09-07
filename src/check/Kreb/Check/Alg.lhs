@@ -79,3 +79,57 @@
 >   if (f (f x y) z) == (f x (f y z))
 >     then accept
 >     else reject "nonassociative"
+
+
+
+> check_prop_reflexive
+>   :: ( Arb a, Show a )
+>   => (a -> a -> Bool) -> a -> Check
+> check_prop_reflexive p x =
+>   if p x x
+>     then accept
+>     else reject "not reflexive"
+> 
+> check_prop_symmetric
+>   :: ( Arb a, Show a )
+>   => (a -> a -> Bool) -> a -> a -> Check
+> check_prop_symmetric p x y =
+>   if (p x y) == (p y x)
+>     then accept
+>     else reject "not symmetric"
+> 
+> check_prop_transitive
+>   :: ( Arb a, Show a )
+>   => (a -> a -> Bool) -> a -> a -> a -> Check
+> check_prop_transitive p x y z =
+>   if (p x y) && (p y z)
+>     then if p x z
+>       then accept
+>       else reject "not transitive"
+>     else accept
+
+> check_prop_function_inverse
+>   :: ( Eq a, Arb a, Show a )
+>   => (b -> a) -> (a -> b) -> a -> Check
+> check_prop_function_inverse g f x =
+>   if x == g (f x)
+>     then accept
+>     else reject "not inverse"
+
+> check_prop_function_respect_op1
+>   :: ( Eq b, Arb a, Show a )
+>   => (a -> a) -> (b -> b)
+>   -> (a -> b) -> a -> Check
+> check_prop_function_respect_op1 op1 op2 f x =
+>   if f (op1 x) == op2 (f x)
+>     then accept
+>     else reject "not respectful"
+
+> check_prop_function_respect_op2
+>   :: ( Eq b, Arb a, Show a )
+>   => (a -> a -> a) -> (b -> b -> b)
+>   -> (a -> b) -> a -> a -> Check
+> check_prop_function_respect_op2 op1 op2 f x y =
+>   if f (op1 x y) == op2 (f x) (f y)
+>     then accept
+>     else reject "not respectful"

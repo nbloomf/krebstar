@@ -24,21 +24,20 @@ Introduction
 > #-}
 
 > module Kreb.Text.TextBox.Test (
->     test_TextBox
+>  --   test_TextBox
 > ) where
 > 
 > import Data.Proxy
 > import Data.List
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
+> import Kreb.Check
 > import Kreb.Text
 > 
 > import Kreb.Text.Glyph.Test
 
-
+> {-
 
 Generators
 ==========
@@ -849,3 +848,5 @@ Test suite
 >     , localOption (QuickCheckTests 100)
 >         $ test_TextBox_cursor
 >     ]
+
+> -}

@@ -7,6 +7,7 @@
 > import Control.Monad (ap)
 > import System.Random
 > import Data.Bits
+> import Data.Char
 
 > data Seed = Seed
 >   { _stdgen :: StdGen
@@ -75,6 +76,10 @@
 > askDepth :: Seeded (ZZ Depth)
 > askDepth = Seeded $ \env -> _depth env
 
+> withSize :: Int -> Seeded a -> Seeded a
+> withSize k (Seeded f) = Seeded $ \s ->
+>   f $ s { _size = ZZ k }
+
 > randIn
 >   :: ( Random a )
 >   => (a,a) -> Seeded a
@@ -86,6 +91,8 @@
 >   => Seeded a
 > rand = Seeded $ \env ->
 >   fst $ random (_stdgen env)
+
+
 
 > vectOf :: Int -> Seeded a -> Seeded [a]
 > vectOf n x = sequence $ replicate n x
@@ -114,6 +121,17 @@
 >     0 -> a0
 >     1 -> a1
 >     _ -> a2
+> 
+> pickFrom4
+>   :: (Seeded a, Seeded a, Seeded a, Seeded a)
+>   -> Seeded a
+> pickFrom4 (a0, a1, a2, a3) = do
+>   i <- randIn (0 :: Int, 3)
+>   case i of
+>     0 -> a0
+>     1 -> a1
+>     2 -> a2
+>     _ -> a3
 
 > freq
 >   :: forall a. [(Int, Seeded a)] -> Seeded a
@@ -177,3 +195,51 @@
 >     ilog2 :: Integer -> Int
 >     ilog2 1 = 0
 >     ilog2 n = 1 + ilog2 (n `div` 2)
+
+
+
+> satisfying
+>   :: Seeded a -> (a -> Bool) -> Seeded a
+> satisfying gen p = do
+>   mx <- gen `satisfyingMaybe` p
+>   case mx of
+>     Just x -> return x
+>     Nothing -> do
+>       ZZ k <- askSize
+>       withSize (k+1) (gen `satisfying` p)
+
+
+> satisfyingMaybe
+>   :: Seeded a -> (a -> Bool) -> Seeded (Maybe a)
+> satisfyingMaybe gen p = do
+>   ZZ n <- askSize
+>   try n (2*n)
+>     where
+>       try m n = if m > n
+>         then return Nothing
+>         else do
+>           x <- withSize m gen
+>           if p x
+>             then return $ Just x
+>             else try (m+1) n
+
+
+
+> arbAsciiChar
+>   :: Seeded Char
+> arbAsciiChar = randIn ('\0', '\127')
+> 
+> arbPrintableAsciiChar
+>   :: Seeded Char
+> arbPrintableAsciiChar = freq
+>   [ (95, randIn ('\x20', '\x7e'))
+>   , (1, return '\t')
+>   , (1, return '\n')
+>   ]
+> 
+> arbUnicodeChar
+>   :: Seeded Char
+> arbUnicodeChar =
+>   (randIn ('\0', '\1114111')) `satisfying` notSurrogate
+>   where
+>     notSurrogate c = Surrogate /= generalCategory c

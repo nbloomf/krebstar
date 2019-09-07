@@ -40,33 +40,20 @@ This test module is a little different. The `FingerTreeZip` module exports some 
 > #-}
 > 
 > module Kreb.Struct.FingerTreeZip.Test (
->     test_FingerTreeZip
->   , test_Tape
+>  --   test_FingerTreeZip
+>  -- , test_Tape
 > ) where
 > 
 > import Data.Proxy
 > import GHC.Generics
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
-> import Kreb.Struct
-> import Kreb.Struct.FingerTree.Test
 > import Kreb.Check
+> import Kreb.Struct
 
 
-
-Generators
-==========
-
-> instance
->   ( Arbitrary a, Valued m a
->   ) => Arbitrary (FingerTreeZip m a)
->   where
->     arbitrary =
->       FingerTreeZip <$> arbitrary
-
+> {-
 
 
 FingerTreeZip tests
@@ -1909,3 +1896,5 @@ Tape test suite
 >     , test_Tape_head pa pt
 >     , test_Tape_commuting_actions pa pt
 >     ]
+
+> -}

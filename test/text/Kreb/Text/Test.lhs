@@ -2,9 +2,7 @@
 
 > import System.Environment
 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 
 > import Kreb.Text.Buffer.Test
 > import Kreb.Text.TextBox.Test
@@ -18,8 +16,8 @@
 >   setEnv "TASTY_QUICKCHECK_TESTS" "10000"
 >   putStrLn "\n"
 >   defaultMain $ testGroup "kreb-struct"
->     [ test_ScreenOffset
->     , test_MeasureText
->     , test_Buffer
->     , test_TextBox
+>     [ -- test_ScreenOffset
+>    -- , test_MeasureText
+>    -- , test_Buffer
+>    -- , test_TextBox
 >     ]

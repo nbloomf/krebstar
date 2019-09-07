@@ -105,6 +105,16 @@ Outcome of a single test case
 > reject :: Reason -> Check
 > reject msg = check $ Reject msg []
 
+> claimEqual
+>   :: ( Eq a, Show a )
+>   => a -> a -> Check
+> claimEqual x y =
+>   if x == y
+>     then accept
+>     else reject $ concat
+>       [ "expecting ", show x
+>       , " to equal ", show y ]
+
 
 
 > instance Checkable Bool where

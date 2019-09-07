@@ -31,56 +31,22 @@ Introduction
 > #-}
 > 
 > module Kreb.Struct.RunLengthEncoding.Test (
->     test_RunLengthEncoding
+>  --   test_RunLengthEncoding
 > ) where
 > 
 > import Data.Proxy
 > import Data.Foldable
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
-> import Kreb.Struct.FingerTree
-> import Kreb.Struct.RunLengthEncoding
+> import Kreb.Check
+> 
+> import Kreb.Struct
 > 
 > import Kreb.Struct.FingerTree.Test
 > import Kreb.Struct.FingerTreeZip.Test
 
-
-
-Generators
-==========
-
-> instance
->   Arbitrary RunSize
->   where
->     arbitrary = do
->       Positive s <- arbitrary
->       Positive l <- arbitrary
->       return $ RunSize s l
-
-> instance
->   ( Arbitrary a, Eq a
->   ) => Arbitrary (Run a)
->   where
->     arbitrary = do
->       Positive k <- arbitrary
->       a <- arbitrary
->       return (mkRun k a)
-
-> instance
->   ( Arbitrary a, Eq a
->   ) => Arbitrary (RunLengthEncoding a)
->   where
->     arbitrary = do
->       let
->         run = do
->           Positive k <- arbitrary
->           a <- arbitrary
->           return (k,a)
->       fromFreqList <$> listOf run
-
+> {-
 
 
 Test Helpers
@@ -532,3 +498,5 @@ Test Suite
 >         $ test_RunLengthEncoding_Foldable
 >     , test_RunLengthEncoding_conversion
 >     ]
+
+> -}

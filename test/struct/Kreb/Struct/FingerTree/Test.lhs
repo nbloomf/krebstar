@@ -39,34 +39,16 @@ Throughout this project we'll be using the QuickCheck library to write and execu
 > {-# LANGUAGE
 >     MultiParamTypeClasses
 >   , ScopedTypeVariables
->   , DeriveGeneric
 > #-}
 > 
 > module Kreb.Struct.FingerTree.Test (
 >     test_FingerTree
-> 
->   , pCount
->   , pChar
->   , pBool
->   , pTup
->   , pZZ
-> 
->   -- * Test Helpers
->   , testCases
->   , uncurry3
->   , uncurry4
->   , checkOneDepth
->   , checkPairDepth
 > ) where
-> 
-> import GHC.Generics
 > 
 > import Data.Proxy
 > import Data.Foldable
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
 > import Kreb.Check hiding (ZZ(..))
 > import Kreb.Struct.FingerTree
@@ -80,7 +62,7 @@ Dummy Types
 
 > data ZZ
 >   = ZZ Int
->   deriving (Eq, Show, Generic)
+>   deriving (Eq, Show)
 > 
 > pZZ :: Proxy ZZ
 > pZZ = Proxy
@@ -94,17 +76,24 @@ Dummy Types
 > instance Valued Count ZZ where
 >   value _ = Count 1
 > 
-> instance Arbitrary ZZ where
->   arbitrary = ZZ <$> arbitrary
+> instance Arb ZZ where
+>   arb = ZZ <$> arb
 > 
-> instance CoArbitrary ZZ where
->   coarbitrary (ZZ k) = coarbitrary k
+> instance CoArb ZZ where
+>   coarb (ZZ k) = coarb k
 > 
-> instance Function ZZ
+> instance MakeTo ZZ where
+>   makeTo = makeToIntegralWith g h
+>     where
+>       g :: ZZ -> Integer
+>       g (ZZ k) = fromIntegral k
+> 
+>       h :: Integer -> ZZ
+>       h k = ZZ $ fromInteger $ abs k
 
 > data Tup
 >   = Tup Int Int
->   deriving (Eq, Show, Generic)
+>   deriving (Eq, Show)
 > 
 > pTup :: Proxy Tup
 > pTup = Proxy
@@ -128,45 +117,29 @@ Dummy Types
 >     then Tup 0 1
 >     else Tup 1 0
 > 
-> instance Arbitrary Tup where
->   arbitrary = do
->     NonNegative a <- arbitrary
->     NonNegative b <- arbitrary
+> instance Arb Tup where
+>   arb = do
+>     NonNegative a <- arb
+>     NonNegative b <- arb
 >     return $ Tup a b
 > 
-> instance CoArbitrary Tup where
->   coarbitrary (Tup a b) =
->     coarbitrary (a,b)
+> instance CoArb Tup where
+>   coarb (Tup a b) =
+>     coarb (a,b)
 > 
-> instance Function Tup
+> instance MakeTo Tup where
+>   makeTo = makeToExtendWith makeTo g h
+>     where
+>       g :: Tup -> (Int, Int)
+>       g (Tup a b) = (a,b)
+> 
+>       h :: (Int, Int) -> Tup
+>       h (a,b) = Tup a b
 
 
 
 Generators
 ==========
-
-> instance
->   Arbitrary Count
->   where
->     arbitrary = Count <$> arbitrary
-> 
->     shrink (Count k) =
->       map Count $ shrink k
-> 
-> instance CoArbitrary Count where
->   coarbitrary (Count k) = coarbitrary k
-> 
-> instance Function Count
-> 
-> instance
->   ( Arbitrary a, Valued m a
->   ) => Arbitrary (FingerTree m a)
->   where
->     arbitrary =
->       fromListFT <$> arbitrary
-> 
->     shrink =
->       map fromListFT . shrink . toList
 
 > pCount :: Proxy Count
 > pCount = Proxy
@@ -190,67 +163,8 @@ Recall that a _monoid_ is a type with an associative binary operation and a neut
 > test_Count_Monoid :: TestTree
 > test_Count_Monoid =
 >   testGroup "Count is a monoid"
->     [ test_Count_neutral_left
->     , test_Count_neutral_right
->     , test_Count_assoc
->     ]
-
-The empty element is neutral from the left:
-
-> prop_Count_neutral_left
->   :: Count -> Bool
-> prop_Count_neutral_left x =
->   x == (mempty <> x)
-> 
-> test_Count_neutral_left :: TestTree
-> test_Count_neutral_left =
->   testGroup "mempty <> x == x"
->     [ testProperty "Random Data" $
->         prop_Count_neutral_left
-> 
->     , testCases prop_Count_neutral_left
->       [ ( "zero",     Count 0 )
->       , ( "positive", Count 1 )
->       , ( "negative", Count (-1) )
->       ]
->     ]
-
-The empty element is neutral from the right:
-
-> prop_Count_neutral_right
->   :: Count -> Bool
-> prop_Count_neutral_right x =
->   x == (x <> mempty)
-> 
-> test_Count_neutral_right :: TestTree
-> test_Count_neutral_right =
->   testGroup "x <> mempty == x"
->     [ testProperty "Random Data" $
->         prop_Count_neutral_right
-> 
->     , testCases prop_Count_neutral_right
->       [ ( "zero",     Count 0 )
->       , ( "positive", Count 1 )
->       , ( "negative", Count (-1) )
->       ]
->     ]
-
-The distinguished operator on `Count` is associative:
-
-> prop_Count_assoc
->   :: Count -> Count -> Count -> Bool
-> prop_Count_assoc x y z =
->  (x <> (y <> z)) == ((x <> y) <> z)
-> 
-> test_Count_assoc :: TestTree
-> test_Count_assoc =
->   testGroup "x <> (y <> z) == (x <> y) <> z"
->     [ testProperty "Random Data" $
->         prop_Count_assoc
-> 
->     , testCases (uncurry3 prop_Count_assoc)
->       [ ( "1,2,3", (Count 1, Count 2, Count 3) )
->       ]
+>     [ test_Semigroup_laws (Proxy :: Proxy Count)
+>     , test_Monoid_laws (Proxy :: Proxy Count)
 >     ]
 
 
@@ -262,122 +176,62 @@ Since we rolled our own `Eq` instance for finger trees, it makes sense to check 
 
 > test_FingerTree_Eq :: TestTree
 > test_FingerTree_Eq =
->   testGroup "(==) on FingerTree is an equivalence"
->     [ test_FingerTree_Eq_reflexive
->     , test_FingerTree_Eq_symmetric
->     , test_FingerTree_Eq_transitive
->     ]
-
-Equality is reflexive:
-
-> prop_FingerTree_Eq_reflexive
->    , cprop_FingerTree_Eq_reflexive
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_Eq_reflexive _ _ xs =
->   property $ xs == xs
-> 
-> cprop_FingerTree_Eq_reflexive pa pm xs =
->   cover 90 (notEmptyFT xs) "xs nonempty" $
->   cover 30 (depthFT xs >= 2) "depth >= 2" $
->   prop_FingerTree_Eq_reflexive pa pm xs
-> 
-> test_FingerTree_Eq_reflexive :: TestTree
-> test_FingerTree_Eq_reflexive =
->   testGroup "xs == xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_Eq_reflexive pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_Eq_reflexive pBool pTup
-> 
->     , testCases (prop_FingerTree_Eq_reflexive pChar pCount)
->       [ ( "mempty",   mempty )
->       , ( "leaf 'a'", leaf 'a' )
->       ]
->     ]
-
-Equality is symmetric:
-
-> prop_FingerTree_Eq_symmetric
->    , cprop_FingerTree_Eq_symmetric
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_Eq_symmetric _ _ xs ys =
->   property $ (xs == ys) == (ys == xs)
-> 
-> cprop_FingerTree_Eq_symmetric pa pm xs ys =
->   cover 90 ((notEmptyFT xs) && (notEmptyFT ys))
->     "xs and ys nonempty" $
->   cover 40 (depthFT xs + depthFT ys > 3)
->     "depth xs + depth ys > 3" $
->   prop_FingerTree_Eq_symmetric pa pm xs ys
-> 
-> test_FingerTree_Eq_symmetric :: TestTree
-> test_FingerTree_Eq_symmetric =
->   testGroup "xs == ys iff ys == xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_Eq_symmetric pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_Eq_symmetric pBool pTup
-> 
->     , testCases
->       (uncurry $
->         prop_FingerTree_Eq_symmetric pChar pCount)
->       [ ( "two empty",           (mempty,   mempty) )
->       , ( "one empty",           (mempty,   leaf 'a') )
->       , ( "nonempty, equal",     (leaf 'a', leaf 'a') )
->       , ( "nonempty, not equal", (leaf 'a', leaf 'b') )
->       ]
->     ]
-
-Equality is transitive:
-
-> prop_FingerTree_Eq_transitive
->    , cprop_FingerTree_Eq_transitive
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> FingerTree m a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_Eq_transitive _ _ xs ys zs =
->   property $
->     if (xs == ys) && (ys == zs)
->       then xs == zs
->       else True
-> 
-> cprop_FingerTree_Eq_transitive pa pm xs ys zs =
->   cover 30 (all notEmptyFT [xs,ys,zs])
->     "xs, ys, zs not empty" $
->   cover 40 (depthFT xs + depthFT ys + depthFT zs > 4)
->     "depth xs + depth ys + depth zs > 4" $
->   prop_FingerTree_Eq_transitive pa pm xs ys zs
-> 
-> test_FingerTree_Eq_transitive :: TestTree
-> test_FingerTree_Eq_transitive =
->   testGroup "if xs == ys and ys == zs then xs == zs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_Eq_transitive pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_Eq_transitive pBool pTup
-> 
->     , testCases
->       (uncurry3 $
->         prop_FingerTree_Eq_transitive pChar pCount)
->       [ ( "all empty",      (mempty, mempty, mempty) )
->       , ( "xs == ys /= zs", (leaf 'a', leaf 'a', leaf 'b') )
->       ]
+>   testGroup "Eq laws for FingerTree"
+>     [ test_Eq_laws (Proxy :: Proxy (FingerTree Count Char))
+>     , test_Eq_laws (Proxy :: Proxy (FingerTree Tup Bool))
 >     ]
 
 
+
+Finger trees form a monoid
+--------------------------
+
+Concatenation and mempty form a monoid structure on finger trees.
+
+> test_FingerTree_Monoid :: TestTree
+> test_FingerTree_Monoid =
+>   testGroup "Monoid laws for concat/mempty"
+>     [ test_Semigroup_laws (Proxy :: Proxy (FingerTree Count Char))
+>     , test_Semigroup_laws (Proxy :: Proxy (FingerTree Tup Bool))
+> 
+>     , test_Monoid_laws (Proxy :: Proxy (FingerTree Count Char))
+>     , test_Monoid_laws (Proxy :: Proxy (FingerTree Tup Bool))
+>     ]
+
+
+
+
+
+
+Test Suite
+==========
+
+> test_FingerTree :: TestTree
+> test_FingerTree =
+>   testGroup "FingerTree"
+>     [ test_Count_Monoid
+>     , test_FingerTree_Eq
+>     , test_FingerTree_Monoid
+>   --  , test_FingerTree_List_convert
+>   --  , test_FingerTree_fmapFT
+>   --  , test_FingerTree_Foldable
+>   --  , test_FingerTree_cons_snoc_inverses
+>   --  , test_FingerTree_toList_homomorphism
+>   --  , test_FingerTree_fromList_homomorphism
+>   --  , test_FingerTree_reverse
+>   --  , test_FingerTree_leaf
+>   --  , test_FingerTree_split
+>   --  , test_FingerTree_break
+>     ]
+
+
+
+
+
+
+
+
+> {-
 
 Finger trees and lists are interconvertible
 -------------------------------------------
@@ -916,115 +770,6 @@ The `cons` and `uncons` functions are inverses of each other (sort of); likewise
 >       [ ( "mempty", mempty )
 >       , ( "leaf",   leaf 'a' )
 >       ]
->     ]
-
-
-
-Finger trees form a monoid
---------------------------
-
-Concatenation and mempty form a monoid structure on finger trees.
-
-> test_FingerTree_Monoid :: TestTree
-> test_FingerTree_Monoid =
->   testGroup "Monoid laws for concat/mempty"
->     [ test_FingerTree_Monoid_left_neutral
->     , test_FingerTree_Monoid_right_neutral
->     , test_FingerTree_Monoid_associative
->     ]
-
-`mempty` is left neutral for concatenation:
-
-> prop_FingerTree_Monoid_left_neutral
->    , cprop_FingerTree_Monoid_left_neutral
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Property
-> 
-> prop_FingerTree_Monoid_left_neutral _ _ xs =
->   property $
->     (mempty <> xs) == xs
-> 
-> cprop_FingerTree_Monoid_left_neutral pa pm xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   checkOneDepth xs $
->   prop_FingerTree_Monoid_left_neutral pa pm xs
-> 
-> test_FingerTree_Monoid_left_neutral :: TestTree
-> test_FingerTree_Monoid_left_neutral =
->   testGroup "mempty <> xs == xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_Monoid_left_neutral pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_Monoid_left_neutral pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_Monoid_left_neutral pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
->     ]
-
-`mempty` is right neutral for concatenation:
-
-> prop_FingerTree_Monoid_right_neutral
->    , cprop_FingerTree_Monoid_right_neutral
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Property
-> 
-> prop_FingerTree_Monoid_right_neutral _ _ xs =
->   property $
->     (xs <> mempty) == xs
-> 
-> cprop_FingerTree_Monoid_right_neutral pa pm xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   checkOneDepth xs $
->   prop_FingerTree_Monoid_right_neutral pa pm xs
-> 
-> test_FingerTree_Monoid_right_neutral :: TestTree
-> test_FingerTree_Monoid_right_neutral =
->   testGroup "mempty <> xs == xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_Monoid_right_neutral pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_Monoid_right_neutral pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_Monoid_right_neutral pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
->     ]
-
-Concatenation is associative:
-
-> prop_FingerTree_Monoid_associative
->    , cprop_FingerTree_Monoid_associative
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> FingerTree m a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_Monoid_associative _ _ a b c =
->   property $
->     (a <> (b <> c)) == ((a <> b) <> c)
-> 
-> cprop_FingerTree_Monoid_associative pa pm a b c =
->   checkPairDepth a b $
->   prop_FingerTree_Monoid_associative pa pm a b c
-> 
-> test_FingerTree_Monoid_associative :: TestTree
-> test_FingerTree_Monoid_associative =
->   testGroup "(a <> b) <> c == a <> (b <> c)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_Monoid_associative pChar pCount
-> 
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_Monoid_associative pBool pTup
 >     ]
 
 
@@ -1816,26 +1561,7 @@ Grab bag of properties for the `break`-related functions.
 
 
 
-Test Suite
-==========
 
-> test_FingerTree :: TestTree
-> test_FingerTree =
->   testGroup "FingerTree"
->     [ test_Count_Monoid
->     , test_FingerTree_Eq
->     , test_FingerTree_List_convert
->     , test_FingerTree_fmapFT
->     , test_FingerTree_Foldable
->     , test_FingerTree_cons_snoc_inverses
->     , test_FingerTree_Monoid
->     , test_FingerTree_toList_homomorphism
->     , test_FingerTree_fromList_homomorphism
->     , test_FingerTree_reverse
->     , test_FingerTree_leaf
->     , test_FingerTree_split
->     , test_FingerTree_break
->     ]
 
 
 
@@ -1876,3 +1602,5 @@ Test Helpers
 >   cover 30 ((depthFT xs >= 2) && (depthFT ys >= 2))
 >     "depth xs >= 2, depth ys >= 2" $
 >   prop
+
+> -}

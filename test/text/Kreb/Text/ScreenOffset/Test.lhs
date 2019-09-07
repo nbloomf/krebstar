@@ -30,72 +30,30 @@ Introduction
 > #-}
 > 
 > module Kreb.Text.ScreenOffset.Test (
->     test_ScreenOffset
+>   --  test_ScreenOffset
 > ) where
 > 
 > import Data.Proxy
 > import Data.Foldable
 > import Control.Monad
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
+> import Kreb.Check
 > import Kreb.Reflect
 > import Kreb.Struct
 > 
 > import Kreb.Text.ScreenOffset
-> 
-> import Kreb.Struct.FingerTree.Test
-> import Kreb.Struct.RunLengthEncoding.Test
 
-
+> {-
 
 Generators
 ==========
 
-> instance
->   Arbitrary Span
->   where
->     arbitrary = elements
->       [ Fixed0, Fixed1, Fixed2, Stretchy ]
-
-> instance
->   ( IsWidth w, IsTab t
->   ) => Arbitrary (ScreenOffset w t)
->   where
->     arbitrary = do
->       let
->         run = do
->           Positive k <- arbitrary
->           a <- arbitrary
->           return (k,a)
->       p <- arbitrary
->       if p
->         then
->           mkNoNewlines
->             <$> listOf run
->         else do
->           Positive m <- arbitrary
->           mkWithNewlines
->             <$> listOf run <*> pure m <*> listOf run
-> 
->     shrink x = case x of
->       NoNewlines zs -> do
->         cs <- shrink zs
->         return $ NoNewlines cs
->       WithNewlines xs k ys ->
->         [ NoNewlines xs, NoNewlines ys ] ++
->         do
->           as <- shrink xs
->           m <- [1..k]
->           bs <- shrink ys
->           return $ WithNewlines as m bs
-
 > genAll
 >   :: Span
 >   -> NonNegative Int
->   -> Gen (RunLengthEncoding Span)
+>   -> Seeded (RunLengthEncoding Span)
 > genAll span (NonNegative k) = do
 >   let
 >     xs = if k <= 0
@@ -107,10 +65,10 @@ Generators
 >   :: forall w
 >    . ( IsWidth w )
 >   => Proxy w
->   -> Gen (Int, Int)
+>   -> Seeded (Int, Int)
 > genValidCoords _ = do
 >   let w = toWidth (Proxy :: Proxy w)
->   x <- choose (0,w-1)
+>   x <- randIn (0,w-1)
 >   Positive y <- arbitrary
 >   return (x,y)
 
@@ -1090,3 +1048,5 @@ Test Suite
 >     , test_ScreenOffset_MonoidAction
 >     , test_ScreenOffset_eq_examples
 >     ]
+
+> -}

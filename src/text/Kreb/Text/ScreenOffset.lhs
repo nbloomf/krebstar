@@ -60,6 +60,8 @@ Exposed API
 
 > import Data.Proxy
 
+> import Kreb.Check (Arb(..), Prune(..), Positive(..), listOf, pickFrom4)
+
 > import Kreb.Reflect
 > import Kreb.Struct
 
@@ -80,6 +82,17 @@ We will represent the possible character widths using the `Span` type.
 >   | Fixed2
 >   | Stretchy
 >   deriving (Eq, Show)
+> 
+> instance Arb Span where
+>   arb = pickFrom4
+>     ( return Fixed0
+>     , return Fixed1
+>     , return Fixed2
+>     , return Stretchy
+>     )
+> 
+> instance Prune Span where
+>   prune _ = []
 
 There's actually one more special case -- newlines, whose width is however many cells away it is from the end of the terminal window. But we'll handle these differently in a moment.
 
@@ -162,6 +175,42 @@ The `ScreenOffset` type models the position of a given character on the screen. 
 >       Int
 >       (RunLengthEncoding Span)
 >   deriving Eq
+
+> instance
+>   ( IsWidth w, IsTab t
+>   ) => Arb (ScreenOffset w t)
+>   where
+>     arb = do
+>       let
+>         run = do
+>           Positive k <- arb
+>           a <- arb
+>           return (k,a)
+>       p <- arb
+>       if p
+>         then
+>           mkNoNewlines
+>             <$> listOf run
+>         else do
+>           Positive m <- arb
+>           mkWithNewlines
+>             <$> listOf run <*> pure m <*> listOf run
+> 
+> instance
+>   ( IsWidth w, IsTab t
+>   ) => Prune (ScreenOffset w t)
+>   where
+>     prune x = case x of
+>       NoNewlines zs -> do
+>         cs <- prune zs
+>         return $ NoNewlines cs
+>       WithNewlines xs k ys ->
+>         [ NoNewlines xs, NoNewlines ys ] ++
+>         do
+>           as <- prune xs
+>           m <- [1..k]
+>           bs <- prune ys
+>           return $ WithNewlines as m bs
 
 We need a monoid instance for `ScreenOffset`, which intuitively works something like this. Given two screen offsets, if the second has no line offset, then we can just concatenate the second block offset to the first. But this may cause the block offset to march off the right edge of the window, so we need to wrap it first (possibly adjusting the line offset as we go). If the second screen offset does have a line offset, we again need to wrap the first block offset to figure out how many lines it occupies. So in both cases _wrapping_ a block offset is a crucial operation.
 

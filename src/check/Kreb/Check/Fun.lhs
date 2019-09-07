@@ -10,7 +10,9 @@
 >   , totalize
 >   , pruneTo
 > 
->  -- , Function(..)
+>   , MakeTo(..)
+>   , makeToExtendWith
+>   , makeToIntegralWith
 > 
 >  -- , Fun(..)
 >   , apFun
@@ -109,17 +111,17 @@
 
 
 
-> class Function a where
->   function :: (a -> b) -> To a b
+> class MakeTo a where
+>   makeTo :: (a -> b) -> To a b
 
 > instance
->   ( Function a, CoArb a, Arb b
+>   ( MakeTo a, CoArb a, Arb b
 >   ) => Arb (To a b)
 >   where
->     arb = fmap function arb
+>     arb = fmap makeTo arb
 > 
 > instance
->   ( Function a, CoArb a, Arb b, Prune b
+>   ( MakeTo a, CoArb a, Arb b, Prune b
 >   ) => Prune (To a b)
 >   where
 >     prune = pruneTo prune
@@ -129,84 +131,84 @@
 Base Constructors
 -----------------
 
-> functionDisjoinWith
+> makeToDisjoinWith
 >   :: ((a -> c) -> To a c)
 >   -> ((b -> c) -> To b c)
 >   -> (Either a b -> c)
 >   -> To (Either a b) c
-> functionDisjoinWith func1 func2 f =
+> makeToDisjoinWith func1 func2 f =
 >   Disjoin (func1 (f . Left)) (func2 (f . Right))
 > 
-> functionDisjoin
->   :: ( Function a, Function b )
+> makeToDisjoin
+>   :: ( MakeTo a, MakeTo b )
 >   => (Either a b -> c)
 >   -> To (Either a b) c
-> functionDisjoin =
->   functionDisjoinWith function function
+> makeToDisjoin =
+>   makeToDisjoinWith makeTo makeTo
 > 
 > instance
->   ( Function a, Function b
->   ) => Function (Either a b)
+>   ( MakeTo a, MakeTo b
+>   ) => MakeTo (Either a b)
 >   where
->     function = functionDisjoin
+>     makeTo = makeToDisjoin
 
-> functionUncurryWith
+> makeToUncurryWith
 >   :: ((a -> (b -> c)) -> To a (b -> c))
 >   -> ((b -> c) -> To b c)
 >   -> ((a, b) -> c)
 >   -> To (a,b) c
-> functionUncurryWith func1 func2 f =
+> makeToUncurryWith func1 func2 f =
 >   Uncurry $ fmap func2 (func1 $ curry f)
 > 
-> functionUncurry
->   :: ( Function a, Function b )
+> makeToUncurry
+>   :: ( MakeTo a, MakeTo b )
 >   => ((a,b) -> c)
 >   -> To (a,b) c
-> functionUncurry =
->   functionUncurryWith function function
+> makeToUncurry =
+>   makeToUncurryWith makeTo makeTo
 > 
 > instance
->   ( Function a, Function b
->   ) => Function (a,b)
+>   ( MakeTo a, MakeTo b
+>   ) => MakeTo (a,b)
 >   where
->     function = functionUncurry
+>     makeTo = makeToUncurry
 
-> functionExtendWith
+> makeToExtendWith
 >   :: ((b -> c) -> To b c)
 >   -> (a -> b) -> (b -> a)
 >   -> (a -> c) -> To a c
-> functionExtendWith func g h f =
+> makeToExtendWith func g h f =
 >   Extend g h $ func (f . h)
 > 
-> functionExtend
->   :: ( Function b )
+> makeToExtend
+>   :: ( MakeTo b )
 >   => (a -> b) -> (b -> a)
 >   -> (a -> c) -> To a c
-> functionExtend =
->   functionExtendWith function
+> makeToExtend =
+>   makeToExtendWith makeTo
 
 
 
 
 
-> instance Function () where
->   function f = Trivial $ f ()
+> instance MakeTo () where
+>   makeTo f = Trivial $ f ()
 
-> instance Function Bool where
->   function f = Tabular
+> instance MakeTo Bool where
+>   makeTo f = Tabular
 >     [ (True, f True)
 >     , (False, f False)
 >     ]
 
-> instance Function Word8 where
->   function f = Tabular
+> instance MakeTo Word8 where
+>   makeTo f = Tabular
 >     [ (x, f x) | x <- [minBound, maxBound] ]
 
 > instance
->   ( Function a
->   ) => Function [a]
+>   ( MakeTo a
+>   ) => MakeTo [a]
 >   where
->     function = functionExtend g h
+>     makeTo = makeToExtend g h
 >       where
 >         -- uncons
 >         g :: [a] -> Either () (a, [a])
@@ -220,8 +222,8 @@ Base Constructors
 >           Left () -> []
 >           Right (x,xs) -> x:xs
 
-> instance Function Integer where
->   function = functionExtend g h
+> instance MakeTo Integer where
+>   makeTo = makeToExtend g h
 >     where
 >       -- to signed digits
 >       g :: Integer -> Either [Word8] [Word8]
@@ -248,8 +250,20 @@ Base Constructors
 >         [] -> 0
 >         x:xs -> (fromIntegral x) + 256 * (hNat xs)
 
-> instance Function Int where
->   function = functionExtend fromIntegral fromInteger
+> makeToIntegralWith
+>   :: (a -> Integer) -> (Integer -> a)
+>   -> (a -> b) -> To a b
+> makeToIntegralWith g h =
+>   makeToExtend g h
+
+> makeToIntegral
+>   :: ( Num a, Integral a )
+>   => (a -> b) -> To a b
+> makeToIntegral =
+>   makeToIntegralWith fromIntegral fromInteger
+
+> instance MakeTo Int where
+>   makeTo = makeToIntegral
 
 
 
@@ -285,13 +299,13 @@ Base Constructors
 >         Pruned -> showTo part (Just def)
 
 > instance
->   ( Function a, CoArb a, Arb b
+>   ( MakeTo a, CoArb a, Arb b
 >   ) => Arb (Fun a b)
 >   where
 >     arb = mkFun <$> arb <*> arb
 > 
 > instance
->   ( Function a, CoArb a, Arb b, Prune a, Prune b
+>   ( MakeTo a, CoArb a, Arb b, Prune a, Prune b
 >   ) => Prune (Fun a b)
 >   where
 >     prune (Fun part def p tot) = concat

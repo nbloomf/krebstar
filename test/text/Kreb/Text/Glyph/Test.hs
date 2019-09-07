@@ -4,32 +4,24 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Kreb.Text.Glyph.Test (
-    IsGlyph(..)
+--    IsGlyph(..)
 
-  , Ascii(..)
-  , charAscii
-  , pAscii
+--  , Ascii(..)
+--  , charAscii
+--  , pAscii
 
-  , NonNewline(..)
+--  , NonNewline(..)
 ) where
 
 import Data.Proxy
 
-import Test.QuickCheck
 import Test.Tasty
-import Test.Tasty.QuickCheck
 
-import Kreb.Text.Glyph
-import Kreb.Struct.FingerTree
-import Kreb.Text.MeasureText
-import Kreb.Text.ScreenOffset
-import Kreb.Text.Buffer
+import Kreb.Check
+import Kreb.Struct
+import Kreb.Text
 
-instance
-  Arbitrary Glyph
-  where
-    arbitrary = mkGlyph
-      <$> arbitrary
+{-
 
 class IsGlyph a where
   toGlyph :: a -> Glyph
@@ -66,12 +58,9 @@ instance
   ) => Valued (MeasureText w t) Ascii where
   value (Ascii c) = value c
 
-instance Arbitrary Ascii where
-  arbitrary = do
-    c :: Char <- elements $ concat
-      [ ['a'..'z'], ['A'..'Z'], ['0'..'9']
-      , "`~!@#$%^&*()-_=+\\|]}[{'\";:/?.>,<"
-      ]
+instance Arb Ascii where
+  arb = do
+    c <- arbPrintableAsciiChar
     return $ Ascii (fromChar c)
 
 
@@ -109,9 +98,11 @@ instance
     toChar = toChar . unNonNewline
 
 instance
-  ( Arbitrary a, IsChar a
-  ) => Arbitrary (NonNewline a)
+  ( Arb a, IsChar a
+  ) => Arb (NonNewline a)
   where
-    arbitrary = do
-      c <- arbitrary `suchThat` (\x -> '\n' /= toChar x)
+    arb = do
+      c <- arb `satisfying` (\x -> '\n' /= toChar x)
       return $ NonNewline c
+
+-}

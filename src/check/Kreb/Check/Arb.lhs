@@ -1,5 +1,7 @@
 > module Kreb.Check.Arb where
 > 
+> import Data.Char (ord)
+> 
 > import Kreb.Check.Seeded
 
 
@@ -63,6 +65,23 @@ Int
 >     LT -> filter (> k) [0, -1, k`div`2, k+1]
 >     EQ -> []
 >     GT -> filter (< k) [0, 1, k`div`2, k-1]
+
+
+
+Char
+----
+
+> instance Arb Char where
+>   arb = freq
+>     [ (4, arbAsciiChar)
+>     , (1, arbUnicodeChar)
+>     ]
+> 
+> instance Prune Char where
+>   prune c = ['a']
+> 
+> instance CoArb Char where
+>   coarb c = coarb (ord c)
 
 
 
@@ -130,6 +149,35 @@ Tuples
 >       coarb a1 .
 >       coarb a2
 
+> instance
+>   ( Arb a1, Arb a2, Arb a3
+>   ) => Arb (a1, a2, a3)
+>   where
+>     arb = do
+>       a1 <- arb
+>       a2 <- arb
+>       a3 <- arb
+>       return (a1, a2, a3)
+> 
+> instance
+>   ( Prune a1, Prune a2, Prune a3
+>   ) => Prune (a1, a2, a3)
+>   where
+>     prune (a1,a2,a3) = concat
+>       [ [ (u1,a2,a3) | u1 <- prune a1 ]
+>       , [ (a1,u2,a3) | u2 <- prune a2 ]
+>       , [ (a1,a2,u3) | u3 <- prune a3 ]
+>       ]
+> 
+> instance
+>   ( CoArb a1, CoArb a2, CoArb a3
+>   ) => CoArb (a1,a2,a3)
+>   where
+>     coarb (a1,a2,a3) =
+>       coarb a1 .
+>       coarb a2 .
+>       coarb a3
+
 
 
 Lists
@@ -185,3 +233,66 @@ Function
 >     coarb f gen = do
 >       xs <- arb
 >       coarb (map f xs) gen
+
+
+
+
+
+
+
+
+
+
+
+
+
+> newtype NonNegative a
+>   = NonNegative a
+>   deriving (Eq, Show)
+> 
+> instance
+>   ( Num a, Arb a
+>   ) => Arb (NonNegative a)
+>   where
+>     arb = do
+>       k <- arb
+>       return $ NonNegative $ abs k
+> 
+> instance
+>   ( Num a, Prune a
+>   ) => Prune (NonNegative a)
+>   where
+>     prune (NonNegative a) =
+>       map (NonNegative . abs) $ prune a
+> 
+> instance
+>   ( CoArb a
+>   ) => CoArb (NonNegative a)
+>   where
+>     coarb (NonNegative a) = coarb a
+
+> newtype Positive a
+>   = Positive a
+>   deriving (Eq, Show)
+> 
+> instance
+>   ( Num a, Arb a
+>   ) => Arb (Positive a)
+>   where
+>     arb = do
+>       k <- arb
+>       return $ Positive $ (+1) $ abs k
+> 
+> instance
+>   ( Num a, Prune a
+>   ) => Prune (Positive a)
+>   where
+>     prune (Positive a) =
+>       map (Positive . (+1) . abs) $ prune a
+> 
+> instance
+>   ( CoArb a
+>   ) => CoArb (Positive a)
+>   where
+>     coarb (Positive a) = coarb a
+

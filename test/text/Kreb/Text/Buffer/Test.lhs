@@ -25,31 +25,26 @@ Introduction
 > #-}
 > 
 > module Kreb.Text.Buffer.Test (
->     test_Buffer
+>  --   test_Buffer
 > ) where
 > 
 > import Data.Proxy
 > import Data.List
 > import System.Environment
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
-> import Kreb.Struct.FingerTree
-> import Kreb.Struct.FingerTreeZip
+> import Kreb.Struct
 > import Kreb.Reflect.Nat
 > import Kreb.Text
 > 
 > import Kreb.Check
 > 
-> import Kreb.Struct.FingerTree.Test
-> import Kreb.Struct.FingerTreeZip.Test
 > import Kreb.Text.ScreenOffset.Test
 > import Kreb.Text.MeasureText.Test
 > import Kreb.Text.Glyph.Test
 
-
+> {-
 
 Generators
 ==========
@@ -1574,5 +1569,7 @@ Test Suite
 >       case unBufferFocus (splitBufferAtScreenLine 1 buf) of
 >         Nothing -> error "prop_splitBufferAtScreenLine_one_line_wrap"
 >         Just (us, x, vs) -> (a, concat as) === (us ++ [x], vs)
+
+> -}
 
 > -}

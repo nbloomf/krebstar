@@ -47,6 +47,8 @@ We will need this utility type later.
 > import Data.Foldable
 > import Data.List (intercalate)
 > 
+> import Kreb.Check (Arb(..), Prune(..), Positive(..), listOf)
+> 
 > import Kreb.Struct.FingerTree
 
 
@@ -69,6 +71,12 @@ This type can be made a monoid in the usual way.
 > 
 > instance Monoid RunSize where
 >   mempty = RunSize 0 0
+> 
+> instance Arb RunSize where
+>   arb = do
+>     Positive s <- arb
+>     Positive l <- arb
+>     return $ RunSize s l
 
 Next we'll need a wrapper type to represent value/run length pairs.
 
@@ -91,6 +99,15 @@ Next we'll need a wrapper type to represent value/run length pairs.
 >   where
 >     value (Run (k, _)) =
 >       RunSize 1 k
+> 
+> instance
+>   ( Arb a, Eq a
+>   ) => Arb (Run a)
+>   where
+>     arb = do
+>       Positive k <- arb
+>       a <- arb
+>       return (mkRun k a)
 
 We're finally prepared to defing run length encoded lists in terms of `RunSize` and `Run`.
 
@@ -128,6 +145,18 @@ And we can give a `Foldable` instance for run length encoded lists.
 >       Nothing -> e
 >       Just (Run (k, a), ys) ->
 >         foldr f (rep (f a) k e) (RLE ys)
+
+> instance
+>   ( Arb a, Eq a
+>   ) => Arb (RunLengthEncoding a)
+>   where
+>     arb = fromFreqList <$> listOf arb
+> 
+> instance
+>   ( Prune a, Eq a
+>   ) => Prune (RunLengthEncoding a)
+>   where
+>     prune = map fromFreqList . prune . toFreqList
 
 
 

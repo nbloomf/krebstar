@@ -7,7 +7,9 @@ module Kreb.Text.Glyph (
   , mkGlyph
 ) where
 
-import Kreb.Struct.FingerTree
+import Kreb.Check
+import Kreb.Struct
+
 import Kreb.Text.ScreenOffset
 import Kreb.Text.MeasureText
 
@@ -29,6 +31,9 @@ instance
   ) => Valued (MeasureText w t) Glyph
   where
     value (Glyph c) = value c
+
+instance Arb Glyph where
+  arb = mkGlyph <$> arb
 
 
 

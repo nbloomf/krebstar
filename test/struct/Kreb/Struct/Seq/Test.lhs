@@ -24,37 +24,23 @@ There's not much to say about `Seq`.
 > #-}
 > 
 > module Kreb.Struct.Seq.Test (
->     test_Seq
+>  --   test_Seq
 > ) where
 > 
 > import Data.Proxy
 > 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 > 
-> import Kreb.Struct.FingerTree
-> import Kreb.Struct.FingerTreeZip
-> import Kreb.Struct.Seq
-> 
-> import Kreb.Check
+> import Kreb.Struct
 > 
 > import Kreb.Struct.FingerTree.Test
 > import Kreb.Struct.FingerTreeZip.Test
 
-
+> {-
 
 Generators
 ==========
 
-> instance
->   ( Arbitrary a, Valued Count a
->   ) => Arbitrary (Seq a) where
->   arbitrary = mkTapeFocus
->     <$> arbitrary
->     <*> arbitrary
->     <*> arbitrary
-> 
 > pSeq :: Proxy Seq
 > pSeq = Proxy
 
@@ -71,3 +57,5 @@ We get all our `Seq` tests for free.
 >     [ testGroup "Char"
 >       [ test_Tape pChar pSeq ]
 >     ]
+
+> -}
