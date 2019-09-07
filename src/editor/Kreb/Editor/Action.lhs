@@ -28,13 +28,23 @@
 >   = NoOp
 >   | Quit
 
+>   -- Meta
+>   | SetMode EditorMode
+
 >   -- Cursor Movement
 >   | CursorUp
 >   | CursorDown
 >   | CursorRight
 >   | CursorLeft
 
+>   -- Editing
+>   | CharInsert Char
+>   | CharBackspace
 
+>   -- Load and Save
+>   | FileSaveAs
+>   | FileSave
+>   | FileLoad FilePath
 
 
 
@@ -54,21 +64,18 @@
 >   | SelectionPaste
 
 >   -- Edit Operations
->   | CharInsertAfter Char
->   | CharInsertBefore Char
 >   | CharOverwrite Char
 >   | CharDelete
->   | CharBackspace
+
 
 >   | LineDelete
 
->   | CharInsertCmdAfter Char
+>   | CharInsertCmd Char
 >   | CharBackspaceCmd
 
 >   | RunCmd
 
->   -- Modes
->   | SetMode EditorMode
+
 
 >   | SetError String
 >   | ClearError
@@ -101,13 +108,13 @@
 >     let st' = setEditorMode mode st
 >     return (GoOn, st')
 
->   CharInsertAfter c -> do
+>   CharInsert c -> do
 >     let
 >       st' = alterActivePanel (alterPanel
 >         [PanelAlterText [TextBoxInsert (fromChar c)]]) st
 >     return (GoOn, st')
 
->   CharInsertCmdAfter c -> do
+>   CharInsertCmd c -> do
 >     let
 >       st' = alterActivePanel (alterPanel
 >         [PanelAlterCmd [TextBoxInsert (fromChar c)]]) st
@@ -170,6 +177,10 @@
 >             let st3 = setLastError (show err) st2
 >             return (GoOn, st3)
 >           Right st' -> return (GoOn, st')
+
+>   act -> do
+>     let st' = setLastError (" Not implemented: " ++ show act) st
+>     return (GoOn, st')
 
 
 

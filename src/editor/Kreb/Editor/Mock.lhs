@@ -1,7 +1,6 @@
 > module Kreb.Editor.Mock where
 
 > import Kreb.Editor.State
-> import Kreb.Editor.Event
 > import Kreb.Editor.Action
 > import Kreb.Editor.Monad
 > import Kreb.Editor.Error
@@ -14,10 +13,10 @@
 > data MockState = MockState
 >   { mockCurrentScreen :: [String]
 >   , mockLogs :: [String]
->   , mockFutureEvents :: [AppEvent]
+>   , mockFutureEvents :: [Action]
 >   } deriving (Eq, Show)
 
-> initMockState :: [AppEvent] -> MockState
+> initMockState :: [Action] -> MockState
 > initMockState events = MockState
 >   { mockCurrentScreen = []
 >   , mockLogs = []
@@ -63,8 +62,8 @@
 > mockRenderState :: AppState Mock -> Mock ()
 > mockRenderState st = return ()
 
-> mockGetNextEvent :: Mock AppEvent
-> mockGetNextEvent = Mock $ \st ->
+> mockGetNextEvent :: EditorMode -> Mock Action
+> mockGetNextEvent _ = Mock $ \st ->
 >   case mockFutureEvents st of
 >     [] -> Left NoNextEvent
 >     e:es -> Right (e, st { mockFutureEvents = es })
@@ -104,10 +103,10 @@
 >     return (Right ((), rts), st')
 >   _ -> Nothing
 
-> runMock :: [AppEvent] -> Mock a -> Either MockInterrupt (a, MockState)
+> runMock :: [Action] -> Mock a -> Either MockInterrupt (a, MockState)
 > runMock es (Mock x) = x $ initMockState es
 
 
-> runMockApp :: (Int, Int) -> [AppEvent] -> Either MockInterrupt (Maybe AppError, MockState)
+> runMockApp :: (Int, Int) -> [Action] -> Either MockInterrupt (Maybe AppError, MockState)
 > runMockApp dim es = runMock es $ runApp mockEnv (initAppState runtimeStateMock dim) primaryEventLoop
 

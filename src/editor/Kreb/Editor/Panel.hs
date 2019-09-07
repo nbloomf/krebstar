@@ -12,6 +12,7 @@ module Kreb.Editor.Panel (
   , setPanelDim
 
   , getPanelCmdString
+  , getPanelString
 
   , RenderedPanel(..)
   , updateRenderedPanel
@@ -31,6 +32,8 @@ import Kreb.Text
 data Panel = Panel
   { textBox       :: TextBox
   , textOffset    :: (Int, Int) -- ^ Relative cursor position of NW corner
+  , textChanged   :: Bool
+  , textOrigin    :: Maybe FilePath
   , cmdBox        :: TextBox
   , cmdOffset     :: (Int, Int) -- ^ Relative cursor position of NW corner
   , cmdHeight     :: Int
@@ -40,6 +43,9 @@ data Panel = Panel
 getPanelCmdString :: Panel -> String
 getPanelCmdString = getTextBoxString . cmdBox
 
+getPanelString :: Panel -> String
+getPanelString = getTextBoxString . textBox
+
 
 initPanel
   :: (Int, Int) -- (Width, Height)
@@ -48,6 +54,8 @@ initPanel
 initPanel (w,h) t = Panel
   { textBox       = initTextBox (w-3, h-4) t
   , textOffset    = (3,0)
+  , textChanged   = False
+  , textOrigin    = Nothing
   , cmdBox        = initTextBox (w,1) t
   , cmdOffset     = (0,h-1)
   , cmdHeight     = 1
@@ -170,7 +178,10 @@ panelAlterText
   -> Panel -> Panel
 panelAlterText as panel =
   let box = textBox panel in
-  panel { textBox = alterTextBox as box }
+  panel
+    { textBox = alterTextBox as box
+    , textChanged = True
+    }
 
 panelAlterCmd
   :: [TextBoxAction]

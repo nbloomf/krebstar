@@ -2,7 +2,7 @@
 ===============
 - File load and save (primitives and key bindings)
 - Lang initial environment (and CL option)
-- Mock monad for testing
+- Write tests using Mock monad
 - Color line numbers
 - Dedicated pane for showing errors
 - Mouse navigation
@@ -15,6 +15,7 @@
 
 - navigation primitives (go to line, line+col, top, regex after cursor)
 - regex primitives
+- record actions as macros?
 
 
 
@@ -84,6 +85,7 @@ Test lib ideas
 ==============
 - built in primitives for testing state machines with invariants
 - happy path also provides for running individual tests from the shell
+- Structural construction and shrinking
 
 types:
   - integer: ..., -1, 0, 1, 2, ...

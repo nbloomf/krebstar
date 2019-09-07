@@ -68,7 +68,7 @@ Throughout this project we'll be using the QuickCheck library to write and execu
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
 > 
-> import Kreb.Check
+> import Kreb.Check hiding (ZZ(..))
 > import Kreb.Struct.FingerTree
 
 

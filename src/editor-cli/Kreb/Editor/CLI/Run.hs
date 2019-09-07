@@ -5,11 +5,14 @@ module Kreb.Editor.CLI.Run (
 import Graphics.Vty
 import qualified System.Console.Terminal.Size as TS
 
+import System.IO.Error
+import Control.Exception
+
 import Kreb.Text
 import Kreb.Editor
 
 import Kreb.Editor.CLI.Render
-import Kreb.Editor.CLI.Event
+import Kreb.Editor.CLI.Handler
 
 
 
@@ -56,9 +59,35 @@ appEnvIO = do
   return 
     ( AppEnv
       { renderState = render
-      , getNextEvent = fmap convert $ nextEvent vty
+      , getNextEvent = \mode -> do
+          e <- nextEvent vty
+          return $ eventMapping mode e
       , cleanup = shutdown vty
       , logMessage = appendFile "/Users/nathan/code/ned/logs.txt"
+      , loadFile = loadFileIO
+      , saveFile = saveFileIO
       }
     , (w0, h0)
     )
+
+
+
+loadFileIO :: FilePath -> IO (Either IOError String)
+loadFileIO path = catch read handle
+  where
+    read :: IO (Either IOError String)
+    read = fmap Right $ readFile path
+
+    handle :: IOError -> IO (Either IOError String)
+    handle err = return $ Left err
+
+saveFileIO :: FilePath -> String -> IO (Maybe IOError)
+saveFileIO path str = catch write handle
+  where
+    write :: IO (Maybe IOError)
+    write = writeFile path str >> return Nothing
+
+    handle :: IOError -> IO (Maybe IOError)
+    handle err = return $ Just err
+
+

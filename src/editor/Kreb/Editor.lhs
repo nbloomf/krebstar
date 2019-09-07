@@ -2,8 +2,6 @@
 >     module Kreb.Editor.Monad
 >   , module Kreb.Editor.Action
 >   , module Kreb.Editor.Error
->   , module Kreb.Editor.Event
->   , module Kreb.Editor.Handler
 >   , module Kreb.Editor.Panel
 >   , module Kreb.Editor.Settings
 >   , module Kreb.Editor.State
@@ -15,8 +13,6 @@
 > import Kreb.Editor.Monad
 > import Kreb.Editor.Action
 > import Kreb.Editor.Error
-> import Kreb.Editor.Event
-> import Kreb.Editor.Handler
 > import Kreb.Editor.Panel
 > import Kreb.Editor.Settings
 > import Kreb.Editor.State

@@ -11,5 +11,5 @@
 > import Kreb.Reflect
 > import Kreb.Struct
 > import Kreb.Text
-> import Kreb.Lang
+> import Kreb.Lang hiding (gets)
 > import Kreb.Editor

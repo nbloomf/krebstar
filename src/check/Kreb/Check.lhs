@@ -1,10 +1,42 @@
-> module Kreb.Check where
+> {-# LANGUAGE TypeFamilies, FlexibleContexts, EmptyDataDeriving, StandaloneDeriving, FlexibleInstances #-}
 
+> module Kreb.Check (
+>     module Kreb.Check.Seeded
+>   , module Kreb.Check.Arb
+>   , module Kreb.Check.Check
+>   , module Kreb.Check.Tests
+>   , module Kreb.Check.Tasty
+> 
+>   , module Kreb.Check.Alg
+>   , module Kreb.Check.Laws
+> 
+>   , module Kreb.Check.Fun
+> --  , module Kreb.Check.Build
+>   , module Kreb.Check.StateMachine
+> 
+>   , uncurry3
+>   , uncurry4
+>   , testCases
+> ) where
+
+> import Control.Monad (ap)
 > import System.Random
+> import Data.List
 
 > import Test.QuickCheck
 > import Test.Tasty
 > import Test.Tasty.QuickCheck
+
+> import Kreb.Check.Seeded
+> import Kreb.Check.Arb
+> import Kreb.Check.Check hiding (ZZ(..))
+> import Kreb.Check.Tests
+> import Kreb.Check.Tasty
+> import Kreb.Check.Alg
+> import Kreb.Check.Laws
+> import Kreb.Check.Fun
+> import Kreb.Check.Build
+> import Kreb.Check.StateMachine
 
 A note on strategy
 ------------------
@@ -37,62 +69,58 @@ It appears that `testCases` can only work with properties that take a single arg
 
 
 
+> {-
 
-> data Arb a
->   = Arb (StdGen -> a)
+
+
+
+> visitOutcomes :: Rose Outcome -> Outcome
+> visitOutcomes z = case z of
+>   Rose Accept _ -> Accept
+>   Rose failure1 children ->
+>     let failure2 = find (isFailure . roseVal) children
+>     in case failure2 of
+>       Nothing -> failure1
+>       Just x -> visitOutcomes x
+
+
+> isFailure Accept = False
+> isFailure _ = True
+
+
+
+
+
+
+
+> checkCase
+>   :: ( Checkable check )
+>   => Int -> Int -> Depth -> Size -> check -> Outcome
+> checkCase num seed d s c = runAll (check c)
+>   where
+>     runAll :: Check -> Outcome
+>     runAll pr = foldMap (runOne pr) $ take num $ [seed..]
 > 
-> runArb
->   :: StdGen -> Arb a -> a
-> runArb seed (Arb f) = f seed
- 
-> runArb'
->   :: Int -> Arb a -> a
-> runArb' k = runArb (mkStdGen k)
+>     runOne :: Check -> Int -> Outcome
+>     runOne pr sd =
+>       let result = visitOutcomes $ runCheck pr $ initArbEnvWith (Seed seed) d s
+>       in case result of
+>         Accept -> Accept
+>         Reject _ _ _ args msg -> Reject (Seed sd) d s args msg
 
-> arbBool :: Arb Bool
-> arbBool = Arb $ \gen ->
->   fst $ random gen
-> 
-> arbInt :: Int -> Arb Int
-> arbInt m = Arb $ \gen ->
->   let k = fst $ random gen
->   in mod k (1 + (abs m))
+> krebCheck :: Checkable prop => prop -> IO Outcome
+> krebCheck = krebCheckWith 100 5 5
 
-
-
-> class Checkable t where
->   checkable :: t -> Check
-
-> data Check = Check
-
-> data Result
->   = Success
->   | Failure
->   deriving (Eq, Show)
-
-> data Outcome
->   = Accept
->   | Reject String
->   | Discard String
->   deriving (Eq, Show)
-
-> data Complexity
->   = Trivial
->   | Boundary
->   | Complex Int
->   deriving (Eq, Show)
-
-> class Construct t where
->   construct :: Complexity -> Arb t
-> 
+> krebCheckWith :: Checkable prop => Int -> Depth -> Size -> prop -> IO Outcome
+> krebCheckWith attemptNb d s prop = do
+>   seed <- randomIO
+>   return $ checkCase attemptNb seed d s prop
 
 
 
 
 
-
-
-
+> -}
 
 
 

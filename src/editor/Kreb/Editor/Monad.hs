@@ -18,11 +18,11 @@ module Kreb.Editor.Monad (
   , lift
 ) where
 
+import System.IO.Error
+
 import Kreb.Editor.State
-import Kreb.Editor.Event
 import Kreb.Editor.Error
 import Kreb.Editor.Action
-import Kreb.Editor.Handler
 
 type App m a = ConsoleT (AppEnv m) (AppState m) m a
 
@@ -33,9 +33,12 @@ runApp = runConsoleT
 -- Side effects are managed here.
 data AppEnv m = AppEnv
   { renderState :: AppState m -> m ()
-  , getNextEvent :: m AppEvent
+  , getNextEvent :: EditorMode -> m Action
   , cleanup :: m ()
   , logMessage :: String -> m ()
+
+  , loadFile :: FilePath -> m (Either IOError String)
+  , saveFile :: FilePath -> String -> m (Maybe IOError)
   }
 
 -- Effects
@@ -44,16 +47,17 @@ _renderState :: ( Monad m ) => App m ()
 _renderState =
   get >>= askM1 renderState
 
-_getNextEvent :: ( Monad m ) => App m AppEvent
+_getNextEvent :: ( Monad m ) => App m Action
 _getNextEvent = do
-  event <- askM getNextEvent
+  mode <- gets editorMode
+  event <- askM (\st -> getNextEvent st mode)
   askM1 logMessage (show event ++ "\n\n\n\n")
   return event
 
-_handleEvent :: ( Monad m ) => AppEvent -> App m Then
+_handleEvent :: ( Monad m ) => Action -> App m Then
 _handleEvent event = do
   st <- get
-  (next, st') <- lift $ handler st event
+  (next, st') <- lift $ performAction event st
   put $ updateStateCache st'
   return next
 
@@ -121,6 +125,13 @@ get
   => ConsoleT r s m s
 get = ConsoleT $ \_ s ->
   return (s, s)
+
+gets
+  :: ( Monad m )
+  => (s -> a)
+  -> ConsoleT r s m a
+gets f = ConsoleT $ \_ s ->
+  return (f s, s)
 
 put
   :: ( Monad m )
