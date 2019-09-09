@@ -1,6 +1,14 @@
+> {-# LANGUAGE
+>     ScopedTypeVariables
+> #-}
+
 > module Kreb.Check.Arb where
 > 
+> import Data.Proxy
 > import Data.Char (ord)
+> import System.Random (newStdGen)
+> 
+> import qualified Data.Map as M
 > 
 > import Kreb.Check.Seeded
 
@@ -8,6 +16,17 @@
 
 > class Arb t where
 >   arb :: Seeded t
+> 
+> generate
+>   :: forall a
+>    . ( Show a, Arb a )
+>   => Int -> Proxy a -> IO ()
+> generate k _ = do
+>   gen <- newStdGen
+>   let
+>     seed = Seed gen (ZZ 5) (ZZ 10)
+>     xs = runSeeded seed $ sequence $ map (\m -> withSize m (arb :: Seeded a)) $ map (2*) [1..k]
+>   putStrLn $ show xs
 > 
 > class CoArb t where
 >   coarb :: t -> Seeded u -> Seeded u
@@ -55,12 +74,34 @@ Int
 ---
 
 > instance Arb Int where
->   arb = rand
+>   arb = do
+>     ZZ k <- askSize
+>     randIn (-(5*k), 5*k)
 > 
 > instance CoArb Int where
 >   coarb = twiddle
 > 
 > instance Prune Int where
+>   prune k = case compare k 0 of
+>     LT -> filter (> k) [0, -1, k`div`2, k+1]
+>     EQ -> []
+>     GT -> filter (< k) [0, 1, k`div`2, k-1]
+
+
+
+Integer
+-------
+
+> instance Arb Integer where
+>   arb = do
+>     ZZ n <- askSize
+>     let m = 2 * toInteger n
+>     randIn (-m, m)
+> 
+> instance CoArb Integer where
+>   coarb = twiddle
+> 
+> instance Prune Integer where
 >   prune k = case compare k 0 of
 >     LT -> filter (> k) [0, -1, k`div`2, k+1]
 >     EQ -> []
@@ -78,7 +119,7 @@ Char
 >     ]
 > 
 > instance Prune Char where
->   prune c = ['a']
+>   prune c = if c == 'a' then [] else ['a']
 > 
 > instance CoArb Char where
 >   coarb c = coarb (ord c)
@@ -178,6 +219,73 @@ Tuples
 >       coarb a2 .
 >       coarb a3
 
+> instance
+>   ( Arb a1, Arb a2, Arb a3, Arb a4
+>   ) => Arb (a1, a2, a3, a4)
+>   where
+>     arb = do
+>       a1 <- arb
+>       a2 <- arb
+>       a3 <- arb
+>       a4 <- arb
+>       return (a1, a2, a3, a4)
+> 
+> instance
+>   ( Prune a1, Prune a2, Prune a3, Prune a4
+>   ) => Prune (a1, a2, a3, a4)
+>   where
+>     prune (a1,a2,a3,a4) = concat
+>       [ [ (u1,a2,a3,a4) | u1 <- prune a1 ]
+>       , [ (a1,u2,a3,a4) | u2 <- prune a2 ]
+>       , [ (a1,a2,u3,a4) | u3 <- prune a3 ]
+>       , [ (a1,a2,a3,u4) | u4 <- prune a4 ]
+>       ]
+> 
+> instance
+>   ( CoArb a1, CoArb a2, CoArb a3, CoArb a4
+>   ) => CoArb (a1,a2,a3,a4)
+>   where
+>     coarb (a1,a2,a3,a4) =
+>       coarb a1 .
+>       coarb a2 .
+>       coarb a3 .
+>       coarb a4
+
+> instance
+>   ( Arb a1, Arb a2, Arb a3, Arb a4, Arb a5
+>   ) => Arb (a1, a2, a3, a4, a5)
+>   where
+>     arb = do
+>       a1 <- arb
+>       a2 <- arb
+>       a3 <- arb
+>       a4 <- arb
+>       a5 <- arb
+>       return (a1, a2, a3, a4, a5)
+> 
+> instance
+>   ( Prune a1, Prune a2, Prune a3, Prune a4, Prune a5
+>   ) => Prune (a1, a2, a3, a4, a5)
+>   where
+>     prune (a1,a2,a3,a4,a5) = concat
+>       [ [ (u1,a2,a3,a4,a5) | u1 <- prune a1 ]
+>       , [ (a1,u2,a3,a4,a5) | u2 <- prune a2 ]
+>       , [ (a1,a2,u3,a4,a5) | u3 <- prune a3 ]
+>       , [ (a1,a2,a3,u4,a5) | u4 <- prune a4 ]
+>       , [ (a1,a2,a3,a4,u5) | u5 <- prune a5 ]
+>       ]
+> 
+> instance
+>   ( CoArb a1, CoArb a2, CoArb a3, CoArb a4, CoArb a5
+>   ) => CoArb (a1,a2,a3,a4,a5)
+>   where
+>     coarb (a1,a2,a3,a4,a5) =
+>       coarb a1 .
+>       coarb a2 .
+>       coarb a3 .
+>       coarb a4 .
+>       coarb a5
+
 
 
 Lists
@@ -197,8 +305,7 @@ Lists
 >       [] -> []
 >       x:xs -> concat
 >        [ [[]]
->        , if null xs then [] else map (:[]) (x:xs)
->        , prune xs
+>        , if null xs then [] else [[x], xs]
 >        , map (x:) (prune xs)
 >        , map (:xs) (prune x)
 >        ]
@@ -246,9 +353,9 @@ Function
 
 
 
-> newtype NonNegative a
->   = NonNegative a
->   deriving (Eq, Show)
+> newtype NonNegative a = NonNegative
+>   { fromNonNegative :: a
+>   } deriving (Eq, Show)
 > 
 > instance
 >   ( Num a, Arb a
@@ -259,11 +366,13 @@ Function
 >       return $ NonNegative $ abs k
 > 
 > instance
->   ( Num a, Prune a
+>   ( Num a, Eq a, Prune a
 >   ) => Prune (NonNegative a)
 >   where
 >     prune (NonNegative a) =
->       map (NonNegative . abs) $ prune a
+>       if a == 0
+>         then []
+>         else map (NonNegative . abs) $ prune a
 > 
 > instance
 >   ( CoArb a
@@ -284,15 +393,36 @@ Function
 >       return $ Positive $ (+1) $ abs k
 > 
 > instance
->   ( Num a, Prune a
+>   ( Num a, Ord a, Prune a
 >   ) => Prune (Positive a)
 >   where
 >     prune (Positive a) =
->       map (Positive . (+1) . abs) $ prune a
+>       if a == 1
+>         then []
+>         else map Positive $
+>           filter (< (abs a)) $
+>           map ((+1) . abs) $ prune a
 > 
 > instance
 >   ( CoArb a
 >   ) => CoArb (Positive a)
 >   where
 >     coarb (Positive a) = coarb a
+
+
+
+
+
+> instance
+>   ( Arb k, Arb a, Ord k
+>   ) => Arb (M.Map k a)
+>   where
+>     arb = M.fromList <$> arb
+> 
+> instance
+>   ( Prune k, Prune a, Ord k
+>   ) => Prune (M.Map k a)
+>   where
+>     prune =
+>       map M.fromList . prune . M.toList
 

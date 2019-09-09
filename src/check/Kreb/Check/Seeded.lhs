@@ -80,6 +80,10 @@
 > withSize k (Seeded f) = Seeded $ \s ->
 >   f $ s { _size = ZZ k }
 
+> adjustSize :: (Int -> Int) -> Seeded a -> Seeded a
+> adjustSize g (Seeded f) = Seeded $ \s ->
+>   f $ s { _size = ZZ $ g $ unZZ $ _size s }
+
 > randIn
 >   :: ( Random a )
 >   => (a,a) -> Seeded a
@@ -101,7 +105,20 @@
 > listOf gen = do
 >   ZZ sz <- askSize
 >   k <- randIn (0, sz)
->   vectOf k gen
+>   let
+>     ilog2 w = if w <= 0
+>       then 0
+>       else 1 + ilog2 (div w 2)
+>   vectOf (2 * ilog2 k) gen
+
+> selectFrom
+>   :: [Seeded a] -> Seeded a
+> selectFrom z = case z of
+>   [] -> error "Kreb.Check.Seeded.selectFrom called on empty list"
+>   _ -> do
+>     let k = length z
+>     i <- randIn (1,k-1)
+>     z !! i
 
 > pickFrom2
 >   :: (Seeded a, Seeded a)

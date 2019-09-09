@@ -33,6 +33,7 @@ Introduction
 > 
 > import Data.Proxy
 > 
+> import Kreb.Check
 > import Kreb.Struct
 > 
 > import Kreb.Text.ScreenOffset
@@ -64,6 +65,16 @@ We've already seen one such monoid -- `ScreenOffset`. This type models the geome
 > instance Show LineCol where
 >   show (LineCol l c) = concat
 >     [ "l", show l, "c", show c ]
+> 
+> instance Arb LineCol where
+>   arb = LineCol
+>     <$> (fromNonNegative <$> arb)
+>     <*> (fromNonNegative <$> arb)
+> 
+> instance Prune LineCol where
+>   prune (LineCol l c) =
+>     [ LineCol m c | m <- prune l, m >= 0 ] ++
+>     [ LineCol l m | m <- prune c, m >= 0 ]
 
 We can give a monoid instance for these offsets:
 
@@ -89,16 +100,19 @@ Putting this all together we have the `MeasureText` monoid.
 >   , hasTrailingNewline :: Bool
 >   } deriving (Eq, Show)
 > 
-> {- instance Eq (MeasureText w t) where
->   x == y = and
->     [ charCount x == charCount y
->     , byteCount x == byteCount y
->     , logicalOffset x == logicalOffset y
->     , screenOffset x == screenOffset y
->     , screenCoords x == screenCoords y
->     , hasEOF x == hasEOF y
->     , hasTrailingNewline x == hasTrailingNewline y
->     ] -}
+> instance
+>   ( IsWidth w, IsTab t
+>   ) => Arb (MeasureText w t)
+>   where
+>     arb = do
+>       cs <- arb :: Seeded String
+>       return $ mconcat $ map value cs
+> 
+> instance
+>   ( IsWidth w, IsTab t
+>   ) => Prune (MeasureText w t)
+>   where
+>     prune _ = []
 > 
 > mText
 >   :: Int -> Int

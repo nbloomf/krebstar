@@ -59,8 +59,8 @@ Run Length Encoding
 We'll be using a finger tree to store a run length encoded list, and so we'll need an appropriate monoid annotation type. We call the monoid type `RunSize`, giving it two integer parameters: 'count' measures a number of runs, and 'length' measures the total number of items appearing in all runs.
 
 > data RunSize = RunSize
->   { runCount  :: Int
->   , runLength :: Int
+>   { runCount  :: Integer
+>   , runLength :: Integer
 >   } deriving (Eq, Show)
 
 This type can be made a monoid in the usual way.
@@ -77,15 +77,20 @@ This type can be made a monoid in the usual way.
 >     Positive s <- arb
 >     Positive l <- arb
 >     return $ RunSize s l
+> 
+> instance Prune RunSize where
+>   prune (RunSize a b) =
+>     [ RunSize a c | c <- map abs $ prune b ] ++
+>     [ RunSize c b | c <- map abs $ prune a ]
 
 Next we'll need a wrapper type to represent value/run length pairs.
 
 > newtype Run a = Run
->   { unRun :: (Int, a)
+>   { unRun :: (Integer, a)
 >   } deriving (Eq, Show)
 > 
 > mkRun
->   :: Int -> a -> Run a
+>   :: Integer -> a -> Run a
 > mkRun k a =
 >   if k <= 0
 >     then error $ "mkRun: k must be positive, but got " ++ show k
@@ -108,6 +113,14 @@ Next we'll need a wrapper type to represent value/run length pairs.
 >       Positive k <- arb
 >       a <- arb
 >       return (mkRun k a)
+> 
+> instance
+>   ( Prune a, Eq a
+>   ) => Prune (Run a)
+>   where
+>     prune (Run z) = do
+>       (k', a') <- prune z
+>       return $ mkRun (abs k') a'
 
 We're finally prepared to defing run length encoded lists in terms of `RunSize` and `Run`.
 
@@ -128,7 +141,7 @@ We're finally prepared to defing run length encoded lists in terms of `RunSize` 
 It will be handy to view run length encoded lists as _frequency lists_.
 
 > toFreqList
->   :: RunLengthEncoding a -> [(Int, a)]
+>   :: RunLengthEncoding a -> [(Integer, a)]
 > toFreqList (RLE x) = map unRun $ toList x
 
 And we can give a `Foldable` instance for run length encoded lists.
@@ -150,13 +163,15 @@ And we can give a `Foldable` instance for run length encoded lists.
 >   ( Arb a, Eq a
 >   ) => Arb (RunLengthEncoding a)
 >   where
->     arb = fromFreqList <$> listOf arb
+>     arb = do
+>       xs <- listOf arb
+>       return $ fromFreqList $ map unRun xs
 > 
 > instance
 >   ( Prune a, Eq a
 >   ) => Prune (RunLengthEncoding a)
 >   where
->     prune = map fromFreqList . prune . toFreqList
+>     prune = map fromFreqList . filter (/= []) . prune . toFreqList
 
 
 
@@ -213,7 +228,7 @@ With the semigroup instance in hand we can define a left inverse for `toFreqList
 
 > fromFreqList
 >   :: ( Eq a )
->   => [(Int, a)] -> RunLengthEncoding a
+>   => [(Integer, a)] -> RunLengthEncoding a
 > fromFreqList = foldr f mempty . filter p
 >   where
 >     f (k,a) xs =
@@ -229,7 +244,7 @@ And with `fromFreqList` in hand we can give a handy `Show` instance.
 >   where
 >     show xs =
 >       let
->         toPairs :: RunLengthEncoding a -> [(Int, a)]
+>         toPairs :: RunLengthEncoding a -> [(Integer, a)]
 >         toPairs z = case firstRun z of
 >           Nothing -> []
 >           Just (Run a, ds) -> a : toPairs ds

@@ -24,7 +24,7 @@ Introduction
 > #-}
 > 
 > module Kreb.Text.MeasureText.Test (
->  --   test_MeasureText
+>     test_MeasureText
 > ) where
 > 
 > import Data.Proxy
@@ -39,51 +39,8 @@ Introduction
 > 
 > import Kreb.Text.ScreenOffset.Test
 
-> {-
-
-Generators
-==========
-
-> instance
->   Arbitrary LineCol
->   where
->     arbitrary = do
->       NonNegative l <- arbitrary
->       NonNegative c <- arbitrary
->       return $ LineCol
->         { lineNum = l
->         , colNum  = c
->         }
-
-> instance
->   ( IsWidth w, IsTab t
->   ) => Arbitrary (MeasureText w t)
->   where
->     arbitrary = do
->       NonNegative c <- arbitrary
->       NonNegative b <- arbitrary
->       NonNegative h <- arbitrary
->       NonNegative k <- arbitrary
->       lc <- arbitrary
->       so <- arbitrary
->       sc <- arbitrary
->       let w = toWidth (Proxy :: Proxy w)
->       q <- arbitrary
->       return $ MeasureText
->         { charCount          = c
->         , byteCount          = b
->         , logicalOffset      = lc
->         , logicalCoords      = LineCol h k
->         , screenOffset       = so
->         , screenCoords       = sc
->         , hasEOF             = False
->         , hasTrailingNewline = q
->         }
 
 
-
-Tests
-=====
 
 LineCol is a monoid
 -------------------
@@ -91,15 +48,8 @@ LineCol is a monoid
 > test_LineCol_Monoid :: TestTree
 > test_LineCol_Monoid =
 >   testGroup "LineCol is a monoid"
->     [ testProperty "Left identity" $
->         \(x :: LineCol) ->
->           x === (mempty <> x)
->     , testProperty "Right identity" $
->         \(x :: LineCol) ->
->           x === (x <> mempty)
->     , testProperty "Associativity" $
->         \(x :: LineCol, y, z) ->
->           (x <> (y <> z)) === ((x <> y) <> z)
+>     [ test_Semigroup_laws (Proxy :: Proxy LineCol)
+>     , test_Monoid_laws (Proxy :: Proxy LineCol)
 >     ]
 
 
@@ -110,88 +60,22 @@ MeasureText is a monoid
 > test_MeasureText_Monoid :: TestTree
 > test_MeasureText_Monoid =
 >   testGroup "MeasureText is a monoid"
->     [ test_MeasureText_Monoid_left_identity
->     , test_MeasureText_Monoid_right_identity
->     , test_MeasureText_Monoid_associativity
+>     [ prop_MeasureText_Monoid_laws "30/8" nat30 nat8
+>     , prop_MeasureText_Monoid_laws "30/4" nat30 nat4
+>     , prop_MeasureText_Monoid_laws "15/2" nat15 nat2
+>     , prop_MeasureText_Monoid_laws "8/2" nat8 nat2
+>     , prop_MeasureText_Monoid_laws "3/1" nat3 nat1
 >     ]
 
-Left identity law:
-
-> prop_MeasureText_Monoid_left_identity
+> prop_MeasureText_Monoid_laws
 >   :: forall w t
 >    . ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> MeasureText w t
->   -> Property
-> 
-> prop_MeasureText_Monoid_left_identity _ _ x =
->   property $ x === mempty <> x
-> 
-> test_MeasureText_Monoid_left_identity :: TestTree
-> test_MeasureText_Monoid_left_identity =
->   testGroup "Left identity law"
->     [ testProperty "30/8" $
->         prop_MeasureText_Monoid_left_identity nat30 nat8
->     , testProperty "30/4" $
->         prop_MeasureText_Monoid_left_identity nat30 nat4
->     , testProperty "15/2" $
->         prop_MeasureText_Monoid_left_identity nat15 nat2
->     , testProperty "8/2" $
->         prop_MeasureText_Monoid_left_identity nat8 nat2
->     ]
-
-Right identity law:
-
-> prop_MeasureText_Monoid_right_identity
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> MeasureText w t
->   -> Property
-> 
-> prop_MeasureText_Monoid_right_identity _ _ x =
->   property $ x === mempty <> x
-> 
-> test_MeasureText_Monoid_right_identity :: TestTree
-> test_MeasureText_Monoid_right_identity =
->   testGroup "right identity law"
->     [ testProperty "30/8" $
->         prop_MeasureText_Monoid_right_identity nat30 nat8
->     , testProperty "30/4" $
->         prop_MeasureText_Monoid_right_identity nat30 nat4
->     , testProperty "15/2" $
->         prop_MeasureText_Monoid_right_identity nat15 nat2
->     , testProperty "8/2" $
->         prop_MeasureText_Monoid_right_identity nat8 nat2
->     ]
-
-Associativity law:
-
-> prop_MeasureText_Monoid_associativity
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> MeasureText w t
->   -> MeasureText w t
->   -> MeasureText w t
->   -> Property
-> 
-> prop_MeasureText_Monoid_associativity _ _ x y z =
->   property $
->     ((x <> y) <> z)
->       === (x <> (y <> z))
-> 
-> test_MeasureText_Monoid_associativity :: TestTree
-> test_MeasureText_Monoid_associativity =
->   testGroup "associativity law"
->     [ testProperty "30/8" $
->         prop_MeasureText_Monoid_associativity nat30 nat8
->     , testProperty "30/4" $
->         prop_MeasureText_Monoid_associativity nat30 nat4
->     , testProperty "15/2" $
->         prop_MeasureText_Monoid_associativity nat15 nat2
->     , testProperty "8/2" $
->         prop_MeasureText_Monoid_associativity nat8 nat2
+>   => String -> Proxy w -> Proxy t
+>   -> TestTree
+> prop_MeasureText_Monoid_laws name _ _ =
+>   testGroup name
+>     [ test_Semigroup_laws (Proxy :: Proxy (MeasureText w t))
+>     , test_Monoid_laws (Proxy :: Proxy (MeasureText w t))
 >     ]
 
 
@@ -203,8 +87,5 @@ Test Suite
 > test_MeasureText =
 >   testGroup "MeasureText"
 >     [ test_LineCol_Monoid
->     , localOption (QuickCheckTests 1000)
->         $ test_MeasureText_Monoid
+>     , test_MeasureText_Monoid
 >     ]
-
-> -}

@@ -4,13 +4,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Kreb.Text.Glyph.Test (
---    IsGlyph(..)
-
---  , Ascii(..)
+    IsGlyph(..)
+  , Ascii(..)
+  , NonNewline(..)
 --  , charAscii
 --  , pAscii
-
---  , NonNewline(..)
 ) where
 
 import Data.Proxy
@@ -21,12 +19,11 @@ import Kreb.Check
 import Kreb.Struct
 import Kreb.Text
 
-{-
+
 
 class IsGlyph a where
   toGlyph :: a -> Glyph
   fromGlyph :: Glyph -> a
-
 
 
 
@@ -63,6 +60,11 @@ instance Arb Ascii where
     c <- arbPrintableAsciiChar
     return $ Ascii (fromChar c)
 
+instance Prune Ascii where
+  prune x =
+    if toChar x == 'a'
+      then []
+      else [fromChar 'a']
 
 
 
@@ -105,4 +107,3 @@ instance
       c <- arb `satisfying` (\x -> '\n' /= toChar x)
       return $ NonNewline c
 
--}

@@ -4,11 +4,7 @@
 
 > import Data.Proxy
 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
-
- > import Kreb.Lang.Type.Test
 
 
 

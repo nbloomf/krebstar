@@ -30,7 +30,7 @@ Introduction
 > #-}
 > 
 > module Kreb.Text.ScreenOffset.Test (
->   --  test_ScreenOffset
+>     test_ScreenOffset
 > ) where
 > 
 > import Data.Proxy
@@ -45,7 +45,7 @@ Introduction
 > 
 > import Kreb.Text.ScreenOffset
 
-> {-
+
 
 Generators
 ==========
@@ -58,7 +58,7 @@ Generators
 >   let
 >     xs = if k <= 0
 >       then []
->       else [(k, span)]
+>       else [(fromIntegral k, span)]
 >   return $ fromFreqList xs
 
 > genValidCoords
@@ -69,7 +69,7 @@ Generators
 > genValidCoords _ = do
 >   let w = toWidth (Proxy :: Proxy w)
 >   x <- randIn (0,w-1)
->   Positive y <- arbitrary
+>   Positive y <- arb
 >   return (x,y)
 
 
@@ -86,26 +86,6 @@ Test helpers
 >       (Run (_,b), _) <- lastRun ys
 >       return b
 >     _ -> return a
-
-> (~<=)
->   :: ( Ord a, Show a )
->   => a -> a -> Property
-> x ~<= y =
->   counterexample (show x ++ interpret res ++ show y) res
->   where
->     res = x <= y
->     interpret True  = " <= "
->     interpret False = " > "
-
-> (~<)
->   :: ( Ord a, Show a )
->   => a -> a -> Property
-> x ~< y =
->   counterexample (show x ++ interpret res ++ show y) res
->   where
->     res = x < y
->     interpret True  = " < "
->     interpret False = " >= "
 
 
 
@@ -129,18 +109,18 @@ A list of spans with $k$ width 0 characters has width 0.
 > prop_SpanWidth_all_Fixed0
 >   :: NonNegative Int -- number of spans
 >   -> Positive Int    -- tab width
->   -> Property
+>   -> Check
 > prop_SpanWidth_all_Fixed0 m t =
->   forAll (genAll Fixed0 m) $
+>   forEach (genAll Fixed0 m) prune $
 >     let
 >       NonNegative k = m
 >       Positive tab = t
 >     in
->       \xs -> 0 === spanWidth tab xs
+>       \xs -> 0 == spanWidth tab xs
 > 
 > test_SpanWidth_all_Fixed0 :: TestTree
 > test_SpanWidth_all_Fixed0 =
->   testProperty "all Fixed0"
+>   testKreb "all Fixed0"
 >     prop_SpanWidth_all_Fixed0
 
 A list of spans with $k$ width 1 characters has width $k$.
@@ -148,18 +128,18 @@ A list of spans with $k$ width 1 characters has width $k$.
 > prop_SpanWidth_all_Fixed1
 >   :: NonNegative Int -- number of spans
 >   -> Positive Int    -- tab width
->   -> Property
+>   -> Check
 > prop_SpanWidth_all_Fixed1 m t =
->   forAll (genAll Fixed1 m) $
+>   forEach (genAll Fixed1 m) prune $
 >     let
 >       NonNegative k = m
 >       Positive tab = t
 >     in
->       \xs -> k === spanWidth tab xs
+>       \xs -> k == spanWidth tab xs
 > 
 > test_SpanWidth_all_Fixed1 :: TestTree
 > test_SpanWidth_all_Fixed1 =
->   testProperty "all Fixed1"
+>   testKreb "all Fixed1"
 >     prop_SpanWidth_all_Fixed1
 
 A list of spans with $k$ width 2 characters has width $2k$.
@@ -167,18 +147,18 @@ A list of spans with $k$ width 2 characters has width $2k$.
 > prop_SpanWidth_all_Fixed2
 >   :: NonNegative Int -- number of spans
 >   -> Positive Int    -- tab width
->   -> Property
+>   -> Check
 > prop_SpanWidth_all_Fixed2 m t =
->   forAll (genAll Fixed2 m) $
+>   forEach (genAll Fixed2 m) prune $
 >     let
 >       NonNegative k = m
 >       Positive tab = t
 >     in
->       \xs -> (2*k) === spanWidth tab xs
+>       \xs -> (2*k) == spanWidth tab xs
 > 
 > test_SpanWidth_all_Fixed2 :: TestTree
 > test_SpanWidth_all_Fixed2 =
->   testProperty "all Fixed2"
+>   testKreb "all Fixed2"
 >     prop_SpanWidth_all_Fixed2
 
 For good measure, some concrete examples to check our intuition about `spanWidth`.
@@ -186,15 +166,15 @@ For good measure, some concrete examples to check our intuition about `spanWidth
 > prop_SpanWidth_examples
 >   :: Int -> RunLengthEncoding Span
 >   -> Int
->   -> Property
+>   -> Check
 > prop_SpanWidth_examples tab xs w =
->   property $
+>   check $
 >     w == spanWidth tab xs
 > 
 > test_SpanWidth_examples :: TestTree
 > test_SpanWidth_examples =
 >   testGroup "spanWidth examples"
->     [ testCases
+>     [ testKrebCases "examples"
 >       (uncurry3 prop_SpanWidth_examples)
 >       [ ( "all width 1"
 >         , ( 5
@@ -248,35 +228,25 @@ Type level numbers
 > test_ScreenOffset_type_nats :: TestTree
 > test_ScreenOffset_type_nats =
 >   testGroup "Type level nat parameters"
->     [ test_ScreenOffset_withWidth_toWidth
->     , test_ScreenOffset_withTab_toTab
+>     [ testKreb "k == withWidth k toWidth"
+>         prop_ScreenOffset_withWidth_toWidth
+>     , testKreb "k == withTab k toTab"
+>         prop_ScreenOffset_withTab_toTab
 >     ]
 
 > prop_ScreenOffset_withWidth_toWidth
 >   :: NonNegative Int
->   -> Property
-> 
+>   -> Check
 > prop_ScreenOffset_withWidth_toWidth (NonNegative k) =
->   property $
+>   check $
 >     k == withWidth k toWidth
-> 
-> test_ScreenOffset_withWidth_toWidth :: TestTree
-> test_ScreenOffset_withWidth_toWidth =
->   testProperty "k == withWidth k toWidth"
->     prop_ScreenOffset_withWidth_toWidth
 
 > prop_ScreenOffset_withTab_toTab
 >   :: NonNegative Int
->   -> Property
-> 
+>   -> Check
 > prop_ScreenOffset_withTab_toTab (NonNegative k) =
->   property $
+>   check $
 >     k == withTab k toTab
-> 
-> test_ScreenOffset_withTab_toTab :: TestTree
-> test_ScreenOffset_withTab_toTab =
->   testProperty "k == withTab k toTab"
->     prop_ScreenOffset_withTab_toTab
 
 
 
@@ -298,242 +268,183 @@ takeChunk properties
 >     , test_TakeChunk_examples
 >     ]
 
-If the input span width exceeds the screen width, `takeChunk` succeeds.
+If `takeChunk` succeeds then the input span width exceeds the screen width.
 
 > prop_TakeChunk_width_succeeds
->    , cprop_TakeChunk_width_succeeds
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_width_succeeds
 >   (Positive width) (Positive tab) xs =
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     , ("spanWidth > 0", spanWidth tab xs > 0)
+>     ] $
 >   case takeChunk width tab xs of
->     Nothing -> (spanWidth tab xs) ~< width
->     Just _  -> property True
-> 
-> cprop_TakeChunk_width_succeeds
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_width_succeeds u v xs
-> 
+>     Nothing -> claimLT (spanWidth tab xs) width
+>     Just _  -> accept
+>  
 > test_TakeChunk_width_succeeds :: TestTree
 > test_TakeChunk_width_succeeds =
->   testProperty "If span width > screen width, takeChunk succeeds"
->     cprop_TakeChunk_width_succeeds
+>   testKreb "If span width > screen width, takeChunk succeeds"
+>     prop_TakeChunk_width_succeeds
 
 The width of the taken chunk is bounded, with the exact bound depending on the last span of positive width appearing in the chunk.
 
 > prop_TakeChunk_take_width_bound
->    , cprop_TakeChunk_take_width_bound
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_take_width_bound
 >   (Positive width) (Positive tab) xs =
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     , ("spanWidth > 0", spanWidth tab xs > 0)
+>     ] $
 >   case takeChunk width tab xs of
->     Nothing -> property True
+>     Nothing -> accept
 >     Just (as, _) ->
 >       let w = spanWidth tab as in
 >       case lastSpanWithPositiveWidth as of
->         Nothing       -> error "prop_TakeChunk_take_width_bound"
->         Just Stretchy -> w ~<= (width + tab - 1)
->         Just _        -> w ~<= width
-> 
-> cprop_TakeChunk_take_width_bound
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_take_width_bound u v xs
+>         Nothing       -> reject "prop_TakeChunk_take_width_bound"
+>         Just Stretchy -> claimLEQ w (width + tab - 1)
+>         Just _        -> claimLEQ w width
 > 
 > test_TakeChunk_take_width_bound :: TestTree
 > test_TakeChunk_take_width_bound =
->   testProperty "taken chunk width is bounded"
->     cprop_TakeChunk_take_width_bound
+>   testKreb "taken chunk width is bounded"
+>     prop_TakeChunk_take_width_bound
 
 If the input is not empty and the width is at least 2, then the taken chunk is not empty.
 
 > prop_TakeChunk_take_not_empty
->    , cprop_TakeChunk_take_not_empty
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_take_not_empty
 >   (Positive width) (Positive tab) xs =
->   property $
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     , ("spanWidth > 0", spanWidth tab xs > 0)
+>     ] $
 >     case takeChunk width tab xs of
 >       Nothing -> True
 >       Just (as, _) -> not $ isEmptyRLE as
 > 
-> cprop_TakeChunk_take_not_empty
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_take_not_empty u v xs
-> 
 > test_TakeChunk_take_not_empty :: TestTree
 > test_TakeChunk_take_not_empty =
->   testProperty "taken chunk is not empty"
->     cprop_TakeChunk_take_not_empty
+>   testKreb "taken chunk is not empty"
+>     prop_TakeChunk_take_not_empty
 
 The result of `takeChunk` is a cat factorization of the original list.
 
 > prop_TakeChunk_cat_factor
->    , cprop_TakeChunk_cat_factor
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_cat_factor
 >   (Positive width) (Positive tab) xs =
->   property $
+>   check $
 >     case takeChunk width tab xs of
 >       Nothing -> True
 >       Just (as, bs) -> xs == (as <> bs)
 > 
-> cprop_TakeChunk_cat_factor
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_cat_factor u v xs
-> 
 > test_TakeChunk_cat_factor :: TestTree
 > test_TakeChunk_cat_factor =
->   testProperty "takeChunk is a cat factorization"
->     cprop_TakeChunk_cat_factor
+>   testKreb "takeChunk is a cat factorization"
+>     prop_TakeChunk_cat_factor
 
 If `takeChunk` succeeds, then the chunked tail is shorter than the original list.
 
 > prop_TakeChunk_shrink_tail
->    , cprop_TakeChunk_shrink_tail
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_shrink_tail
 >   (Positive width) (Positive tab) xs =
->   property $
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     , ("spanWidth > 0", spanWidth tab xs > 0)
+>     ] $
+>   check $
 >     case takeChunk width tab xs of
 >       Nothing -> True
 >       Just (_,bs) ->
 >         (runLength $ value bs) < (runLength $ value xs)
 > 
-> cprop_TakeChunk_shrink_tail
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_shrink_tail u v xs
-> 
 > test_TakeChunk_shrink_tail :: TestTree
 > test_TakeChunk_shrink_tail =
->   testProperty "takeChunk shrinks its input"
->     cprop_TakeChunk_shrink_tail
+>   testKreb "takeChunk shrinks its input"
+>     prop_TakeChunk_shrink_tail
 
 `takeChunk` preserves length
 
 > prop_TakeChunk_length
->    , cprop_TakeChunk_length
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_length
 >   (Positive width) (Positive tab) xs =
->   property $
+>   check $
 >     case takeChunk width tab xs of
 >       Nothing -> True
 >       Just (as, bs) -> (runLength $ value xs) ==
 >         (runLength $ value as) + (runLength $ value bs)
 > 
-> cprop_TakeChunk_length
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_length
-> 
 > test_TakeChunk_length :: TestTree
 > test_TakeChunk_length =
->   testProperty "takeChunk preserves length"
->     cprop_TakeChunk_length
+>   testKreb "takeChunk preserves length"
+>     prop_TakeChunk_length
 
 If the remainder of a chunked list is empty, then the taken chunk should be _full_ -- its width should equal that of the terminal window or, if the last block with positive width is stretchy, should be between the terminal window width and width plus tab.
 
 > prop_TakeChunk_rest_empty
->    , cprop_TakeChunk_rest_empty
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunk_rest_empty
 >   (Positive width) (Positive tab) xs =
->   property $
+>   check $
 >     case takeChunk width tab xs of
->       Nothing -> property True
+>       Nothing -> accept
 >       Just (as, bs) -> if not $ isEmptyRLE bs
->         then property True
+>         then accept
 >         else 
 >           let w = spanWidth tab as in
 >           case lastSpanWithPositiveWidth as of
 >             Nothing       -> error "prop_TakeChunk_take_width_bound"
->             Just Stretchy -> (width ~<= w) .&&. (w ~<= (width + tab - 1))
->             Just _        -> w === width
-> 
-> cprop_TakeChunk_rest_empty
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2)
->     && (not $ isEmptyRLE xs)
->     && (spanWidth tab xs > 0) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   prop_TakeChunk_rest_empty u v xs
+>             Just Stretchy -> (claimLEQ width w) .&&. (claimLEQ w (width + tab - 1))
+>             Just _        -> claimEqual w width
 > 
 > test_TakeChunk_rest_empty :: TestTree
 > test_TakeChunk_rest_empty =
->   testProperty "remainder is only empty if taken chunk is full"
->     cprop_TakeChunk_rest_empty
+>   testKreb "remainder is only empty if taken chunk is full"
+>     prop_TakeChunk_rest_empty
 
 For good measure, some examples to check our intuition about `takeChunk`.
 
 > prop_TakeChunk_examples
 >   :: Int -> Int -> RunLengthEncoding Span
 >   -> Maybe (RunLengthEncoding Span, RunLengthEncoding Span)
->   -> Property
+>   -> Check
 > prop_TakeChunk_examples w t xs result =
->   property $
->     result === takeChunk w t xs
+>   claimEqual result (takeChunk w t xs)
 > 
 > test_TakeChunk_examples :: TestTree
 > test_TakeChunk_examples =
 >   testGroup "takeChunk examples"
->     [ testCases
+>     [ testKrebCases "examples"
 >       (uncurry4 prop_TakeChunk_examples)
 >       [ ( "#1"
 >         , ( 2
@@ -580,7 +491,6 @@ takeChunks properties
 
 > test_TakeChunks :: TestTree
 > test_TakeChunks =
->   localOption (QuickCheckTests 500) $
 >   testGroup "takeChunks properties"
 >     [ test_TakeChunks_cat_factor
 >     , test_TakeChunks_take_size_upper_bound
@@ -591,131 +501,107 @@ takeChunks properties
 `takeChunks` should give a cat factorization.
 
 > prop_TakeChunks_cat_factor
->    , cprop_TakeChunks_cat_factor
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunks_cat_factor
 >   (Positive width) (Positive tab) xs =
->   property $
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     ] $
+>   check $
 >     let (uss, vs) = takeChunks width tab xs in
 >     xs == mconcat (uss ++ [vs])
 > 
-> cprop_TakeChunks_cat_factor
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2) && (not $ isEmptyRLE xs) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   cover 50 (runLength (value xs) > 100) "|xs| > 100" $
->   prop_TakeChunks_cat_factor u v xs
-> 
 > test_TakeChunks_cat_factor :: TestTree
 > test_TakeChunks_cat_factor =
->   testProperty "takeChunks yields a cat factorization"
->     cprop_TakeChunks_cat_factor
+>   testKreb "takeChunks yields a cat factorization"
+>     prop_TakeChunks_cat_factor
 
 The widths of the taken chunks are bounded above.
 
 > prop_TakeChunks_take_size_upper_bound
->    , cprop_TakeChunks_take_size_upper_bound
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunks_take_size_upper_bound
 >   (Positive width) (Positive tab) xs =
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     ] $
 >   let (as,_) = takeChunks width tab xs in
->     conjoin $ map checkBound as
+>     checkAll $ map checkBound as
 >   where
 >     checkBound zs =
 >       let w = spanWidth tab zs in
 >       case lastSpanWithPositiveWidth zs of
 >         Nothing       -> error "prop_TakeChunks_take_size_upper_bound"
->         Just Stretchy -> w ~<= (width + tab - 1)
->         Just _        -> w ~<= width
-> 
-> cprop_TakeChunks_take_size_upper_bound
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2) && (not $ isEmptyRLE xs) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   cover 50 (runLength (value xs) > 100) "|xs| > 100" $
->   prop_TakeChunks_take_size_upper_bound u v xs
+>         Just Stretchy -> claimLEQ w (width + tab - 1)
+>         Just _        -> claimLEQ w width
 > 
 > test_TakeChunks_take_size_upper_bound :: TestTree
 > test_TakeChunks_take_size_upper_bound =
->   testProperty "taken chunk size is bounded above"
->     cprop_TakeChunks_take_size_upper_bound
+>   testKreb "taken chunk size is bounded above"
+>     prop_TakeChunks_take_size_upper_bound
 
 The widths of the taken chunks are bounded below.
 
 > prop_TakeChunks_take_size_lower_bound
->    , cprop_TakeChunks_take_size_lower_bound
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunks_take_size_lower_bound
 >   (Positive width) (Positive tab) xs =
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     ] $
 >   let (as,_) = takeChunks width tab xs in
->     conjoin $ map checkBound as
+>     checkAll $ map checkBound as
 >   where
 >     checkBound zs =
 >       let w = spanWidth tab zs in
 >       case lastSpanWithPositiveWidth zs of
 >         Nothing     -> error "prop_TakeChunks_take_size_lower_bound (1)"
 >         Just Fixed0 -> error "prop_TakeChunks_take_size_lower_bound (2)"
->         Just _      -> (width - 1) ~<= w
-> 
-> cprop_TakeChunks_take_size_lower_bound
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2) && (not $ isEmptyRLE xs) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   cover 50 (runLength (value xs) > 100) "|xs| > 100" $
->   prop_TakeChunks_take_size_lower_bound u v xs
+>         Just _      -> claimLEQ (width - 1) w
 > 
 > test_TakeChunks_take_size_lower_bound :: TestTree
 > test_TakeChunks_take_size_lower_bound =
->   testProperty "taken chunk size is bounded above"
->     cprop_TakeChunks_take_size_lower_bound
+>   testKreb "taken chunk size is bounded below"
+>     prop_TakeChunks_take_size_lower_bound
 
 The width of the remainder is bounded above.
 
 > prop_TakeChunks_rest_size_upper_bound
->    , cprop_TakeChunks_rest_size_upper_bound
 >   :: Positive Int
 >   -> Positive Int
 >   -> RunLengthEncoding Span
->   -> Property
-> 
+>   -> Check
 > prop_TakeChunks_rest_size_upper_bound
 >   (Positive width) (Positive tab) xs =
+>   provisio
+>     [ ("input not empty", not $ isEmptyRLE xs)
+>     , ("width >= 2", width >= 2)
+>     ] $
 >   let
 >     (_,bs) = takeChunks width tab xs
 >     w = spanWidth tab bs
 >   in
 >     case lastSpanWithPositiveWidth bs of
->       Nothing       -> property True
->       Just Stretchy -> w ~<= (width + tab - 1)
->       Just _        -> w ~<= width
-> 
-> cprop_TakeChunks_rest_size_upper_bound
->   u@(Positive width) v@(Positive tab) xs =
->   (width >= 2) && (not $ isEmptyRLE xs) ==>
->   cover 40 (width > tab) "width > tab" $
->   cover 50 (width > 30) "width > 30" $
->   cover 50 (runLength (value xs) > 100) "|xs| > 100" $
->   prop_TakeChunks_rest_size_upper_bound u v xs
+>       Nothing       -> accept
+>       Just Stretchy -> claimLEQ w (width + tab - 1)
+>       Just _        -> claimLEQ w width
 > 
 > test_TakeChunks_rest_size_upper_bound :: TestTree
 > test_TakeChunks_rest_size_upper_bound =
->   testProperty "rest size is bounded above"
->     cprop_TakeChunks_rest_size_upper_bound
+>   testKreb "rest size is bounded above"
+>     prop_TakeChunks_rest_size_upper_bound
 
 
 
@@ -725,259 +611,57 @@ ScreenOffset is a monoid
 > test_ScreenOffset_Monoid :: TestTree
 > test_ScreenOffset_Monoid =
 >   testGroup "ScreenOffset is a monoid"
->     [ test_ScreenOffset_Monoid_neutral_left
->     , test_ScreenOffset_Monoid_neutral_right
->     , localOption (QuickCheckTests 500) $
->         test_ScreenOffset_Monoid_associativity
->     , test_ScreenOffset_Monoid_unique_right_identity
->     , test_ScreenOffset_Monoid_unique_left_identity
->     ]
-
-Left identity law:
-
-> prop_ScreenOffset_Monoid_neutral_left
->   :: ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> Property
+>     [ test_ScreenOffset_Monoid_laws "30/8" nat30 nat8
+>     , test_ScreenOffset_Monoid_laws "30/4" nat30 nat4
+>     , test_ScreenOffset_Monoid_laws "15/2" nat15 nat2
+>     , test_ScreenOffset_Monoid_laws "8/2" nat8 nat2
+>     , test_ScreenOffset_Monoid_laws "3/1" nat3 nat1
 > 
-> prop_ScreenOffset_Monoid_neutral_left _ _ x =
->   x === (mempty <> x)
-> 
-> test_ScreenOffset_Monoid_neutral_left :: TestTree
-> test_ScreenOffset_Monoid_neutral_left =
->   testGroup "Left identity law"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_Monoid_neutral_left nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_Monoid_neutral_left nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_Monoid_neutral_left nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_Monoid_neutral_left nat8 nat2
->     ]
-
-Right identity law:
-
-> prop_ScreenOffset_Monoid_neutral_right
->   :: ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> Property
-> 
-> prop_ScreenOffset_Monoid_neutral_right _ _ x =
->   x === (x <> mempty)
-> 
-> test_ScreenOffset_Monoid_neutral_right :: TestTree
-> test_ScreenOffset_Monoid_neutral_right =
->   testGroup "Right identity law"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_Monoid_neutral_right nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_Monoid_neutral_right nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_Monoid_neutral_right nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_Monoid_neutral_right nat8 nat2
->     ]
-
-Associativity law:
-
-> prop_ScreenOffset_Monoid_associativity
->   :: ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> ScreenOffset w t
->   -> ScreenOffset w t
->   -> Property
-> 
-> prop_ScreenOffset_Monoid_associativity _ _ a b c =
->   (a <> (b <> c)) === ((a <> b) <> c)
-> 
-> test_ScreenOffset_Monoid_associativity :: TestTree
-> test_ScreenOffset_Monoid_associativity =
->   testGroup "Associativity law"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_Monoid_associativity nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_Monoid_associativity nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_Monoid_associativity nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_Monoid_associativity nat8 nat2
->     ]
-
-If $ab = a$, then $b = 1$.
-
-> prop_ScreenOffset_Monoid_unique_right_identity
->   :: ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> ScreenOffset w t
->   -> Property
-> 
-> prop_ScreenOffset_Monoid_unique_right_identity _ _ a b =
->   if (a <> b) == b
->     then mempty === a
->     else property True
-> 
-> test_ScreenOffset_Monoid_unique_right_identity :: TestTree
-> test_ScreenOffset_Monoid_unique_right_identity =
->   testGroup "Right identity is unique"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_Monoid_unique_right_identity nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_Monoid_unique_right_identity nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_Monoid_unique_right_identity nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_Monoid_unique_right_identity nat8 nat2
->     ]
-
-If $ba = a$, then $b = 1$.
-
-> prop_ScreenOffset_Monoid_unique_left_identity
->   :: ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> ScreenOffset w t
->   -> Property
-> 
-> prop_ScreenOffset_Monoid_unique_left_identity _ _ a b =
->   if (b <> a) == b
->     then mempty === a
->     else property True
-> 
-> test_ScreenOffset_Monoid_unique_left_identity :: TestTree
-> test_ScreenOffset_Monoid_unique_left_identity =
->   testGroup "Left identity is unique"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_Monoid_unique_left_identity nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_Monoid_unique_left_identity nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_Monoid_unique_left_identity nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_Monoid_unique_left_identity nat8 nat2
->     ]
-
-
-
-applyScreenOffset is a monoid action
-------------------------------------
-
-A monoid action of $M$ on a set $A$ is equivalent to a monoid homomorphism from $M$ to the monoid of transformations on $A$. At least I think it is!
-
-> test_ScreenOffset_MonoidAction :: TestTree
-> test_ScreenOffset_MonoidAction =
->   testGroup "ScreenOffset monoid action"
->     [ test_ScreenOffset_MonoidAction_identity
->     , localOption (QuickCheckTests 500) $
->         test_ScreenOffset_MonoidAction_product
->     , localOption (QuickCheckTests 500) $
->         test_ScreenOffset_MonoidAction_welldefined
 >     , test_ScreenOffset_applyBlockOffset_examples
 >     ]
 
-The action preserves the identity:
-
-> prop_ScreenOffset_MonoidAction_identity
+> test_ScreenOffset_Monoid_laws
 >   :: forall w t
 >    . ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> (Int, Int)
->   -> Property
+>   => String -> Proxy w -> Proxy t
+>   -> TestTree
+> test_ScreenOffset_Monoid_laws name pw pt =
+>   let
+>     w = toWidth pw
+>     e = mempty :: ScreenOffset w t
+>     op = (<>) :: ScreenOffset w t -> ScreenOffset w t -> ScreenOffset w t
+>   in testGroup name
+>     [ test_Semigroup_laws (Proxy :: Proxy (ScreenOffset w t))
+>     , test_Monoid_laws (Proxy :: Proxy (ScreenOffset w t))
+>     , testKreb "left identity is unique" $
+>         check_prop_unique_left_neutral_for e op
+>     , testKreb "right identity is unique" $
+>         check_prop_unique_right_neutral_for e op
+>     , test_Monoid_right_action_laws
+>         (flip applyScreenOffset :: (Int, Int) -> ScreenOffset w t -> (Int, Int))
 > 
-> prop_ScreenOffset_MonoidAction_identity _ _ off pos =
->   pos
->     === applyScreenOffset (mempty :: ScreenOffset w t) pos
-> 
-> test_ScreenOffset_MonoidAction_identity :: TestTree
-> test_ScreenOffset_MonoidAction_identity =
->   testGroup "Identity law"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_MonoidAction_identity nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_MonoidAction_identity nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_MonoidAction_identity nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_MonoidAction_identity nat8 nat2
->     ]
-
-And the action preserves products:
-
-> prop_ScreenOffset_MonoidAction_product
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> ScreenOffset w t
->   -> Property
-> 
-> prop_ScreenOffset_MonoidAction_product pw _ x y =
->   forAll (genValidCoords pw) $ \(u,v) ->
->   (applyScreenOffset (x <> y) (u,v))
->     === (applyScreenOffset y $ applyScreenOffset x (u,v))
-> 
-> test_ScreenOffset_MonoidAction_product :: TestTree
-> test_ScreenOffset_MonoidAction_product =
->   testGroup "product law"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_MonoidAction_product nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_MonoidAction_product nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_MonoidAction_product nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_MonoidAction_product nat8 nat2
->     , testProperty "3/1" $
->         prop_ScreenOffset_MonoidAction_product nat3 nat1
->     ]
-
-The action is well defined on valid coordinates:
-
-> prop_ScreenOffset_MonoidAction_welldefined
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => Proxy w -> Proxy t
->   -> ScreenOffset w t
->   -> Property
-> 
-> prop_ScreenOffset_MonoidAction_welldefined pw _ off =
->   let w = toWidth pw in
->   forAll (genValidCoords pw) $ \pos@(_,k) ->
->     let (x,y) = applyScreenOffset off pos in
->     (0 <= x) .&&. (x < w) .&&. (k <= y)
-> 
-> test_ScreenOffset_MonoidAction_welldefined :: TestTree
-> test_ScreenOffset_MonoidAction_welldefined =
->   testGroup "welldefined law"
->     [ testProperty "30/8" $
->         prop_ScreenOffset_MonoidAction_welldefined nat30 nat8
->     , testProperty "30/4" $
->         prop_ScreenOffset_MonoidAction_welldefined nat30 nat4
->     , testProperty "15/2" $
->         prop_ScreenOffset_MonoidAction_welldefined nat15 nat2
->     , testProperty "8/2" $
->         prop_ScreenOffset_MonoidAction_welldefined nat8 nat2
+>     , testKreb "well defined on valid coords" $
+>         \(off :: ScreenOffset w t) ->
+>           forEach (genValidCoords pw) prune $ \pos@(_,k) ->
+>             let (x,y) = applyScreenOffset off pos in
+>             (0 <= x) .&&. (x < w) .&&. (k <= y)
 >     ]
 
 > prop_ScreenOffset_applyBlockOffset_examples
 >   :: Int -> Int
->   -> RunLengthEncoding Span -> (Int, Int)
->   -> (Int, Int)
->   -> Property
-> 
-> prop_ScreenOffset_applyBlockOffset_examples w t rle x y =
->   y === applyBlockOffset w t rle x
+>   -> ( RunLengthEncoding Span
+>      , (Int, Int)
+>      , (Int, Int)
+>      )
+>   -> Check
+> prop_ScreenOffset_applyBlockOffset_examples w t (rle, x, y) =
+>   claimEqual y (applyBlockOffset w t rle x)
 > 
 > test_ScreenOffset_applyBlockOffset_examples :: TestTree
 > test_ScreenOffset_applyBlockOffset_examples =
 >   testGroup "applyBlockOffset examples"
->     [ testCases
->       (uncurry3 $ prop_ScreenOffset_applyBlockOffset_examples 8 2)
+>     [ testKrebCases "8/2"
+>       (prop_ScreenOffset_applyBlockOffset_examples 8 2)
 >       [ ( "#1"
 >         , ( fromFreqList [(10,Fixed1)]
 >           , (0,0)
@@ -994,15 +678,16 @@ The action is well defined on valid coordinates:
 >       ]
 >     ]
 
+
+
 > prop_ScreenOffset_eq_examples
 >   :: forall w t
 >    . ( IsWidth w, IsTab t )
 >   => ScreenOffset w t
 >   -> ScreenOffset w t
->   -> Property
-> 
+>   -> Check
 > prop_ScreenOffset_eq_examples x y =
->   x === y
+>   claimEqual x y
 > 
 > test_ScreenOffset_eq_examples :: TestTree
 > test_ScreenOffset_eq_examples =
@@ -1010,7 +695,7 @@ The action is well defined on valid coordinates:
 >     [ let
 >         z = defNoNewlines nat3 nat1 [(1, Fixed1)]
 >       in
->         testProperty "#1" $
+>         testKreb "#1" $
 >           prop_ScreenOffset_eq_examples
 >             (defNoNewlines nat3 nat1 [(4, Fixed1)])
 >             (z <> z <> z <> z)
@@ -1020,17 +705,19 @@ The action is well defined on valid coordinates:
 >         w = defWithNewlines nat3 nat1 [] 1 [(1, Fixed1)]
 >       in
 >         testGroup "#2"
->           [ testProperty "zzw" $
+>           [ testKreb "zzw" $
 >             prop_ScreenOffset_eq_examples
 >               (defWithNewlines nat3 nat1 [(2, Fixed1)] 1 [(1, Fixed1)])
 >               (z <> z <> w)
 > 
->           , testProperty "zzzw" $
+>           , testKreb "zzzw" $
 >             prop_ScreenOffset_eq_examples
 >               (defWithNewlines nat3 nat1 [(3, Fixed1)] 1 [(1, Fixed1)])
 >               (z <> z <> z <> w)
 >           ]
 >     ]
+
+
 
 
 
@@ -1045,8 +732,5 @@ Test Suite
 >     , test_TakeChunk
 >     , test_TakeChunks
 >     , test_ScreenOffset_Monoid
->     , test_ScreenOffset_MonoidAction
 >     , test_ScreenOffset_eq_examples
 >     ]
-
-> -}

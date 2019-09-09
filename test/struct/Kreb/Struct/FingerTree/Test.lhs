@@ -43,6 +43,8 @@ Throughout this project we'll be using the QuickCheck library to write and execu
 > 
 > module Kreb.Struct.FingerTree.Test (
 >     test_FingerTree
+>   , ZZ(..)
+>   , Tup(..)
 > ) where
 > 
 > import Data.Proxy
@@ -123,6 +125,11 @@ Dummy Types
 >     NonNegative b <- arb
 >     return $ Tup a b
 > 
+> instance Prune Tup where
+>   prune (Tup a b) =
+>     [ Tup a c | c <- prune b ] ++
+>     [ Tup c b | c <- prune a ]
+> 
 > instance CoArb Tup where
 >   coarb (Tup a b) =
 >     coarb (a,b)
@@ -135,6 +142,12 @@ Dummy Types
 > 
 >       h :: (Int, Int) -> Tup
 >       h (a,b) = Tup a b
+
+> instance Semigroup Bool where
+>   (<>) = (&&)
+> 
+> instance Monoid Bool where
+>   mempty = True
 
 
 
@@ -200,121 +213,31 @@ Concatenation and mempty form a monoid structure on finger trees.
 
 
 
+Reverse is a monoid involution
+------------------------------
 
+`reverseFT` is also _almost_ a homomorphism; it's an antihomomorphism.
 
-
-Test Suite
-==========
-
-> test_FingerTree :: TestTree
-> test_FingerTree =
->   testGroup "FingerTree"
->     [ test_Count_Monoid
->     , test_FingerTree_Eq
->     , test_FingerTree_Monoid
->   --  , test_FingerTree_List_convert
->   --  , test_FingerTree_fmapFT
->   --  , test_FingerTree_Foldable
->   --  , test_FingerTree_cons_snoc_inverses
->   --  , test_FingerTree_toList_homomorphism
->   --  , test_FingerTree_fromList_homomorphism
->   --  , test_FingerTree_reverse
->   --  , test_FingerTree_leaf
->   --  , test_FingerTree_split
->   --  , test_FingerTree_break
->     ]
-
-
-
-
-
-
-
-
-> {-
-
-Finger trees and lists are interconvertible
--------------------------------------------
-
-We have two functions, `toList` (from the `Foldable` class) and `fromListFT`, which convert between finger trees and lists. These should be mutual inverses.
-
-> test_FingerTree_List_convert
->   :: TestTree
-> test_FingerTree_List_convert =
->   testGroup "FingerTree and List are interconvertible"
->     [ test_FingerTree_toList_fromList
->     , test_FingerTree_fromList_toList
->     ]
-
-Converting a list to a finger tree and back is the identity:
-
-> prop_FingerTree_toList_fromList
->    , cprop_FingerTree_toList_fromList
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> [a] -> Property
+> test_FingerTree_reverse :: TestTree
+> test_FingerTree_reverse =
+>   let
+>     rev
+>       :: ( Valued m a )
+>       => Proxy (FingerTree m a)
+>       -> FingerTree m a -> FingerTree m a 
+>     rev _ = reverseFT
+>   in testGroup "Reverse is a monoid involution"
+>     [ testKreb "involution (Count/Char)" $
+>         check_prop_involutive
+>           (rev (Proxy :: Proxy (FingerTree Count Char)))
+>     , testKreb "involution (Tup/Bool)" $
+>         check_prop_involutive
+>           (rev (Proxy :: Proxy (FingerTree Count Char)))
 > 
-> prop_FingerTree_toList_fromList _ _ xs =
->   let t = fromListFT xs :: FingerTree m a in
->   property $ toList t == xs
-> 
-> cprop_FingerTree_toList_fromList pa pm xs =
->   cover 50 (length xs > 30) "length xs > 50" $
->   cover 90 (length xs > 0) "length xs > 0" $
->   prop_FingerTree_toList_fromList pa pm xs
-> 
-> test_FingerTree_toList_fromList :: TestTree
-> test_FingerTree_toList_fromList =
->   testGroup "toList . fromList == id (Char, Count)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_toList_fromList pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_toList_fromList pBool pTup
-> 
->     , testCases (prop_FingerTree_toList_fromList pChar pCount)
->       [ ("\"\"",    [])
->       , ("\"abc\"", ['a', 'b', 'c'])
->       ]
->     ]
-
-Converting a finger tree to a list and back is the identity:
-
-> prop_FingerTree_fromList_toList
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Bool
-> prop_FingerTree_fromList_toList _ _ xs =
->   ((fromListFT $ toList xs) == xs)
-> 
-> cprop_FingerTree_fromList_toList
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Property
-> cprop_FingerTree_fromList_toList pa pm xs =
->   cover 90 (notEmptyFT xs) "notEmptyFT xs" $
->   cover 30 (depthFT xs > 3) "depthFT xs > 3" $
->   prop_FingerTree_fromList_toList pa pm xs
-> 
-> test_FingerTree_fromList_toList :: TestTree
-> test_FingerTree_fromList_toList =
->   testGroup "fromList . toList == id (Char, Count)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fromList_toList pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fromList_toList pBool pTup
-> 
->     , testCases (prop_FingerTree_fromList_toList pChar pCount)
->       [ ( "mempty"
->         , mempty
->         )
-> 
->       , ( "'a':'b':'c':mempty"
->         , cons 'a' (cons 'b' (cons 'c' mempty))
->         )
->       ]
+>     , test_Monoid_antihomomorphism
+>         (rev (Proxy :: Proxy (FingerTree Count Char)))
+>     , test_Monoid_antihomomorphism
+>         (rev (Proxy :: Proxy (FingerTree Tup Bool)))
 >     ]
 
 
@@ -327,77 +250,156 @@ Recall that `FingerTree m` can't be a bona fide instance of the functor class du
 > test_FingerTree_fmapFT :: TestTree
 > test_FingerTree_fmapFT =
 >   testGroup "Functor Laws for FingerTree"
->     [ test_FingerTree_fmapFT_identity
->     , localOption (QuickCheckTests 500) $
->         test_FingerTree_fmapFT_composite
->     ]
-
-`fmapFT` preserves the identity:
-
-> prop_FingerTree_fmapFT_identity
->    , cprop_FingerTree_fmapFT_identity
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
+>     [ testGroup "Count/Char"
+>       [ testKreb "fmap id == id" $
+>         (check_prop_fmap_id fmapFT :: FingerTree Count Char -> Check)
+>       , testKreb "fmap (g . f) = fmap g . fmap f" $
+>           \(g :: Fun Char Char) (f :: Fun Char Char) (x :: FingerTree Count Char) ->
+>             check_prop_fmap_comp fmapFT fmapFT fmapFT (apFun g) (apFun f) x
+>       ]
 > 
-> prop_FingerTree_fmapFT_identity _ _ xs =
->   property $
->     xs == (fmapFT id xs)
-> 
-> cprop_FingerTree_fmapFT_identity pa pm xs =
->   cover 90 (notEmptyFT xs) "notEmptyFT xs" $
->   cover 30 (depthFT xs > 3) "depthFT xs > 3" $
->   prop_FingerTree_fmapFT_identity pa pm xs
-> 
-> test_FingerTree_fmapFT_identity :: TestTree
-> test_FingerTree_fmapFT_identity =
->   testGroup "fmapFT id == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fmapFT_identity pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fmapFT_identity pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_fmapFT_identity pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
+>     , testGroup "Tup/Bool"
+>       [ testKreb "fmap id == id" $
+>         (check_prop_fmap_id fmapFT :: FingerTree Tup Bool -> Check)
+>       , testKreb "fmap (g . f) = fmap g . fmap f" $
+>           \(g :: Fun Bool Bool) (f :: Fun Bool Bool) (x :: FingerTree Tup Bool) ->
+>             check_prop_fmap_comp fmapFT fmapFT fmapFT (apFun g) (apFun f) x
 >       ]
 >     ]
 
-And `fmapFT` preserves composites:
 
-> prop_FingerTree_fmapFT_composite
->    , cprop_FingerTree_fmapFT_composite
->   :: forall a1 m1 a2 m2 a3 m3
->    . ( Valued m1 a1, Valued m2 a2, Valued m3 a3, Eq a3 )
->   => Proxy a1 -> Proxy m1 -> Proxy a2
->   -> Proxy m2 -> Proxy a3 -> Proxy m3
->   -> Fun a1 a2 -> Fun a2 a3 -> FingerTree m1 a1
->   -> Property
+
+Finger trees and lists are interconvertible
+-------------------------------------------
+
+We have two functions, `toList` (from the `Foldable` class) and `fromListFT`, which convert between finger trees and lists. These should be mutual inverses.
+
+> test_FingerTree_List_convert
+>   :: TestTree
+> test_FingerTree_List_convert =
+>   testGroup "FingerTree and List are interconvertible"
+>     [ testGroup "Count/Char"
+>       [ testKreb "toList . fromList == id" $
+>           check_prop_function_inverse
+>             (toList :: FingerTree Count Char -> [Char])
+>             (fromListFT :: [Char] -> FingerTree Count Char)
+>       , testKreb "fromList . toList == id" $
+>           check_prop_function_inverse
+>             (fromListFT :: [Char] -> FingerTree Count Char)
+>             (toList :: FingerTree Count Char -> [Char])
+>       ]
 > 
-> prop_FingerTree_fmapFT_composite _ _ _ _ _ _ f g xs =
->   property $
->     ((fmapFT ((applyFun g) . (applyFun f)) xs) :: FingerTree m3 a3)
->       == (fmapFT (applyFun g)
->           (fmapFT (applyFun f) xs :: FingerTree m2 a2))
+>     , testGroup "Tup/Bool"
+>       [ testKreb "toList . fromList == id" $
+>           check_prop_function_inverse
+>             (toList :: FingerTree Tup Bool -> [Bool])
+>             (fromListFT :: [Bool] -> FingerTree Tup Bool)
+>       , testKreb "fromList . toList == id" $
+>           check_prop_function_inverse
+>             (fromListFT :: [Bool] -> FingerTree Tup Bool)
+>             (toList :: FingerTree Tup Bool -> [Bool])
+>       ]
+>     ]
+
+
+
+> test_FingerTree_cons_snoc_action
+>   :: TestTree
+> test_FingerTree_cons_snoc_action =
+>   testGroup "FingerTree cons/snoc actions"
+>     [ testGroup "Count/Char"
+>       [ testKreb "toList/cons" $
+>           check_prop_left_affine_func
+>             (cons :: Char -> FingerTree Count Char -> FingerTree Count Char)
+>             ((:) :: Char -> [Char] -> [Char])
+>             toList
+>       , testKreb "toList/snoc" $
+>           check_prop_right_affine_func
+>             (flip snoc :: FingerTree Count Char -> Char -> FingerTree Count Char)
+>             ((\xs x -> xs ++ [x]) :: [Char] -> Char -> [Char])
+>             toList
+>       , testKreb "fromList/cons" $
+>           check_prop_left_affine_func
+>             ((:) :: Char -> [Char] -> [Char])
+>             (cons :: Char -> FingerTree Count Char -> FingerTree Count Char)
+>             fromListFT
+>       , testKreb "fromList/snoc" $
+>           check_prop_right_affine_func
+>             ((\xs x -> xs ++ [x]) :: [Char] -> Char -> [Char])
+>             (flip snoc :: FingerTree Count Char -> Char -> FingerTree Count Char)
+>             fromListFT
+>       , testKreb "reverse/cons" $
+>           check_prop_right_left_affine_func
+>             (flip snoc :: FingerTree Count Char -> Char -> FingerTree Count Char)
+>             (cons :: Char -> FingerTree Count Char -> FingerTree Count Char)
+>             reverseFT
+>       , testKreb "reverse/snoc" $
+>           check_prop_left_right_affine_func
+>             (cons :: Char -> FingerTree Count Char -> FingerTree Count Char)
+>             (flip snoc :: FingerTree Count Char -> Char -> FingerTree Count Char)
+>             reverseFT
+>       ]
 > 
-> cprop_FingerTree_fmapFT_composite pa pm pb pn pc po f g xs =
->   cover 90 (notEmptyFT xs) "notEmptyFT xs" $
->   cover 30 (depthFT xs > 3) "depthFT xs > 3" $
->   prop_FingerTree_fmapFT_composite pa pm pb pn pc po f g xs
-> 
-> test_FingerTree_fmapFT_composite :: TestTree
-> test_FingerTree_fmapFT_composite =
->   testGroup "fmapFT (f . g) == fmapFT f . fmapFT g"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fmapFT_composite
->           pChar pCount pChar pCount pChar pCount
-> 
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fmapFT_composite
->           pBool pTup pBool pTup pBool pTup
+>     , testGroup "Tup/Bool"
+>       [ testKreb "toList/cons" $
+>           check_prop_left_affine_func
+>             (cons :: Bool -> FingerTree Tup Bool -> FingerTree Tup Bool)
+>             ((:) :: Bool -> [Bool] -> [Bool])
+>             toList
+>       , testKreb "toList/snoc" $
+>           check_prop_right_affine_func
+>             (flip snoc :: FingerTree Tup Bool -> Bool -> FingerTree Tup Bool)
+>             ((\xs x -> xs ++ [x]) :: [Bool] -> Bool -> [Bool])
+>             toList
+>       , testKreb "fromList/cons" $
+>           check_prop_left_affine_func
+>             ((:) :: Bool -> [Bool] -> [Bool])
+>             (cons :: Bool -> FingerTree Tup Bool -> FingerTree Tup Bool)
+>             fromListFT
+>       , testKreb "fromList/snoc" $
+>           check_prop_right_affine_func
+>             ((\xs x -> xs ++ [x]) :: [Bool] -> Bool -> [Bool])
+>             (flip snoc :: FingerTree Tup Bool -> Bool -> FingerTree Tup Bool)
+>             fromListFT
+>       , testKreb "reverse/cons" $
+>           check_prop_right_left_affine_func
+>             (flip snoc :: FingerTree Tup Bool -> Bool -> FingerTree Tup Bool)
+>             (cons :: Bool -> FingerTree Tup Bool -> FingerTree Tup Bool)
+>             reverseFT
+>       , testKreb "reverse/snoc" $
+>           check_prop_left_right_affine_func
+>             (cons :: Bool -> FingerTree Tup Bool -> FingerTree Tup Bool)
+>             (flip snoc :: FingerTree Tup Bool -> Bool -> FingerTree Tup Bool)
+>             reverseFT
+>       ]
+>     ]
+
+
+
+toList is a monoid homomorphism
+-------------------------------
+
+> test_FingerTree_toList :: TestTree
+> test_FingerTree_toList =
+>   testGroup "Reverse is a monoid involution"
+>     [ test_Monoid_homomorphism
+>         (toList :: FingerTree Count Char -> [Char])
+>     , test_Monoid_homomorphism
+>         (toList :: FingerTree Tup Bool -> [Bool])
+>     ]
+
+
+
+fromListFT is a monoid homomorphism
+-----------------------------------
+
+> test_FingerTree_fromListFT :: TestTree
+> test_FingerTree_fromListFT =
+>   testGroup "Reverse is a monoid involution"
+>     [ test_Monoid_homomorphism
+>         (fromListFT :: [Char] -> FingerTree Count Char)
+>     , test_Monoid_homomorphism
+>         (fromListFT :: [Bool] -> FingerTree Tup Bool)
 >     ]
 
 
@@ -410,143 +412,35 @@ We get a lot of mileage out of the `Foldable` instance for `FingerTree`, so it m
 > test_FingerTree_Foldable :: TestTree
 > test_FingerTree_Foldable =
 >   testGroup "Foldable laws for FingerTree"
->     [ test_FingerTree_foldMap_id
->     , localOption (QuickCheckTests 1000)
->         $ test_FingerTree_foldMap_factor
->     , localOption (QuickCheckTests 1000)
->         $ test_FingerTree_foldMap_compose
+>     [ test_Foldable_laws
+>         (Proxy :: Proxy (FingerTree Tup)) (Proxy :: Proxy Bool)
+>         (Proxy :: Proxy Bool) (Proxy :: Proxy Bool)
+> 
 >     , test_FingerTree_fold_value
 >     ]
 
-`fold` is a special case of `foldMap`:
-
-> prop_FingerTree_foldMap_id
->    , cprop_FingerTree_foldMap_id
->   :: forall a m
->    . ( Eq a, Valued m a, Monoid a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_foldMap_id _ _ xs =
->   property $ fold xs == foldMap id xs
-> 
-> cprop_FingerTree_foldMap_id pa pm xs =
->   cover 70 (notEmptyFT xs) "xs nonempty" $
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   prop_FingerTree_foldMap_id pa pm xs
-> 
-> test_FingerTree_foldMap_id :: TestTree
-> test_FingerTree_foldMap_id =
->   testGroup "fold == foldMap id"
->     [ testProperty "ZZ/Count" $
->         cprop_FingerTree_foldMap_id pZZ pCount
-> 
->     , testProperty "ZZ/Tup" $
->         cprop_FingerTree_foldMap_id pZZ pTup
->     ]
-
-`foldMap f` factors as `fold . fmap f`:
-
-> prop_FingerTree_foldMap_factor
->    , cprop_FingerTree_foldMap_factor
->   :: forall a b m
->    . ( Eq b, Valued m a, Monoid b, Valued m b )
->   => Proxy a -> Proxy b -> Proxy m
->   -> Fun a b -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_foldMap_factor _ _ _ f xs =
->   property $
->     (foldMap (applyFun f) xs)
->       == (fold (fmapFT (applyFun f) xs :: FingerTree m b))
-> 
-> cprop_FingerTree_foldMap_factor pa pb pm f xs =
->   cover 70 (notEmptyFT xs) "xs nonempty" $
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   prop_FingerTree_foldMap_factor pa pb pm f xs
-> 
-> test_FingerTree_foldMap_factor :: TestTree
-> test_FingerTree_foldMap_factor =
->   testGroup "foldMap f = fold . fmap f"
->     [ testProperty "ZZ/Count" $
->         cprop_FingerTree_foldMap_factor pZZ pZZ pCount
-> 
->     , testProperty "ZZ/Tup" $
->         cprop_FingerTree_foldMap_factor pZZ pZZ pTup
->     ]
-
-`foldMap` distributes over composition:
-
-> prop_FingerTree_foldMap_compose
->    , cprop_FingerTree_foldMap_compose
->   :: forall a b c m
->    . ( Eq b, Valued m a, Monoid b, Valued m b
->      , Valued m c, Monoid c, Eq c )
->   => Proxy a -> Proxy b -> Proxy c -> Proxy m
->   -> Fun a b -> Fun b c -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_foldMap_compose _ _ _ _ f g xs =
->   property $
->     (foldMap (applyFun g . applyFun f) xs)
->       == (foldMap (applyFun g)
->           ((fmapFT (applyFun f) xs) :: FingerTree m b))
-> 
-> cprop_FingerTree_foldMap_compose pa pb pc pm f g xs =
->   cover 70 (notEmptyFT xs) "xs nonempty" $
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   prop_FingerTree_foldMap_compose pa pb pc pm f g xs
-> 
-> test_FingerTree_foldMap_compose :: TestTree
-> test_FingerTree_foldMap_compose =
->   testGroup "foldMap (g . f) == foldMap g . fmap f"
->     [ testProperty "ZZ/Count" $
->         cprop_FingerTree_foldMap_compose pZZ pZZ pZZ pCount
-> 
->     , testProperty "ZZ/Tup" $
->         cprop_FingerTree_foldMap_compose pZZ pZZ pZZ pTup
->     ]
-
-`fold` is compatible with `value`:
-
-> prop_FingerTree_fold_value
->    , cprop_FingerTree_fold_value
+> check_FingerTree_fold_value
 >   :: forall a m
 >    . ( Eq a, Valued m a, Eq m )
 >   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_fold_value _ _ xs =
->   property $
+>   -> FingerTree m a -> Check
+> check_FingerTree_fold_value _ _ xs =
+>   check $
 >     (value xs :: m) == fold (map value $ toList xs)
-> 
-> cprop_FingerTree_fold_value pa pm xs =
->   cover 70 (notEmptyFT xs) "xs nonempty" $
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   prop_FingerTree_fold_value pa pm xs
 > 
 > test_FingerTree_fold_value :: TestTree
 > test_FingerTree_fold_value =
 >   testGroup "value == fold . fmapFT value"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fold_value pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fold_value pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_fold_value pChar pCount)
->       [ ( "mempty", mempty )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_fold_value pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_fold_value pBool pTup
 >     ]
 
 
 
 Cons and uncons are mutual inverses
 -----------------------------------
-
-The `cons` and `uncons` functions are inverses of each other (sort of); likewise `snoc` and `unsnoc`.
 
 > test_FingerTree_cons_snoc_inverses :: TestTree
 > test_FingerTree_cons_snoc_inverses =
@@ -559,668 +453,117 @@ The `cons` and `uncons` functions are inverses of each other (sort of); likewise
 >     , test_FingerTree_unsnoc_mempty
 >     ]
 
-`uncons` followed by `cons`:
-
-> prop_FingerTree_cons_uncons
->    , cprop_FingerTree_cons_uncons
+> check_FingerTree_cons_uncons
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_cons_uncons _ _ xs =
->   property $
->     case uncons xs of
->       Nothing -> True
->       Just (a,zs) -> xs == cons a zs
-> 
-> cprop_FingerTree_cons_uncons pa pm xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   checkOneDepth xs $
->   prop_FingerTree_cons_uncons pa pm xs
+>   -> FingerTree m a -> Check
+> check_FingerTree_cons_uncons _ _ xs =
+>   check $ case uncons xs of
+>     Nothing -> True
+>     Just (a,zs) -> xs == cons a zs
 > 
 > test_FingerTree_cons_uncons :: TestTree
 > test_FingerTree_cons_uncons =
 >   testGroup "cons . uncons == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_cons_uncons pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_cons_uncons pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_cons_uncons pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_cons_uncons pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_cons_uncons pBool pTup
 >     ]
 
-`cons` followed by `uncons`:
-
-> prop_FingerTree_uncons_cons
->    , cprop_FingerTree_uncons_cons
+> check_FingerTree_uncons_cons
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_uncons_cons _ _ a xs =
->   property $
->     case uncons (cons a xs) of
->       Nothing -> False
->       Just (b,ys) -> (a == b) && (xs == ys)
-> 
-> cprop_FingerTree_uncons_cons pa pm a xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   checkOneDepth xs $
->   prop_FingerTree_uncons_cons pa pm a xs
+>   -> a -> FingerTree m a -> Check
+> check_FingerTree_uncons_cons _ _ a xs =
+>   check $ case uncons (cons a xs) of
+>     Nothing -> False
+>     Just (b,ys) -> (a == b) && (xs == ys)
 > 
 > test_FingerTree_uncons_cons :: TestTree
 > test_FingerTree_uncons_cons =
 >   testGroup "uncons . cons == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_uncons_cons pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_uncons_cons pBool pTup
-> 
->     , testCases
->       (uncurry (prop_FingerTree_uncons_cons pChar pCount))
->       [ ( "empty", ( 'a', mempty ) )
->       , ( "leaf",  ( 'a', leaf 'b' ) )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_uncons_cons pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_uncons_cons pBool pTup
 >     ]
 
-`unsnoc` followed by `snoc`:
-
-> prop_FingerTree_snoc_unsnoc
->    , cprop_FingerTree_snoc_unsnoc
+> check_FingerTree_snoc_unsnoc
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> FingerTree m a -> Property
-> 
-> prop_FingerTree_snoc_unsnoc _ _ xs =
->   property $
->     case unsnoc xs of
->       Nothing -> True
->       Just (a,zs) -> xs == snoc a zs
-> 
-> cprop_FingerTree_snoc_unsnoc pa pm xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   checkOneDepth xs $
->   prop_FingerTree_snoc_unsnoc pa pm xs
+>   -> FingerTree m a -> Check
+> check_FingerTree_snoc_unsnoc _ _ xs =
+>   check $ case unsnoc xs of
+>     Nothing -> True
+>     Just (a,zs) -> xs == snoc a zs
 > 
 > test_FingerTree_snoc_unsnoc :: TestTree
 > test_FingerTree_snoc_unsnoc =
 >   testGroup "snoc . unsnoc == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_snoc_unsnoc pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_snoc_unsnoc pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_snoc_unsnoc pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_snoc_unsnoc pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_snoc_unsnoc pBool pTup
 >     ]
 
-`snoc` followed by `unsnoc`:
-
-> prop_FingerTree_unsnoc_snoc
->    , cprop_FingerTree_unsnoc_snoc
+> check_FingerTree_unsnoc_snoc
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_unsnoc_snoc _ _ a xs =
->   property $
+>   -> a -> FingerTree m a -> Check
+> check_FingerTree_unsnoc_snoc _ _ a xs =
+>   check $
 >     case unsnoc (snoc a xs) of
 >       Nothing -> False
 >       Just (b,ys) -> (a == b) && (xs == ys)
 > 
-> cprop_FingerTree_unsnoc_snoc pa pm a xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   checkOneDepth xs $
->   prop_FingerTree_unsnoc_snoc pa pm a xs
-> 
 > test_FingerTree_unsnoc_snoc :: TestTree
 > test_FingerTree_unsnoc_snoc =
 >   testGroup "unsnoc . snoc == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_unsnoc_snoc pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_unsnoc_snoc pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_unsnoc_snoc pChar pCount)
->       [ ( "empty", ( 'a', mempty ) )
->       , ( "leaf",  ( 'a', leaf 'b' ) )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_unsnoc_snoc pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_unsnoc_snoc pBool pTup
 >     ]
 
-`uncons` is only `Nothing` on empty inputs:
-
-> prop_FingerTree_uncons_mempty
->    , cprop_FingerTree_uncons_mempty
+> check_FingerTree_uncons_mempty
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_uncons_mempty _ _ xs =
->   property $
+>   -> FingerTree m a -> Check
+> check_FingerTree_uncons_mempty _ _ xs =
+>   check $
 >     (Nothing == uncons xs) == (xs == mempty)
-> 
-> cprop_FingerTree_uncons_mempty pa pm xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   cover 2 (isEmptyFT xs) "xs empty" $
->   checkOneDepth xs $
->   prop_FingerTree_uncons_mempty pa pm xs
 > 
 > test_FingerTree_uncons_mempty :: TestTree
 > test_FingerTree_uncons_mempty =
 >   testGroup "uncons == Nothing"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_uncons_mempty pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_uncons_mempty pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_uncons_mempty pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_uncons_mempty pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_uncons_mempty pBool pTup
 >     ]
 
-`unsnoc` is only `Nothing` on empty inputs:
-
-> prop_FingerTree_unsnoc_mempty
->    , cprop_FingerTree_unsnoc_mempty
+> check_FingerTree_unsnoc_mempty
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_unsnoc_mempty _ _ xs =
->   property $
+>   -> FingerTree m a -> Check
+> check_FingerTree_unsnoc_mempty _ _ xs =
+>   check $
 >     (Nothing == unsnoc xs) == (xs == mempty)
-> 
-> cprop_FingerTree_unsnoc_mempty pa pm xs =
->   cover 50 (notEmptyFT xs) "xs nonempty" $
->   cover 2 (isEmptyFT xs) "xs empty" $
->   checkOneDepth xs $
->   prop_FingerTree_unsnoc_mempty pa pm xs
 > 
 > test_FingerTree_unsnoc_mempty :: TestTree
 > test_FingerTree_unsnoc_mempty =
 >   testGroup "unsnoc == Nothing"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_unsnoc_mempty pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_unsnoc_mempty pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_unsnoc_mempty pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
->     ]
-
-
-
-toList is a monoid homomorphism
--------------------------------
-
-We have two monoids, lists and finger trees, and a function `toList` between them. When this happens it's natural to ask if the function preserves the monoid structure -- and indeed it does.
-
-> test_FingerTree_toList_homomorphism :: TestTree
-> test_FingerTree_toList_homomorphism =
->   testGroup "toList is a monoid hom"
->     [ test_FingerTree_toList_hom_identity
->     , test_FingerTree_toList_hom_product
->     , test_FingerTree_toList_hom_cons
->     , test_FingerTree_toList_hom_snoc
->     ]
-
-`toList` preserves the identity:
-
-> prop_FingerTree_toList_hom_identity
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> Property
-> prop_FingerTree_toList_hom_identity _ _ =
->   let x = mempty :: FingerTree m a in
->   property $ (toList x) == []
-> 
-> test_FingerTree_toList_hom_identity :: TestTree
-> test_FingerTree_toList_hom_identity =
->   testGroup "toList mempty == mempty"
->     [ testProperty "Char/Count" $
->         prop_FingerTree_toList_hom_identity pChar pCount
-> 
->     , testProperty "Bool/Tup" $
->         prop_FingerTree_toList_hom_identity pBool pTup
->     ]
-
-`toList` preserves products:
-
-> prop_FingerTree_toList_hom_product
->    , cprop_FingerTree_toList_hom_product
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_toList_hom_product _ _ xs ys =
->   property $
->     (toList $ xs <> ys)
->       == (toList xs ++ toList ys)
-> 
-> cprop_FingerTree_toList_hom_product pa pm xs ys =
->   cover 50 ((notEmptyFT xs) && (notEmptyFT ys))
->     "xs, ys nonempty" $
->   checkPairDepth xs ys $
->   prop_FingerTree_toList_hom_product pa pm xs ys
-> 
-> test_FingerTree_toList_hom_product :: TestTree
-> test_FingerTree_toList_hom_product =
->   testGroup "toList (a <> b) == toList a <> toList b"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_toList_hom_product pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_toList_hom_product pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_toList_hom_product pChar pCount)
->       [ ( "both empty", (mempty, mempty) )
->       ]
->     ]
-
-In fact both lists and finger trees are a bit more than just monoids -- they are monoids being acted on by a set from the left and the right. This is `cons` and `snoc`. We can verify that `toList` preserves these actions as well. First for `cons`:
-
-> prop_FingerTree_toList_hom_cons
->    , cprop_FingerTree_toList_hom_cons
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a -> Property
-> 
-> prop_FingerTree_toList_hom_cons _ _ a xs =
->   property $
->     (toList $ cons a xs) == (a : toList xs)
-> 
-> cprop_FingerTree_toList_hom_cons pa pm a xs =
->   checkOneDepth xs $
->   prop_FingerTree_toList_hom_cons pa pm a xs
-> 
-> test_FingerTree_toList_hom_cons :: TestTree
-> test_FingerTree_toList_hom_cons =
->   testGroup "toList preserves cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_toList_hom_cons pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_toList_hom_cons pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_toList_hom_cons pChar pCount)
->       [ ( "mempty", ( 'a', mempty ) )
->       , ( "leaf",   ( 'a', leaf 'b' ) )
->       ]
->     ]
-
-And then for `snoc`:
-
-> prop_FingerTree_toList_hom_snoc
->    , cprop_FingerTree_toList_hom_snoc
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a -> Property
-
-> prop_FingerTree_toList_hom_snoc _ _ a xs =
->   property $
->     (toList $ snoc a xs) == (toList xs ++ [a])
-> 
-> cprop_FingerTree_toList_hom_snoc pa pm a xs =
->   checkOneDepth xs $
->   prop_FingerTree_toList_hom_snoc pa pm a xs
-> 
-> test_FingerTree_toList_hom_snoc :: TestTree
-> test_FingerTree_toList_hom_snoc =
->   testGroup "toList preserves snoc"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_toList_hom_snoc pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_toList_hom_snoc pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_toList_hom_snoc pChar pCount)
->       [ ( "mempty", ( 'a', mempty ) )
->       , ( "leaf",   ( 'a', leaf 'b' ) )
->       ]
->     ]
-
-
-
-fromList is a monoid homomorphism
----------------------------------
-
-Like `toList`, `fromList` is also a monoid (and set action) homomorphism.
-
-> test_FingerTree_fromList_homomorphism :: TestTree
-> test_FingerTree_fromList_homomorphism =
->   testGroup "fromList is a monoid hom"
->     [ test_FingerTree_fromList_hom_identity
->     , test_FingerTree_fromList_hom_product
->     , test_FingerTree_fromList_hom_cons
->     , test_FingerTree_fromList_hom_snoc
->     ]
-
-`fromList` preserves the identity:
-
-> prop_FingerTree_fromList_hom_identity
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> Property
-> 
-> prop_FingerTree_fromList_hom_identity _ _ =
->   property $
->     let x = fromListFT [] :: FingerTree m a in
->     x == mempty
-> 
-> test_FingerTree_fromList_hom_identity :: TestTree
-> test_FingerTree_fromList_hom_identity =
->   testGroup "fromList mempty == mempty"
->     [ testProperty "Char/Count" $
->         prop_FingerTree_fromList_hom_identity pChar pCount
->     , testProperty "Bool/Tup" $
->         prop_FingerTree_fromList_hom_identity pBool pTup
->     ]
-
-And it preserves products:
-
-> prop_FingerTree_fromList_hom_product
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> [a] -> [a]
->   -> Property
-> 
-> prop_FingerTree_fromList_hom_product _ _ xs ys =
->   property $
->     let zs = fromListFT (xs ++ ys) :: FingerTree m a in
->     zs == (fromListFT xs) <> (fromListFT ys)
-> 
-> cprop_FingerTree_fromList_hom_product pa pm xs ys =
->   cover 20 ((length xs > 5) && (length ys > 5)) "length xs,ys > 5" $
->   cover 1 ((xs == []) && (ys == [])) "both nonempty" $
->   prop_FingerTree_fromList_hom_product pa pm xs ys
-> 
-> test_FingerTree_fromList_hom_product :: TestTree
-> test_FingerTree_fromList_hom_product =
->   testGroup "fromList (xs <> ys) == fromList xs <> fromList ys"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fromList_hom_product pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fromList_hom_product pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_fromList_hom_product pChar pCount)
->       [ ( "empty",     ([], []) )
->       , ( "singleton", (['a'], ['b']) )
->       ]
->     ]
-
-`fromList` preserves `cons`:
-
-> prop_FingerTree_fromList_hom_cons
->    , cprop_FingerTree_fromList_hom_cons
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> [a]
->   -> Property
-> 
-> prop_FingerTree_fromList_hom_cons _ _ a xs =
->   property $
->     let zs = fromListFT xs :: FingerTree m a in
->     (fromListFT $ a : xs) == (cons a zs)
-> 
-> cprop_FingerTree_fromList_hom_cons pa pm a xs =
->   cover 40 (length xs > 5) "length xs > 5" $
->   cover 1 (xs == []) "xs empty" $
->   prop_FingerTree_fromList_hom_cons pa pm a xs
-> 
-> test_FingerTree_fromList_hom_cons :: TestTree
-> test_FingerTree_fromList_hom_cons =
->   testGroup "fromList (a : xs) == cons a (fromList xs)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fromList_hom_cons pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fromList_hom_cons pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_fromList_hom_cons pChar pCount)
->       [ ( "mempty",    ('a', []) )
->       , ( "singleton", ('a', ['b']) )
->       ]
->     ]
-
-And `fromList` preserves `snoc`:
-
-> prop_FingerTree_fromList_hom_snoc
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> [a]
->   -> Property
-> 
-> prop_FingerTree_fromList_hom_snoc _ _ a xs =
->   property $
->     let zs = fromListFT xs :: FingerTree m a in
->     (fromListFT $ xs ++ [a]) == (snoc a zs)
-> 
-> cprop_FingerTree_fromList_hom_snoc pa pm a xs =
->   cover 40 (length xs > 5) "length xs > 5" $
->   cover 1 (xs == []) "xs empty" $
->   prop_FingerTree_fromList_hom_snoc pa pm a xs
-> 
-> test_FingerTree_fromList_hom_snoc :: TestTree
-> test_FingerTree_fromList_hom_snoc =
->   testGroup "fromList (a : xs) == snoc a (fromList xs)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_fromList_hom_snoc pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_fromList_hom_snoc pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_fromList_hom_snoc pChar pCount)
->       [ ( "mempty",    ('a', []) )
->       , ( "singleton", ('a', ['b']) )
->       ]
->     ]
-
-
-
-Reverse is a monoid involution
-------------------------------
-
-`reverseFT` is also _almost_ a homomorphism; it's an antihomomorphism.
-
-> test_FingerTree_reverse :: TestTree
-> test_FingerTree_reverse =
->   testGroup "Reverse is a monoid involution"
->     [ test_FingerTree_reverse_involution
->     , test_FingerTree_reverse_identity
->     , test_FingerTree_reverse_product
->     , test_FingerTree_reverse_cons
->     , test_FingerTree_reverse_snoc
->     ]
-
-`reverse` is an involution:
-
-> prop_FingerTree_reverse_involution
->    , cprop_FingerTree_reverse_involution
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_reverse_involution _ _ xs =
->   property $
->     xs == (reverseFT (reverseFT xs))
-> 
-> cprop_FingerTree_reverse_involution pa pm xs =
->   checkOneDepth xs $
->   prop_FingerTree_reverse_involution pa pm xs
-> 
-> test_FingerTree_reverse_involution :: TestTree
-> test_FingerTree_reverse_involution =
->   testGroup "reverse . reverse == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_reverse_involution pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_reverse_involution pBool pTup
-> 
->     , testCases
->       (prop_FingerTree_reverse_involution pChar pCount)
->       [ ( "mempty", mempty )
->       , ( "leaf",   leaf 'a' )
->       ]
->     ]
-
-`reverse` preserves the identity:
-
-> prop_FingerTree_reverse_identity
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> Property
-> 
-> prop_FingerTree_reverse_identity _ _ =
->   property $
->     (mempty :: FingerTree m a)
->       == reverseFT mempty
-> 
-> test_FingerTree_reverse_identity :: TestTree
-> test_FingerTree_reverse_identity =
->   testGroup "reverse mempty == mempty"
->     [ testProperty "Char/Count" $
->         prop_FingerTree_reverse_identity pChar pCount
->     , testProperty "Bool/Tup" $
->         prop_FingerTree_reverse_identity pBool pTup
->     ]
-
-`reverse` antipreserves products:
-
-> prop_FingerTree_reverse_product
->    , cprop_FingerTree_reverse_product
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_reverse_product _ _ xs ys =
->   property $
->     (reverseFT (xs <> ys))
->       == ((reverseFT ys) <> (reverseFT xs))
-> 
-> cprop_FingerTree_reverse_product pa pm xs ys =
->   checkPairDepth xs ys $
->   prop_FingerTree_reverse_product pa pm xs ys
-> 
-> test_FingerTree_reverse_product :: TestTree
-> test_FingerTree_reverse_product =
->   testGroup "reverse (xs <> ys) == reverse ys <> reverse xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_reverse_product pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_reverse_product pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_reverse_product pChar pCount)
->       [ ( "mempty", (mempty, mempty) )
->       , ( "leaf",   (leaf 'a', leaf 'b') )
->       ]
->     ]
-
-`reverse` turns `cons` into `snoc`:
-
-> prop_FingerTree_reverse_cons
->    , cprop_FingerTree_reverse_cons
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_reverse_cons _ _ a xs =
->   property $
->     (reverseFT (cons a xs))
->       == (snoc a (reverseFT xs))
-> 
-> cprop_FingerTree_reverse_cons pa pm a xs =
->   checkOneDepth xs $
->   prop_FingerTree_reverse_cons pa pm a xs
-> 
-> test_FingerTree_reverse_cons :: TestTree
-> test_FingerTree_reverse_cons =
->   testGroup "reverse (cons a xs) == snoc a (reverse xs)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_reverse_cons pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_reverse_cons pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_reverse_cons pChar pCount)
->       [ ( "mempty", ('a', mempty) )
->       , ( "leaf",   ('a', leaf 'b') )
->       ]
->     ]
-
-And turns `snoc` into `cons`:
-
-> prop_FingerTree_reverse_snoc
->    , cprop_FingerTree_reverse_snoc
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_reverse_snoc _ _ a xs =
->   property $
->     (reverseFT (snoc a xs))
->       == (cons a (reverseFT xs))
-> 
-> cprop_FingerTree_reverse_snoc pa pm a xs =
->   checkOneDepth xs $
->   prop_FingerTree_reverse_snoc pa pm a xs
-> 
-> test_FingerTree_reverse_snoc :: TestTree
-> test_FingerTree_reverse_snoc =
->   testGroup "reverse (snoc a xs) == cons a (reverse xs)"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_reverse_snoc pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_reverse_snoc pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_reverse_snoc pChar pCount)
->       [ ( "mempty", ('a', mempty) )
->       , ( "leaf",   ('a', leaf 'b') )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_unsnoc_mempty pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_unsnoc_mempty pBool pTup
 >     ]
 
 
@@ -1241,113 +584,83 @@ This is a grab bag of properties of `leaf`.
 
 `leaf` interacts with `cons`:
 
-> prop_FingerTree_cons_cat_singleton
->    , cprop_FingerTree_cons_cat_singleton
+> check_FingerTree_cons_cat_singleton
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_cons_cat_singleton _ _ a xs =
->   property $
+>   -> a -> FingerTree m a -> Check
+> check_FingerTree_cons_cat_singleton _ _ a xs =
+>   check $
 >     (cons a xs) == ((leaf a) <> xs)
-> 
-> cprop_FingerTree_cons_cat_singleton pa pm a xs =
->   checkOneDepth xs $
->   prop_FingerTree_cons_cat_singleton pa pm a xs
 > 
 > test_FingerTree_cons_cat_singleton :: TestTree
 > test_FingerTree_cons_cat_singleton =
 >   testGroup "cons a xs == leaf a <> xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_cons_cat_singleton pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_cons_cat_singleton pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_cons_cat_singleton pChar pCount)
->       [ ( "mempty", ('a', mempty) )
->       , ( "leaf",   ('a', leaf 'b') )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_cons_cat_singleton pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_cons_cat_singleton pBool pTup
 >     ]
 
 And with `snoc`:
 
-> prop_FingerTree_snoc_cat_singleton
->    , cprop_FingerTree_snoc_cat_singleton
+> check_FingerTree_snoc_cat_singleton
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> a -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_snoc_cat_singleton _ _ a xs =
->   property $
+>   -> a -> FingerTree m a -> Check
+> check_FingerTree_snoc_cat_singleton _ _ a xs =
+>   check $
 >     (snoc a xs) == (xs <> (leaf a))
-> 
-> cprop_FingerTree_snoc_cat_singleton pa pm a xs =
->   checkOneDepth xs $
->   prop_FingerTree_snoc_cat_singleton pa pm a xs
 > 
 > test_FingerTree_snoc_cat_singleton :: TestTree
 > test_FingerTree_snoc_cat_singleton =
 >   testGroup "snoc a xs == leaf a <> xs"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_snoc_cat_singleton pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_snoc_cat_singleton pBool pTup
-> 
->     , testCases
->       (uncurry $ prop_FingerTree_snoc_cat_singleton pChar pCount)
->       [ ( "mempty", ('a', mempty) )
->       , ( "leaf",   ('a', leaf 'b') )
->       ]
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_snoc_cat_singleton pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_snoc_cat_singleton pBool pTup
 >     ]
 
 `leaf` is not empty:
 
-> prop_FingerTree_leaf_not_empty
+> check_FingerTree_leaf_not_empty
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> a
->   -> Property
-> 
-> prop_FingerTree_leaf_not_empty _ _ a =
->   property $
+>   -> a -> Check
+> check_FingerTree_leaf_not_empty _ _ a =
+>   check $
 >     notEmptyFT (leaf a :: FingerTree m a)
 > 
 > test_FingerTree_leaf_not_empty :: TestTree
 > test_FingerTree_leaf_not_empty =
 >   testGroup "notEmpty (leaf x)"
->     [ testProperty "Char/Count" $
->         prop_FingerTree_leaf_not_empty pChar pCount
->     , testProperty "Bool/Tup" $
->         prop_FingerTree_leaf_not_empty pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_leaf_not_empty pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_leaf_not_empty pBool pTup
 >     ]
 
 And `leaf` has depth 1:
 
-> prop_FingerTree_leaf_depth
+> check_FingerTree_leaf_depth
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
->   -> a
->   -> Property
-> 
-> prop_FingerTree_leaf_depth _ _ a =
->   property $
+>   -> a -> Check
+> check_FingerTree_leaf_depth _ _ a =
+>   check $
 >     let x = leaf a :: FingerTree m a in
 >     depthFT x == 1
 > 
 > test_FingerTree_leaf_depth :: TestTree
 > test_FingerTree_leaf_depth =
 >   testGroup "depth (leaf x) == 1"
->     [ testProperty "Char/Count" $
->         prop_FingerTree_leaf_depth pChar pCount
->     , testProperty "Bool/Tup" $
->         prop_FingerTree_leaf_depth pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_leaf_depth pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_leaf_depth pBool pTup
 >     ]
 
 
@@ -1368,119 +681,98 @@ The `split` operation is supposed to satisfy some nice properties, which we can 
 
 If the result of a split succeeds, the results should concatenate to the original finger tree.
 
-> prop_FingerTree_split_concat
->    , cprop_FingerTree_split_concat
+> check_FingerTree_split_concat
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> Fun m Bool -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_split_concat _ _ p xs =
->   (False == applyFun p mempty) ==>
->   (True == applyFun p (value xs)) ==>
->   case splitFT (applyFun p) xs of
->     Nothing -> False
->     Just (as, x, bs) ->
->       xs == mconcat [ as, leaf x, bs ]
-> 
-> cprop_FingerTree_split_concat pa pm p xs =
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   cover 5 (depthFT xs == 1) "depth xs == 1" $
->   prop_FingerTree_split_concat pa pm p xs
+>   -> Bool
+> check_FingerTree_split_concat _ _ p xs =
+>   if (False == apFun p mempty) && (True == apFun p (value xs))
+>     then case splitFT (apFun p) xs of
+>       Nothing -> False
+>       Just (as, x, bs) ->
+>         xs == mconcat [ as, leaf x, bs ]
+>     else True
 > 
 > test_FingerTree_split_concat :: TestTree
 > test_FingerTree_split_concat =
 >   testGroup "Split concat property"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_split_concat pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_split_concat pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_split_concat pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_split_concat pBool pTup
 >     ]
 
 If the split succeeds, the predicate on the value of the left portion should be false.
 
-> prop_FingerTree_split_value_left
->    , cprop_FingerTree_split_value_left
+> check_FingerTree_split_value_left
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> Fun m Bool -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_split_value_left _ _ p xs =
->   (False == applyFun p mempty) ==>
->   (True == applyFun p (value xs)) ==>
->   case splitFT (applyFun p) xs of
->     Nothing -> False
->     Just (as, x, bs) ->
->       not $ applyFun p $ value as
-> 
-> cprop_FingerTree_split_value_left pa pm p xs =
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   cover 5 (depthFT xs == 1) "depth xs == 1" $
->   prop_FingerTree_split_value_left pa pm p xs
+>   -> Bool
+> check_FingerTree_split_value_left _ _ p xs =
+>   if (False == apFun p mempty) && (True == apFun p (value xs))
+>     then case splitFT (apFun p) xs of
+>       Nothing -> False
+>       Just (as, x, bs) ->
+>         not $ apFun p $ value as
+>     else True
 > 
 > test_FingerTree_split_value_left :: TestTree
 > test_FingerTree_split_value_left =
 >   testGroup "p (value as) == False"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_split_value_left pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_split_value_left pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_split_value_left pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_split_value_left pBool pTup
 >     ]
 
 If the split succeeds, the predicate on the value of the middle portion (with that of the left portion prepended) should be true.
 
-> prop_FingerTree_split_value_mid
->    , cprop_FingerTree_split_value_mid
+> check_FingerTree_split_value_mid
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> Fun m Bool -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_split_value_mid _ _ p xs =
->   (False == applyFun p mempty) ==>
->   (True == applyFun p (value xs)) ==>
->   case splitFT (applyFun p) xs of
->     Nothing -> False
->     Just (as, x, bs) ->
->       applyFun p (value as <> value x)
-> 
-> cprop_FingerTree_split_value_mid pa pm p xs =
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   cover 5 (depthFT xs == 1) "depth xs == 1" $
->   prop_FingerTree_split_value_mid pa pm p xs
+>   -> Bool
+> check_FingerTree_split_value_mid _ _ p xs =
+>   if (False == apFun p mempty) && (True == apFun p (value xs))
+>     then case splitFT (apFun p) xs of
+>       Nothing -> False
+>       Just (as, x, bs) ->
+>         apFun p (value as <> value x)
+>     else True
 > 
 > test_FingerTree_split_value_mid :: TestTree
 > test_FingerTree_split_value_mid =
 >   testGroup "p (value as <> value x) == True"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_split_value_mid pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_split_value_mid pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_split_value_mid pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_split_value_mid pBool pTup
 >     ]
 
 For good measure, we'll also validate some specific cases to check our understanding of how splitting works.
 
-> prop_FingerTree_split_example
+> check_FingerTree_split_example
 >   :: forall m a
 >    . ( Eq a, Valued m a, Show a )
 >   => Proxy a -> Proxy m
->   -> (m -> Bool) -> FingerTree m a
->   -> Maybe (FingerTree m a, a, FingerTree m a)
->   -> Property
-> 
-> prop_FingerTree_split_example _ _ p xs y =
->   property $
->     y === splitFT p xs
+>   -> ( (m -> Bool)
+>      , FingerTree m a
+>      , Maybe (FingerTree m a, a, FingerTree m a) )
+>   -> Check
+> check_FingerTree_split_example _ _ (p, xs, y) =
+>   check $
+>     y == splitFT p xs
 > 
 > test_FingerTree_split_example :: TestTree
 > test_FingerTree_split_example =
 >   testGroup "split cases"
->     [ testCases
->       (uncurry3 $ prop_FingerTree_split_example pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (check_FingerTree_split_example pChar pCount)
 >       [ ( "k > 3"
 >         , ( \(Count k) -> k > 3
 >           , fromListFT ['a', 'b', 'c', 'd', 'e']
@@ -1503,8 +795,8 @@ For good measure, we'll also validate some specific cases to check our understan
 >         )
 >       ]
 > 
->     , testCases
->       (uncurry3 $ prop_FingerTree_split_example pBool pTup)
+>     , testKrebCases "Tup/Bool"
+>       (check_FingerTree_split_example pBool pTup)
 >       [ ( "x > 1"
 >         , ( \(Tup x y) -> x > 1
 >           , fromListFT [False, True, True, False, True]
@@ -1533,74 +825,48 @@ Grab bag of properties for the `break`-related functions.
 
 `breakPrefix` is a cat-factorization:
 
-> prop_FingerTree_break_prefix_concat
->    , cprop_FingerTree_break_prefix_concat
+> check_FingerTree_break_prefix_concat
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> Fun m Bool -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTree_break_prefix_concat _ _ p xs =
->   property $
->     let (as,bs) = breakPrefixWhileValueFT (applyFun p) xs
+>   -> Check
+> check_FingerTree_break_prefix_concat _ _ p xs =
+>   check $
+>     let (as,bs) = breakPrefixWhileValueFT (apFun p) xs
 >     in xs == as <> bs
-> 
-> cprop_FingerTree_break_prefix_concat pa pm p xs =
->   checkOneDepth xs $
->   prop_FingerTree_break_prefix_concat pa pm p xs
 > 
 > test_FingerTree_break_prefix_concat :: TestTree
 > test_FingerTree_break_prefix_concat =
 >   testGroup "Concat property"
->     [ testProperty "Char/Count" $
->         cprop_FingerTree_break_prefix_concat pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTree_break_prefix_concat pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTree_break_prefix_concat pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTree_break_prefix_concat pBool pTup
 >     ]
 
 
 
 
 
+Test Suite
+==========
 
-
-Test Helpers
-============
-
-> checkOneDepth
->   :: ( Valued m a, Testable prop )
->   => FingerTree m a
->   -> prop -> Property
-> checkOneDepth xs prop =
->   cover 1 (depthFT xs == 0) "depth xs == 0" $
->   cover 1 (depthFT xs == 1) "depth xs == 1" $
->   cover 30 (depthFT xs >= 2) "depth xs >= 2" $
->   prop
-
-> checkPairDepth
->   :: ( Valued m a, Testable prop )
->   => FingerTree m a -> FingerTree m a
->   -> prop -> Property
-> checkPairDepth xs ys prop =
->   cover 0.2 ((depthFT xs == 0) && (depthFT ys == 0))
->     "depth xs == 0, depth ys == 0" $
->   cover 0.2 ((depthFT xs == 0) && (depthFT ys == 1))
->     "depth xs == 0, depth ys == 1" $
->   cover 0.2 ((depthFT xs == 0) && (depthFT ys >= 2))
->     "depth xs == 0, depth ys >= 2" $
->   cover 0.2 ((depthFT xs == 1) && (depthFT ys == 0))
->     "depth xs == 1, depth ys == 0" $
->   cover 0.2 ((depthFT xs == 1) && (depthFT ys == 1))
->     "depth xs == 1, depth ys == 1" $
->   cover 0.2 ((depthFT xs == 1) && (depthFT ys >= 2))
->     "depth xs == 1, depth ys >= 2" $
->   cover 0.2 ((depthFT xs >= 2) && (depthFT ys == 0))
->     "depth xs >= 2, depth ys == 0" $
->   cover 0.2 ((depthFT xs >= 2) && (depthFT ys == 1))
->     "depth xs >= 2, depth ys == 1" $
->   cover 30 ((depthFT xs >= 2) && (depthFT ys >= 2))
->     "depth xs >= 2, depth ys >= 2" $
->   prop
-
-> -}
+> test_FingerTree :: TestTree
+> test_FingerTree =
+>   testGroup "FingerTree"
+>     [ test_Count_Monoid
+>     , test_FingerTree_Eq
+>     , test_FingerTree_Monoid
+>     , test_FingerTree_reverse
+>     , test_FingerTree_fmapFT
+>     , test_FingerTree_List_convert
+>     , test_FingerTree_cons_snoc_action
+>     , test_FingerTree_toList
+>     , test_FingerTree_fromListFT
+>     , test_FingerTree_Foldable
+>     , test_FingerTree_cons_snoc_inverses
+>     , test_FingerTree_leaf
+>     , test_FingerTree_split
+>     , test_FingerTree_break
+>     ]

@@ -114,6 +114,64 @@ Outcome of a single test case
 >     else reject $ concat
 >       [ "expecting ", show x
 >       , " to equal ", show y ]
+> 
+> claimLT
+>   :: ( Ord a, Show a )
+>   => a -> a -> Check
+> claimLT x y =
+>   if x < y
+>     then accept
+>     else reject $ concat
+>       [ "expecting ", show x
+>       , " to be less than ", show y ]
+> 
+> claimLEQ
+>   :: ( Ord a, Show a )
+>   => a -> a -> Check
+> claimLEQ x y =
+>   if x <= y
+>     then accept
+>     else reject $ concat
+>       [ "expecting ", show x
+>       , " to be less than or equal to ", show y ]
+
+> (.&&.)
+>   :: ( Checkable check1, Checkable check2 )
+>   => check1 -> check2 -> Check
+> u .&&. v =
+>   let
+>     Check x = check u
+>     Check y = check v
+>   in Check $ do
+>     Rose a _ <- x
+>     case a of
+>       Accept -> y
+>       _ -> x
+> 
+> checkAll
+>   :: (Checkable check)
+>   => [check] -> Check
+> checkAll = foldr (.&&.) accept
+> 
+> (.||.) :: Check -> Check -> Check
+> (Check x) .||. (Check y) = Check $ do
+>   Rose a _ <- x
+>   case a of
+>     Accept -> x
+>     _ -> y
+> 
+> checkAny :: [Check] -> Check
+> checkAny = foldr (.||.) accept
+
+
+
+> provisio
+>   :: ( Checkable check )
+>   => [(String, Bool)] -> check -> Check
+> provisio ps ch =
+>   case fst <$> find (not . snd) ps of
+>     Nothing -> check ch
+>     Just msg -> discard msg
 
 
 

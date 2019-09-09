@@ -24,7 +24,7 @@ Introduction
 > #-}
 
 > module Kreb.Text.TextBox.Test (
->  --   test_TextBox
+>     test_TextBox
 > ) where
 > 
 > import Data.Proxy
@@ -37,7 +37,36 @@ Introduction
 > 
 > import Kreb.Text.Glyph.Test
 
-> {-
+
+
+
+Test suite
+----------
+
+> test_TextBox :: TestTree
+> test_TextBox =
+>   testGroup "TextBox"
+>     [ testGroup "Fixed Actions"
+>       [ test_TextBox_insert_one_character
+>       , localOption (KrebCheckTests 1000)
+>           $ test_TextBox_insert_many_as
+>       , test_TextBox_insert_some_newlines
+>       , test_TextBox_insert_no_chars
+>       , localOption (KrebCheckTests 1000)
+>           $ test_TextBox_insert_some_then_left
+>       , localOption (KrebCheckTests 1000)
+>           $ test_TextBox_insert_some_then_backspace
+>       , localOption (KrebCheckTests 100)
+>           $ test_TextBox_resize
+>       , test_TextBox_action_examples
+>       ]
+>     , localOption (KrebCheckTests 100)
+>         $ test_TextBox_cursor
+>     ]
+
+
+
+
 
 Generators
 ==========
@@ -49,18 +78,19 @@ Generators
 >   , _t :: Positive Int
 >   } deriving (Eq, Show)
 > 
-> instance Arbitrary TextBox_ where
->   arbitrary = TextBox_
->     <$> arbitrary
->     <*> arbitrary
->     <*> arbitrary
->     <*> arbitrary
+> instance Arb TextBox_ where
+>   arb = TextBox_
+>     <$> arb
+>     <*> arb
+>     <*> arb
+>     <*> arb
 > 
->   shrink a = do
->     acts <- shrink $ _actions a
->     x <- shrink $ _x a
->     y <- shrink $ _y a
->     t <- shrink $ _t a
+> instance Prune TextBox_ where
+>   prune a = do
+>     acts <- prune $ _actions a
+>     x <- prune $ _x a
+>     y <- prune $ _y a
+>     t <- prune $ _t a
 >     return $ TextBox_ acts x y t
 > 
 > mk :: TextBox_ -> TextBox
@@ -70,55 +100,34 @@ Generators
 >     Positive y = y'
 >     Positive t = t'
 >   in mkTextBox (x,y) t acts
-
-> instance Arbitrary TextBoxAction where
->   arbitrary = oneof
->     [ TextBoxInsert <$> arbitrary
->     , TextBoxInsertMany <$> arbitrary
->     , return TextBoxBackspace
->     , return TextBoxCursorDown
->     , return TextBoxCursorUp
->     , return TextBoxCursorRight
->     , return TextBoxCursorLeft
->     , do
->         Positive w <- arbitrary
->         Positive h <- arbitrary
->         return $ TextBoxResize (w,h)
->     ]
 > 
->   shrink x = case x of
->     TextBoxInsertMany cs ->
->       map TextBoxInsertMany $ shrink cs
->     _ -> []
-> 
-> instance Arbitrary TextBox where
->   arbitrary = do
->     Positive x <- arbitrary
->     Positive y <- arbitrary
->     Positive t <- arbitrary
->     mkTextBox (x,y) t <$> arbitrary
-
 > newtype Width_ = Width_
 >   { unWidth_ :: Int
 >   } deriving (Eq, Show)
 > 
-> instance Arbitrary Width_ where
->   arbitrary =
->     Width_ <$> choose (3,30)
+> instance Arb Width_ where
+>   arb =
+>     Width_ <$> randIn (3,30)
 > 
->   shrink (Width_ w) =
->     Width_ <$> shrink w
+> instance Prune Width_ where
+>   prune (Width_ w) =
+>     if w <= 3
+>       then []
+>       else fmap Width_ $ filter (>= 3) $ prune w
 
 > newtype Height_ = Height_
 >   { unHeight_ :: Int
 >   } deriving (Eq, Show)
 > 
-> instance Arbitrary Height_ where
->   arbitrary =
->     Height_ <$> choose (1,50)
+> instance Arb Height_ where
+>   arb =
+>     Height_ <$> randIn (1,50)
 > 
->   shrink (Height_ h) =
->     Height_ <$> shrink h
+> instance Prune Height_ where
+>   prune (Height_ h) =
+>     if h <= 1
+>       then []
+>       else fmap Height_ $ filter (>= 1) $ prune h
 
 
 
@@ -126,62 +135,62 @@ Test Helpers
 ============
 
 > cursorIs
->   :: TextBox -> (Int, Int) -> Property
+>   :: TextBox -> (Int, Int) -> Check
 > cursorIs box xy =
 >   let z = getTextBoxCursor box in
 >   if xy == z
->     then property True
->     else error $ concat
+>     then accept
+>     else reject $ concat
 >       [ "expected cursor ", show z, " "
 >       , "to equal ", show xy
 >       ]
 
 > heightIs
->   :: TextBox -> Int -> Property
+>   :: TextBox -> Int -> Check
 > heightIs box h =
->   h === (textboxHeight box)
+>   claimEqual h (textboxHeight box)
 
 > widthIs
->   :: TextBox -> Int -> Property
+>   :: TextBox -> Int -> Check
 > widthIs box w =
->   w === getTextBoxWidth box
+>   claimEqual w (getTextBoxWidth box)
 
 > focusLineColIs
->   :: TextBox -> LineCol -> Property
+>   :: TextBox -> LineCol -> Check
 > focusLineColIs box x =
->   x === getTextBoxFocusLineCol box
+>   claimEqual x (getTextBoxFocusLineCol box)
 
 > -- The relative cursor position should remain in the box
 > -- (0,0) - (w-1,h-1)
 > cursorInBounds
->   :: TextBox -> Property
+>   :: TextBox -> Check
 > cursorInBounds box =
 >   let
 >     (x,y) = textboxCursor box
 >     l = textboxOffset box
 >     h = textboxHeight box
 >     w = getTextBoxWidth box
->   in property $ if x < 0
->     then error $ concat
+>   in if x < 0
+>     then reject $ concat
 >       [ "expected (x = ", show x , ") < 0" ]
 >     else if w <= x
->       then error $ concat
+>       then reject $ concat
 >         [ "expected (x = ", show x
 >         , ") >= (w = ", show w, ")" ]
 >       else if y < 0
->         then error $ concat
+>         then reject $ concat
 >           [ "expected (y = ", show y
 >           , ") < 0" ]
 >         else if h <= y
->           then error $ concat
+>           then reject $ concat
 >             [ "expected (y = ", show y , ") >= (h = "
 >             , show h, ")" ]
->           else True
+>           else accept
 
 > -- The absolute cursor position should coincide with
 > -- that of some character in the buffer.
 > cursorOnCell
->   :: TextBox -> Property
+>   :: TextBox -> Check
 > cursorOnCell box =
 >   let
 >     (x,y) = textboxCursor box
@@ -194,10 +203,9 @@ Test Helpers
 >           map (screenCoords . snd) .
 >           toListDebugBuffer
 >         ) $ textboxBuffer box
->   in property $
->     if elem (x, y+l) offsets
->       then True
->       else error $ show (x,y+l) ++ " not in " ++ show offsets
+>   in if elem (x, y+l) offsets
+>     then accept
+>     else reject $ show (x,y+l) ++ " not in " ++ show offsets
 
 > takeBy :: Int -> [a] -> [[a]]
 > takeBy k xs =
@@ -207,29 +215,29 @@ Test Helpers
 >     else as : takeBy k bs
 
 > hasCoherentCursor
->   :: TextBox -> Property
+>   :: TextBox -> Check
 > hasCoherentCursor box =
 >   let
 >     l = getTextBoxOffset box
 >     h = getTextBoxHeight box
 >     (u,v) = getTextBoxCursor box
 >     (x,y) = getTextBoxFocusScreenCoords box
->   in conjoin
+>   in checkAll
 >     [ if x == u
->         then property True
->         else error $ concat
+>         then accept
+>         else reject $ concat
 >           [ "expected x = ", show x, " "
 >           , "to equal u = ", show u
 >           ]
 >     , if y == l+v
->         then property True
->         else error $ concat
+>         then accept
+>         else reject $ concat
 >           [ "expected y = ", show y, " "
 >           , "to equal l+v = ", show l, "+", show v
 >           ]
 >     , if (l <= y) && (y < l+h)
->         then property True
->         else error $ concat
+>         then accept
+>         else reject $ concat
 >           [ "expected y = ", show y, " "
 >           , "in the range [", show l
 >           , "...", show (l+h), ")"
@@ -246,15 +254,15 @@ Cursor
 
 > test_TextBox_cursor :: TestTree
 > test_TextBox_cursor =
->   testProperty "Cursor properties"
+>   testKreb "Cursor properties"
 >     prop_TextBox_cursor
 
 > prop_TextBox_cursor
 >   :: TextBox_
->   -> Property
+>   -> Check
 > prop_TextBox_cursor box_ =
 >   let box = mk box_ in
->   conjoin
+>   checkAll
 >     [ hasCoherentCursor box
 >     , cursorInBounds box
 >     , cursorOnCell box
@@ -267,7 +275,7 @@ Insert One Character
 
 > test_TextBox_insert_one_character :: TestTree
 > test_TextBox_insert_one_character =
->   testProperty "Insert One Character"
+>   testKreb "Insert One Character"
 >     prop_TextBox_insert_one_char
 
 > make_TextBox_insert_one_char
@@ -285,21 +293,36 @@ Insert One Character
 >   :: (Width_, Height_)
 >   -> Positive Int
 >   -> Ascii
->   -> Property
+>   -> Check
 > prop_TextBox_insert_one_char
->   dim tab x@(Ascii c) =
+>   dim tab@(Positive t) x@(Ascii c) =
 >   let
->     (_, Height_ h) = dim
+>     (Width_ w, Height_ h) = dim
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_one_char dim tab x
->   in conjoin
->     [ labels === [Just 0]
->     , lines === [[c]]
+>   in checkAll
+>     [ claimEqual labels $
+>         case (h, toChar c) of
+>           (1, '\n') -> [Just 1]
+>           (_, '\n') -> [Just 0, Just 1]
+>           (1, '\t') -> if t >= w then [Nothing] else [Just 0]
+>           (_, '\t') -> [Just 0]
+>           _ -> [Just 0]
+>     , claimEqual lines $
+>         case (h, toChar c) of
+>           (1, '\n') -> [[]]
+>           (_, '\n') -> [[c], []]
+>           (1, '\t') -> if t >= w then [[]] else [[c]]
+>           (_, '\t') -> [[c]]
+>           _ -> [[c]]
 >     , heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box $
->         case (toChar c) of
->           '\n' -> (0,1)
+>         case (h, toChar c) of
+>           (1, '\n') -> (0,0)
+>           (_, '\n') -> (0,1)
+>           (1, '\t') -> if t >= w then (0,0) else (t,0)
+>           (_, '\t') -> if t >= w then (0,1) else (t,0)
 >           _    -> (1,0)
 >     ]
 
@@ -310,7 +333,7 @@ Insert many 'a's
 
 > test_TextBox_insert_many_as :: TestTree
 > test_TextBox_insert_many_as =
->   testProperty "Insert Some 'a's"
+>   testKreb "Insert Some 'a's"
 >     prop_TextBox_insert_many_as
 
 > make_TextBox_insert_many_as
@@ -326,7 +349,7 @@ Insert many 'a's
 > prop_TextBox_insert_many_as
 >   :: (Width_, Height_) -> Positive Int
 >   -> Positive Int
->   -> Property
+>   -> Check
 > prop_TextBox_insert_many_as dim tab k =
 >   let
 >     (Width_ w, Height_ h) = dim
@@ -335,14 +358,14 @@ Insert many 'a's
 >     l = (q - h) + if r == 0 then 1 else 1
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_many_as dim tab k
->   in conjoin
+>   in checkAll
 >     [ heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box
 >         (r, min q (h-1))
->     , labels === (take h $ drop l $
+>     , claimEqual labels (take h $ drop l $
 >         (Just 0) : [Nothing | i <- [1..q]])
->     , lines === (take h $ drop l $
+>     , claimEqual lines (take h $ drop l $
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
 >     ]
@@ -354,7 +377,7 @@ Insert only newlines
 
 > test_TextBox_insert_some_newlines :: TestTree
 > test_TextBox_insert_some_newlines =
->   testProperty "Insert some newlines"
+>   testKreb "Insert some newlines"
 >     prop_TextBox_insert_some_newlines
 
 > make_TextBox_insert_some_newlines
@@ -370,7 +393,7 @@ Insert only newlines
 > prop_TextBox_insert_some_newlines
 >   :: (Width_, Height_) -> Positive Int
 >   -> Positive Int
->   -> Property
+>   -> Check
 > prop_TextBox_insert_some_newlines dim tab k =
 >   let
 >     (_, Height_ h) = dim
@@ -378,10 +401,10 @@ Insert only newlines
 >     z = if u >= h then 1 else 0
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_newlines dim tab k
->   in conjoin
->     [ labels ===
->         map Just [(max (u-h+z) 0)..u]
->     , lines ===
+>   in checkAll
+>     [ claimEqual labels
+>         (map Just [(max (u-h+z) 0)..u])
+>     , claimEqual lines
 >         ((replicate (min u (h-1)) [fromChar '\n']) ++ [[]])
 >     , heightIs box h
 >     , hasCoherentCursor box
@@ -395,7 +418,7 @@ Insert some, then left
 
 > test_TextBox_insert_some_then_left :: TestTree
 > test_TextBox_insert_some_then_left =
->   testProperty "Insert some chars then cursor left"
+>   testKreb "Insert some chars then cursor left"
 >     prop_TextBox_insert_some_then_left
 
 > make_TextBox_insert_some_then_left
@@ -411,7 +434,7 @@ Insert some, then left
 > prop_TextBox_insert_some_then_left
 >   :: (Width_, Height_) -> Positive Int
 >   -> Positive Int
->   -> Property
+>   -> Check
 > prop_TextBox_insert_some_then_left dim tab k =
 >   let
 >     (Width_ w, Height_ h) = dim
@@ -419,12 +442,12 @@ Insert some, then left
 >     (q,r) = quotRem u w
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_left dim tab k
->   in conjoin
->     [ labels === take h
->         (Just 0 : (replicate q Nothing))
->     , lines === take h
+>   in checkAll
+>     [ claimEqual labels (take h
+>         (Just 0 : (replicate q Nothing)))
+>     , claimEqual lines (take h
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
->         [ replicate (rem u w) (fromChar 'a') ])
+>         [ replicate (rem u w) (fromChar 'a') ]))
 >     , heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box (1, 0)
@@ -437,7 +460,7 @@ Insert some, then backspace
 
 > test_TextBox_insert_some_then_backspace :: TestTree
 > test_TextBox_insert_some_then_backspace =
->   testProperty "Insert some chars then backspace"
+>   testKreb "Insert some chars then backspace"
 >     prop_TextBox_insert_some_then_backspace
 
 > make_TextBox_insert_some_then_backspace
@@ -454,16 +477,16 @@ Insert some, then backspace
 > prop_TextBox_insert_some_then_backspace
 >   :: (Width_, Height_) -> Positive Int
 >   -> Positive Int -> NonNegative Int
->   -> Property
+>   -> Check
 > prop_TextBox_insert_some_then_backspace dim tab k b =
 >   let
 >     (Width_ w, Height_ h) = dim
 >     Positive u = k
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_backspace dim tab k b
->   in conjoin
->     [ labels === [Just 0]
->     , lines === [[]]
+>   in checkAll
+>     [ claimEqual labels [Just 0]
+>     , claimEqual lines [[]]
 >     , heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
@@ -495,14 +518,14 @@ Insert no characters
 > prop_TextBox_insert_no_chars
 >   :: TextBoxAction
 >   -> (Positive Int, Positive Int) -> Positive Int
->   -> Property
+>   -> Check
 > prop_TextBox_insert_no_chars act dim tab =
 >   let
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_no_chars act dim tab
->   in conjoin
->     [ labels === [Just 0]
->     , lines === [[]]
+>   in checkAll
+>     [ claimEqual labels [Just 0]
+>     , claimEqual lines [[]]
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
 >     ]
@@ -511,7 +534,7 @@ Insert no characters
 >   :: TextBoxAction
 >   -> TestTree
 > test_TextBox_insert_no_chars_action act =
->   testProperty ("Insert no chars (" ++ show act ++ ")") $
+>   testKreb ("Insert no chars (" ++ show act ++ ")") $
 >     prop_TextBox_insert_no_chars act
 
 
@@ -521,24 +544,24 @@ Resize
 
 > test_TextBox_resize :: TestTree
 > test_TextBox_resize =
->   testProperty "Resize"
+>   testKreb "Resize"
 >     prop_TextBox_resize
 
 > prop_TextBox_resize
 >   :: TextBox_
 >   -> (Width_, Positive Int)
->   -> Property
+>   -> Check
 > prop_TextBox_resize box dim =
 >   let
 >     box1 = mk box
 >     (Width_ u, Positive v) = dim
 >     box2 = alterTextBox [TextBoxResize (u,v)] box1
->   in conjoin
+>   in checkAll
 >     [ heightIs box2 v
 >     , widthIs box2 u
->     , (getTextBoxFocusLineCol box1)
->         ===
->       (getTextBoxFocusLineCol box2)
+>     , claimEqual
+>         (getTextBoxFocusLineCol box1)
+>         (getTextBoxFocusLineCol box2)
 >     , hasCoherentCursor box2
 >     , cursorInBounds box2
 >     ]
@@ -555,23 +578,23 @@ Action examples
 >   -> ( [Maybe Int]
 >      , [[Char]]
 >      , (Int, Int) )
->   -> Property
+>   -> Check
 > prop_TextBox_action_examples
 >   (dim, tab, acts) (labels', lines', cursor) =
 >   let
 >     DebugTextBox labels lines box =
 >       debugTextBox $ mkTextBox dim tab acts
->   in conjoin
->     [ labels === labels'
->     , lines === (map (map fromChar) lines')
->     , textboxCursor box === cursor
+>   in checkAll
+>     [ claimEqual labels labels'
+>     , claimEqual lines (map (map fromChar) lines')
+>     , claimEqual (textboxCursor box) cursor
 >     , hasCoherentCursor box
 >     ]
 
 > test_TextBox_action_examples :: TestTree
 > test_TextBox_action_examples =
 >   testGroup "Action Examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
@@ -583,7 +606,7 @@ Action examples
 >           , (1,0)
 >           )
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
@@ -596,7 +619,7 @@ Action examples
 >           , (0,0)
 >           )
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
@@ -610,7 +633,7 @@ Action examples
 >           , (1,0)
 >           )
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -624,7 +647,7 @@ Action examples
 >           , (0,0)
 >           )
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -638,7 +661,7 @@ Action examples
 >           , (0,1)
 >           )
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -654,7 +677,7 @@ Action examples
 >           , (1,0)
 >           )
 > 
->     , testProperty "#7" $
+>     , testKreb "#7" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -669,7 +692,7 @@ Action examples
 >           , (0,1)
 >           )
 > 
->     , testProperty "#8" $
+>     , testKreb "#8" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -681,7 +704,7 @@ Action examples
 >           , (0,1)
 >           )
 > 
->     , testProperty "#9" $
+>     , testKreb "#9" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -694,7 +717,7 @@ Action examples
 >           , (0,1)
 >           )
 > 
->     , testProperty "#10" $
+>     , testKreb "#10" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -708,7 +731,7 @@ Action examples
 >           , (0,1)
 >           )
 > 
->     , testProperty "#11" $
+>     , testKreb "#11" $
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
@@ -726,7 +749,7 @@ Action examples
 >           , (0,0)
 >           )
 > 
->     , testProperty "#12" $
+>     , testKreb "#12" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -750,7 +773,7 @@ Action examples
 >           , (0,1)
 >           )
 > 
->     , testProperty "#13" $
+>     , testKreb "#13" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -761,7 +784,7 @@ Action examples
 >           , (0,0)
 >           )
 > 
->     , testProperty "#14" $
+>     , testKreb "#14" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -774,7 +797,7 @@ Action examples
 >           , (0,0)
 >           )
 > 
->     , testProperty "#15" $
+>     , testKreb "#15" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -788,7 +811,7 @@ Action examples
 >           , (0,0)
 >           )
 > 
->     , testProperty "#16" $
+>     , testKreb "#16" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -804,7 +827,7 @@ Action examples
 >           )
 > 
 > 
->     , testProperty "#17" $
+>     , testKreb "#17" $
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
@@ -820,33 +843,3 @@ Action examples
 >           , (0,0)
 >           )
 >     ]
-
-
-
-
-
-Test suite
-----------
-
-> test_TextBox :: TestTree
-> test_TextBox =
->   testGroup "TextBox"
->     [ testGroup "Fixed Actions"
->       [ test_TextBox_insert_one_character
->       , localOption (QuickCheckTests 1000)
->           $ test_TextBox_insert_many_as
->       , test_TextBox_insert_some_newlines
->       , test_TextBox_insert_no_chars
->       , localOption (QuickCheckTests 1000)
->           $ test_TextBox_insert_some_then_left
->       , localOption (QuickCheckTests 1000)
->           $ test_TextBox_insert_some_then_backspace
->       , localOption (QuickCheckTests 100)
->           $ test_TextBox_resize
->       , test_TextBox_action_examples
->       ]
->     , localOption (QuickCheckTests 100)
->         $ test_TextBox_cursor
->     ]
-
-> -}

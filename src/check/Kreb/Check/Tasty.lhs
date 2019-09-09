@@ -4,6 +4,7 @@
 > import Data.Typeable
 > import System.Random (newStdGen)
 
+> import Test.Tasty
 > import Test.Tasty.Options
 > import Test.Tasty.Providers
 
@@ -36,6 +37,14 @@
 >   => TestName -> check -> TestTree
 > testKreb name ch =
 >   singleTest name $ KT $ check ch
+
+> testKrebCases
+>   :: ( Checkable check )
+>   => String -> (a -> check) -> [(String, a)]
+>   -> TestTree
+> testKrebCases title f cs =
+>   testGroup title
+>     [ testKreb name (f a) | (name, a) <- cs ]
 
 
 

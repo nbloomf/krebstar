@@ -2,6 +2,8 @@
 
 > import Prelude hiding (Word)
 
+> import Kreb.Check
+
 > import Kreb.Lang.PrettyPrint
 
 
@@ -12,16 +14,64 @@ Term Grammar
 >   = Atom String
 >   deriving (Eq, Ord, Show)
 > 
+> instance Arb Atom where
+>   arb = do
+>     k <- randIn (1,7)
+>     Atom <$> vectOf k arbAsciiChar
+> 
+> instance Prune Atom where
+>   prune (Atom s) =
+>     map Atom $ prune s
+> 
 > data Word
 >   = Only Atom
 >   | Quote Phrase
 >   | BuiltIn BuiltIn
 >   deriving (Eq, Show)
 > 
+> instance Arb Word where
+>   arb = do
+>     k <- askSize
+>     p <- arb
+>     if p || (k <= 0)
+>       then pickFrom2
+>         ( Only <$> arb
+>         , BuiltIn <$> arb
+>         )
+>       else adjustSize (`div` 2) $ pickFrom3
+>         ( Only <$> arb
+>         , Quote <$> arb
+>         , BuiltIn <$> arb
+>         )
+> 
+> instance Prune Word where
+>   prune z = case z of
+>     Only a -> map Only $ prune a
+>     Quote q -> map Quote $ prune q
+>     BuiltIn b -> map BuiltIn $ prune b
+
+> 
 > data Phrase
 >   = Silence
 >   | Then Word Phrase
 >   deriving (Eq, Show)
+> 
+> instance Arb Phrase where
+>   arb = do
+>     k <- askSize
+>     p <- arb
+>     if p || (k <= 0)
+>       then return Silence
+>       else adjustSize (`div` 2)
+>         (Then <$> arb <*> arb)
+> 
+> instance Prune Phrase where
+>   prune z = case z of
+>     Silence -> []
+>     Then w p ->
+>       [ p ] ++
+>       [ Then u p | u <- prune w ] ++
+>       [ Then w u | u <- prune p ]
 
 > data BuiltIn
 >   = BuiltIn_Int Int
@@ -39,6 +89,29 @@ Term Grammar
 > 
 >   | BuiltIn_Ext String
 >   deriving (Eq, Ord, Show)
+> 
+> instance Arb BuiltIn where
+>   arb = selectFrom
+>     [ BuiltIn_Int <$> arb
+>     , BuiltIn_Char <$> arb
+>     , BuiltIn_String <$> arb
+>     , return BuiltIn_Int_Plus
+>     , return BuiltIn_Int_Times
+>     , return BuiltIn_Id
+>     , return BuiltIn_Swap
+>     , return BuiltIn_Apply
+>     , return BuiltIn_Quote
+>     , return BuiltIn_Compose
+>     , BuiltIn_Ext <$> arb
+>     ]
+> 
+> instance Prune BuiltIn where
+>   prune z = case z of
+>     BuiltIn_Int k -> map BuiltIn_Int $ prune k
+>     BuiltIn_Char c -> map BuiltIn_Char $ prune c
+>     BuiltIn_String s -> map BuiltIn_String $ prune s
+>     BuiltIn_Ext s -> map BuiltIn_Ext $ prune s
+>     _ -> []
 
 
 > instance PrettyPrint Atom where

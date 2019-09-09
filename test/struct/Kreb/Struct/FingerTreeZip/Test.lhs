@@ -40,8 +40,8 @@ This test module is a little different. The `FingerTreeZip` module exports some 
 > #-}
 > 
 > module Kreb.Struct.FingerTreeZip.Test (
->  --   test_FingerTreeZip
->  -- , test_Tape
+>     test_FingerTreeZip
+>   , test_Tape
 > ) where
 > 
 > import Data.Proxy
@@ -51,9 +51,22 @@ This test module is a little different. The `FingerTreeZip` module exports some 
 > 
 > import Kreb.Check
 > import Kreb.Struct
+> import Kreb.Struct.FingerTree.Test
+
+> pCount :: Proxy Count
+> pCount = Proxy
+> 
+> pChar :: Proxy Char
+> pChar = Proxy
+> 
+> pBool :: Proxy Bool
+> pBool = Proxy
+> 
+> pTup :: Proxy Tup
+> pTup = Proxy
 
 
-> {-
+
 
 
 FingerTreeZip tests
@@ -75,60 +88,46 @@ Testing functions which convert between zipped finger trees and lists:
 
 `unTape` is a left inverse for `mkTape`:
 
-> prop_FingerTreeZip_unTape_mkTape
->    , cprop_FingerTreeZip_unTape_mkTape
+> check_FingerTreeZip_unTape_mkTape
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> [a]
->   -> Property
-> 
-> prop_FingerTreeZip_unTape_mkTape _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_unTape_mkTape _ _ xs =
+>   check $
 >     let z = mkTapeFTZ xs :: FingerTreeZip m a
 >     in xs == unTapeFTZ z
-> 
-> cprop_FingerTreeZip_unTape_mkTape pa pm xs =
->   cover 1 (xs == []) "as empty" $
->   cover 30 (length xs > 10) "length xs > 10" $
->   prop_FingerTreeZip_unTape_mkTape pa pm xs
 > 
 > test_FingerTreeZip_unTape_mkTape :: TestTree
 > test_FingerTreeZip_unTape_mkTape =
 >   testGroup "unTape . mkTape == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_unTape_mkTape pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_unTape_mkTape pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_unTape_mkTape pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_unTape_mkTape pBool pTup
 >     ]
 
 `mkTape` is a left inverse for `unTape` (almost):
 
-> prop_FingerTreeZip_mkTape_unTape
->    , cprop_FingerTreeZip_mkTape_unTape
+> check_FingerTreeZip_mkTape_unTape
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_mkTape_unTape _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_mkTape_unTape _ _ xs =
+>   check $
 >     (initMoveFTZ xs)
 >       == mkTapeFTZ (unTapeFTZ xs)
-> 
-> cprop_FingerTreeZip_mkTape_unTape pa pm xs =
->   cover 80 (not $ isEmptyFTZ xs) "as not empty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_mkTape_unTape pa pm xs
 > 
 > test_FingerTreeZip_mkTape_unTape :: TestTree
 > test_FingerTreeZip_mkTape_unTape =
 >   testGroup "mkTape . unTape == initMove"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_mkTape_unTape pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_mkTape_unTape pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_mkTape_unTape pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_mkTape_unTape pBool pTup
 >     ]
 
 
@@ -155,34 +154,27 @@ First we consider functions that interact with the beginning of a stream.
 
 For nonempty zipped finger trees, the `isAtInit` predicate is true if and only if the initial segment is empty.
 
-> prop_FingerTreeZip_isAtInit_mkTapeFocus
->    , cprop_FingerTreeZip_isAtInit_mkTapeFocus
+> check_FingerTreeZip_isAtInit_mkTapeFocus
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> [a] -> a -> [a]
->   -> Property
-> 
-> prop_FingerTreeZip_isAtInit_mkTapeFocus _ _ as x bs =
+>   -> Check
+> check_FingerTreeZip_isAtInit_mkTapeFocus _ _ as x bs =
 >   let w = mkTapeFocusFTZ as x bs :: FingerTreeZip m a in
->   property $
+>   check $
 >     (as == []) == (isAtInitFTZ w)
-> 
-> cprop_FingerTreeZip_isAtInit_mkTapeFocus pa pm as x bs =
->   cover 1 (as == []) "as empty" $
->   cover 1 (bs == []) "bs empty" $
->   prop_FingerTreeZip_isAtInit_mkTapeFocus pa pm as x bs
 > 
 > test_FingerTreeZip_isAtInit_mkTapeFocus :: TestTree
 > test_FingerTreeZip_isAtInit_mkTapeFocus =
 >   testGroup "isAtInit mkTapeFocus"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_isAtInit_mkTapeFocus pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_isAtInit_mkTapeFocus pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_isAtInit_mkTapeFocus pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_isAtInit_mkTapeFocus pBool pTup
 > 
->     , testCases
->       (uncurry3 $ prop_FingerTreeZip_isAtInit_mkTapeFocus pChar pCount)
+>     , testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_isAtInit_mkTapeFocus pChar pCount)
 >       [ ( "as empty"
 >         , ( [], 'a', ['b', 'c'] )
 >         )
@@ -199,36 +191,28 @@ For nonempty zipped finger trees, the `isAtInit` predicate is true if and only i
 
 `initAlter` interacts predictably with `cons`.
 
-> prop_FingerTreeZip_initAlter
->    , cprop_FingerTreeZip_initAlter
+> check_FingerTreeZip_initAlter
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initAlter _ _ u v xs =
+>   -> Check
+> check_FingerTreeZip_initAlter _ _ u v xs =
 >   let swop x = if x == u then v else x in
->   property $
+>   check $
 >     (initInsertFTZ v xs)
 >       == (initAlterFTZ swop $ initInsertFTZ u xs)
-> 
-> cprop_FingerTreeZip_initAlter pa pm u v xs =
->   cover 1 (isEmptyFTZ xs) "xs empty" $
->   cover 20 (depthFTZ xs > 2) "depth xs > 2" $
->   cover 40 (u /= v) "u /= v" $
->   prop_FingerTreeZip_initAlter pa pm u v xs
 > 
 > test_FingerTreeZip_initAlter :: TestTree
 > test_FingerTreeZip_initAlter =
 >   testGroup "initAlter cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initAlter pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initAlter pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initAlter pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initAlter pBool pTup
 > 
->     , testCases
->       (uncurry3 $ prop_FingerTreeZip_initAlter pChar pCount)
+>     , testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_initAlter pChar pCount)
 >       [ ( "empty tail"
 >         , ( 'a'
 >           , 'b'
@@ -240,23 +224,22 @@ For nonempty zipped finger trees, the `isAtInit` predicate is true if and only i
 
 We also check some concrete input/output pairs for `initAlter`.
 
-> prop_FingerTreeZip_initAlter_examples
+> check_FingerTreeZip_initAlter_examples
 >   :: forall m a
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> (a -> a) -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initAlter_examples _ _ f xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_initAlter_examples _ _ f xs ys =
+>   check $
 >     ys == (initAlterFTZ f xs)
 > 
 > test_FingerTreeZip_initAlter_examples :: TestTree
 > test_FingerTreeZip_initAlter_examples =
 >   testGroup "initAlter examples"
->     [ testCases
->       (uncurry3 $ prop_FingerTreeZip_initAlter_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_initAlter_examples pChar pCount)
 >       [ ( "nonempty prefix"
 >         , ( \c -> if c == 'a' then 'z' else c
 >           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
@@ -289,34 +272,27 @@ We also check some concrete input/output pairs for `initAlter`.
 
 `initRead` interacts predictably with `cons`.
 
-> prop_FingerTreeZip_initRead_initInsert
->    , cprop_FingerTreeZip_initRead_initInsert
+> check_FingerTreeZip_initRead_initInsert
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initRead_initInsert _ _ a xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_initRead_initInsert _ _ a xs =
+>   check $
 >     (Just a)
 >       == (initReadFTZ (initInsertFTZ a xs))
-> 
-> cprop_FingerTreeZip_initRead_initInsert pa pm a xs =
->   cover 1 (isEmptyFTZ xs) "xs empty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_initRead_initInsert pa pm a xs
 > 
 > test_FingerTreeZip_initRead_initInsert :: TestTree
 > test_FingerTreeZip_initRead_initInsert =
 >   testGroup "initRead cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initRead_initInsert pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initRead_initInsert pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initRead_initInsert pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initRead_initInsert pBool pTup
 > 
->     , testCases
->       (uncurry $ prop_FingerTreeZip_initRead_initInsert pChar pCount)
+>     , testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_initRead_initInsert pChar pCount)
 >       [ ( "empty tail"
 >         , ( 'a', emptyFTZ )
 >         )
@@ -325,22 +301,21 @@ We also check some concrete input/output pairs for `initAlter`.
 
 Some concrete examples for `initRead`:
 
-> prop_FingerTreeZip_initRead_examples
+> check_FingerTreeZip_initRead_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a -> Maybe a
->   -> Property
-> 
-> prop_FingerTreeZip_initRead_examples _ _ xs z =
->   property $
+>   -> Check
+> check_FingerTreeZip_initRead_examples _ _ xs z =
+>   check $
 >     z == initReadFTZ xs
 > 
 > test_FingerTreeZip_initRead_examples :: TestTree
 > test_FingerTreeZip_initRead_examples =
 >   testGroup "initRead examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_initRead_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_initRead_examples pChar pCount)
 >       [ ( "empty"
 >         , ( emptyFTZ
 >           , Nothing
@@ -363,50 +338,42 @@ Some concrete examples for `initRead`:
 
 `initDelete` interacts predictably with `initInsert`.
 
-> prop_FingerTreeZip_initDelete_initInsert
->    , cprop_FingerTreeZip_initDelete_initInsert
+> check_FingerTreeZip_initDelete_initInsert
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initDelete_initInsert _ _ a xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_initDelete_initInsert _ _ a xs =
+>   check $
 >     xs == (initDeleteFTZ $ initInsertFTZ a xs)
-> 
-> cprop_FingerTreeZip_initDelete_initInsert pa pm a xs =
->   cover 1 (isEmptyFTZ xs) "xs empty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_initDelete_initInsert pa pm a xs
 > 
 > test_FingerTreeZip_initDelete_initInsert :: TestTree
 > test_FingerTreeZip_initDelete_initInsert =
 >   testGroup "initDelete cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initDelete_initInsert pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initDelete_initInsert pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initDelete_initInsert pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initDelete_initInsert pBool pTup
 >     ]
 
 And some examples for `initDelete`:
 
-> prop_FingerTreeZip_initDelete_examples
+> check_FingerTreeZip_initDelete_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initDelete_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_initDelete_examples _ _ xs ys =
+>   check $
 >     ys == (initDeleteFTZ xs)
 > 
 > test_FingerTreeZip_initDelete_examples :: TestTree
 > test_FingerTreeZip_initDelete_examples =
 >   testGroup "initDelete examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_initDelete_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_initDelete_examples pChar pCount)
 >       [ ( "empty"
 >         , ( emptyFTZ
 >           , emptyFTZ
@@ -441,51 +408,43 @@ And some examples for `initDelete`:
 
 After moving to the beginning of the stream, we are at the beginning of the stream.
 
-> prop_FingerTreeZip_initMove_isAtInit
->    , cprop_FingerTreeZip_initMove_isAtInit
+> check_FingerTreeZip_initMove_isAtInit
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initMove_isAtInit _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_initMove_isAtInit _ _ xs =
+>   check $
 >     isAtInitFTZ (initMoveFTZ xs)
-> 
-> cprop_FingerTreeZip_initMove_isAtInit pa pm xs =
->   cover 30 (not $ isAtInitFTZ xs) "not at init" $
->   cover 20 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_initMove_isAtInit pa pm xs
 > 
 > test_FingerTreeZip_initMove_isAtInit :: TestTree
 > test_FingerTreeZip_initMove_isAtInit =
 >   testGroup "initMove isAtInit"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initMove_isAtInit pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initMove_isAtInit pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initMove_isAtInit pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initMove_isAtInit pBool pTup
 >     ]
 
 We can also test `initMove` on some specific cases.
 
-> prop_FingerTreeZip_initMove_examples
+> check_FingerTreeZip_initMove_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initMove_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_initMove_examples _ _ xs ys =
+>   check $
 >     ys == (initMoveFTZ xs)
 > 
 > test_FingerTreeZip_initMove_examples :: TestTree
 > test_FingerTreeZip_initMove_examples =
 >   testGroup "initMove examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_initMove_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_initMove_examples pChar pCount)
 >       [ ( "empty"
 >         , ( mkTapeFTZ []
 >           , mkTapeFTZ []
@@ -508,32 +467,24 @@ We can also test `initMove` on some specific cases.
 
 `initMove` is idempotent:
 
-> prop_FingerTreeZip_initMove_idempotent
->    , cprop_FingerTreeZip_initMove_idempotent
+> check_FingerTreeZip_initMove_idempotent
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initMove_idempotent _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_initMove_idempotent _ _ xs =
+>   check $
 >     (initMoveFTZ xs)
 >       == (initMoveFTZ $ initMoveFTZ xs)
-> 
-> cprop_FingerTreeZip_initMove_idempotent pa pm xs =
->   cover 30 (not $ isAtInitFTZ xs) "not at init" $
->   cover 20 (depthFTZ xs > 2) "depth xs > 2" $
->   cover 40 (not $ isEmptyFTZ xs) "xs not empty" $
->   prop_FingerTreeZip_initMove_idempotent pa pm xs
 > 
 > test_FingerTreeZip_initMove_idempotent :: TestTree
 > test_FingerTreeZip_initMove_idempotent =
 >   testGroup "initMove is idempotent"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initMove_idempotent pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initMove_idempotent pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initMove_idempotent pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initMove_idempotent pBool pTup
 >     ]
 
 
@@ -559,36 +510,28 @@ Next we consider functions that interact with the end of a stream.
 
 `lastAlter` interacts predictably with `cons`.
 
-> prop_FingerTreeZip_lastAlter
->    , cprop_FingerTreeZip_lastAlter
+> check_FingerTreeZip_lastAlter
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastAlter _ _ u v xs =
+>   -> Check
+> check_FingerTreeZip_lastAlter _ _ u v xs =
 >   let swop x = if x == u then v else x in
->   property $
+>   check $
 >     (lastInsertFTZ v xs)
 >       == (lastAlterFTZ swop $ lastInsertFTZ u xs)
-> 
-> cprop_FingerTreeZip_lastAlter pa pm u v xs =
->   cover 1 (isEmptyFTZ xs) "xs empty" $
->   cover 20 (depthFTZ xs > 2) "depth xs > 2" $
->   cover 40 (u /= v) "u /= v" $
->   prop_FingerTreeZip_lastAlter pa pm u v xs
 > 
 > test_FingerTreeZip_lastAlter :: TestTree
 > test_FingerTreeZip_lastAlter =
 >   testGroup "lastAlter cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_lastAlter pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_lastAlter pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_lastAlter pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_lastAlter pBool pTup
 > 
->     , testCases
->       (uncurry3 $ prop_FingerTreeZip_lastAlter pChar pCount)
+>     , testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_lastAlter pChar pCount)
 >       [ ( "empty tail"
 >         , ( 'a'
 >           , 'b'
@@ -600,23 +543,22 @@ Next we consider functions that interact with the end of a stream.
 
 We also check some concrete input/output pairs for `lastAlter`.
 
-> prop_FingerTreeZip_lastAlter_examples
+> check_FingerTreeZip_lastAlter_examples
 >   :: forall m a
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> (a -> a) -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastAlter_examples _ _ f xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastAlter_examples _ _ f xs ys =
+>   check $
 >     ys == (lastAlterFTZ f xs)
 > 
 > test_FingerTreeZip_lastAlter_examples :: TestTree
 > test_FingerTreeZip_lastAlter_examples =
 >   testGroup "lastAlter examples"
->     [ testCases
->       (uncurry3 $ prop_FingerTreeZip_lastAlter_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_lastAlter_examples pChar pCount)
 >       [ ( "nonempty prefix"
 >         , ( \c -> if c == 'd' then 'z' else c
 >           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
@@ -649,34 +591,27 @@ We also check some concrete input/output pairs for `lastAlter`.
 
 `lastRead` interacts predictably with `cons`.
 
-> prop_FingerTreeZip_lastRead_lastInsert
->    , cprop_FingerTreeZip_lastRead_lastInsert
+> check_FingerTreeZip_lastRead_lastInsert
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastRead_lastInsert _ _ a xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastRead_lastInsert _ _ a xs =
+>   check $
 >     (Just a)
 >       == (lastReadFTZ (lastInsertFTZ a xs))
-> 
-> cprop_FingerTreeZip_lastRead_lastInsert pa pm a xs =
->   cover 1 (isEmptyFTZ xs) "xs empty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_lastRead_lastInsert pa pm a xs
 > 
 > test_FingerTreeZip_lastRead_lastInsert :: TestTree
 > test_FingerTreeZip_lastRead_lastInsert =
 >   testGroup "lastRead cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_lastRead_lastInsert pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_lastRead_lastInsert pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_lastRead_lastInsert pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_lastRead_lastInsert pBool pTup
 > 
->     , testCases
->       (uncurry $ prop_FingerTreeZip_lastRead_lastInsert pChar pCount)
+>     , testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_lastRead_lastInsert pChar pCount)
 >       [ ( "empty tail"
 >         , ( 'a', emptyFTZ )
 >         )
@@ -685,22 +620,21 @@ We also check some concrete input/output pairs for `lastAlter`.
 
 Some concrete examples for `lastRead`:
 
-> prop_FingerTreeZip_lastRead_examples
+> check_FingerTreeZip_lastRead_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a -> Maybe a
->   -> Property
-> 
-> prop_FingerTreeZip_lastRead_examples _ _ xs z =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastRead_examples _ _ xs z =
+>   check $
 >     z == lastReadFTZ xs
 > 
 > test_FingerTreeZip_lastRead_examples :: TestTree
 > test_FingerTreeZip_lastRead_examples =
 >   testGroup "lastRead examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_lastRead_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_lastRead_examples pChar pCount)
 >       [ ( "empty"
 >         , ( emptyFTZ
 >           , Nothing
@@ -723,50 +657,42 @@ Some concrete examples for `lastRead`:
 
 `lastDelete` interacts predictably with `lastInsert`.
 
-> prop_FingerTreeZip_lastDelete_lastInsert
->    , cprop_FingerTreeZip_lastDelete_lastInsert
+> check_FingerTreeZip_lastDelete_lastInsert
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastDelete_lastInsert _ _ a xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastDelete_lastInsert _ _ a xs =
+>   check $
 >     xs == (lastDeleteFTZ $ lastInsertFTZ a xs)
-> 
-> cprop_FingerTreeZip_lastDelete_lastInsert pa pm a xs =
->   cover 1 (isEmptyFTZ xs) "xs empty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_lastDelete_lastInsert pa pm a xs
 > 
 > test_FingerTreeZip_lastDelete_lastInsert :: TestTree
 > test_FingerTreeZip_lastDelete_lastInsert =
 >   testGroup "lastDelete cons"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_lastDelete_lastInsert pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_lastDelete_lastInsert pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_lastDelete_lastInsert pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_lastDelete_lastInsert pBool pTup
 >     ]
 
 And some examples for `lastDelete`:
 
-> prop_FingerTreeZip_lastDelete_examples
+> check_FingerTreeZip_lastDelete_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastDelete_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastDelete_examples _ _ xs ys =
+>   check $
 >     ys == (lastDeleteFTZ xs)
 > 
 > test_FingerTreeZip_lastDelete_examples :: TestTree
 > test_FingerTreeZip_lastDelete_examples =
 >   testGroup "lastDelete examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_lastDelete_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_lastDelete_examples pChar pCount)
 >       [ ( "empty"
 >         , ( emptyFTZ
 >           , emptyFTZ
@@ -801,51 +727,43 @@ And some examples for `lastDelete`:
 
 After moving to the beginning of the stream, we are at the beginning of the stream.
 
-> prop_FingerTreeZip_lastMove_isAtLast
->    , cprop_FingerTreeZip_lastMove_isAtLast
+> check_FingerTreeZip_lastMove_isAtLast
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastMove_isAtLast _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastMove_isAtLast _ _ xs =
+>   check $
 >     isAtLastFTZ (lastMoveFTZ xs)
-> 
-> cprop_FingerTreeZip_lastMove_isAtLast pa pm xs =
->   cover 30 (not $ isAtLastFTZ xs) "not at last" $
->   cover 20 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_lastMove_isAtLast pa pm xs
 > 
 > test_FingerTreeZip_lastMove_isAtLast :: TestTree
 > test_FingerTreeZip_lastMove_isAtLast =
 >   testGroup "lastMove isAtLast"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_lastMove_isAtLast pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_lastMove_isAtLast pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_lastMove_isAtLast pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_lastMove_isAtLast pBool pTup
 >     ]
 
 We can also test `lastMove` on some specific cases.
 
-> prop_FingerTreeZip_lastMove_examples
+> check_FingerTreeZip_lastMove_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastMove_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastMove_examples _ _ xs ys =
+>   check $
 >     ys == (lastMoveFTZ xs)
 > 
 > test_FingerTreeZip_lastMove_examples :: TestTree
 > test_FingerTreeZip_lastMove_examples =
 >   testGroup "lastMove examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_lastMove_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_lastMove_examples pChar pCount)
 >       [ ( "empty"
 >         , ( mkTapeFTZ []
 >           , mkTapeFTZ []
@@ -868,32 +786,24 @@ We can also test `lastMove` on some specific cases.
 
 `lastMove` is idempotent:
 
-> prop_FingerTreeZip_lastMove_idempotent
->    , cprop_FingerTreeZip_lastMove_idempotent
+> check_FingerTreeZip_lastMove_idempotent
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_lastMove_idempotent _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_lastMove_idempotent _ _ xs =
+>   check $
 >     (lastMoveFTZ xs)
 >       == (lastMoveFTZ $ lastMoveFTZ xs)
-> 
-> cprop_FingerTreeZip_lastMove_idempotent pa pm xs =
->   cover 30 (not $ isAtLastFTZ xs) "not at last" $
->   cover 20 (depthFTZ xs > 2) "depth xs > 2" $
->   cover 40 (not $ isEmptyFTZ xs) "xs not empty" $
->   prop_FingerTreeZip_lastMove_idempotent pa pm xs
 > 
 > test_FingerTreeZip_lastMove_idempotent :: TestTree
 > test_FingerTreeZip_lastMove_idempotent =
 >   testGroup "lastMove is idempotent"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_lastMove_idempotent pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_lastMove_idempotent pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_lastMove_idempotent pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_lastMove_idempotent pBool pTup
 >     ]
 
 
@@ -920,83 +830,68 @@ Now test for functions which manipulate the read head.
 
 `headMoveR` is a left inverse of `headMoveL` (almost):
 
-> prop_FingerTreeZip_headMoveR_headMoveL
->    , cprop_FingerTreeZip_headMoveR_headMoveL
+> check_FingerTreeZip_headMoveR_headMoveL
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headMoveR_headMoveL _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_headMoveR_headMoveL _ _ xs =
+>   check $
 >     if isAtInitFTZ xs
 >       then True
 >       else xs == headMoveRFTZ (headMoveLFTZ xs)
 > 
-> cprop_FingerTreeZip_headMoveR_headMoveL pa pm xs =
->   cover 30 (not $ isAtInitFTZ xs) "xs not at init" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_headMoveR_headMoveL pa pm xs
-> 
 > test_FingerTreeZip_headMoveR_headMoveL :: TestTree
 > test_FingerTreeZip_headMoveR_headMoveL =
 >   testGroup "headMoveR . headMoveL == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_headMoveR_headMoveL pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_headMoveR_headMoveL pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_headMoveR_headMoveL pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_headMoveR_headMoveL pBool pTup
 >     ]
 
 `headMoveL` is a left inverse of `headMoveR` (almost):
 
-> prop_FingerTreeZip_headMoveL_headMoveR
->    , cprop_FingerTreeZip_headMoveL_headMoveR
+> check_FingerTreeZip_headMoveL_headMoveR
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headMoveL_headMoveR _ _ xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_headMoveL_headMoveR _ _ xs =
+>   check $
 >     if isAtLastFTZ xs
 >       then True
 >       else xs == headMoveLFTZ (headMoveRFTZ xs)
 > 
-> cprop_FingerTreeZip_headMoveL_headMoveR pa pm xs =
->   cover 30 (not $ isAtInitFTZ xs) "xs not at init" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_headMoveL_headMoveR pa pm xs
-> 
 > test_FingerTreeZip_headMoveL_headMoveR :: TestTree
 > test_FingerTreeZip_headMoveL_headMoveR =
 >   testGroup "headMoveL . headMoveR == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_headMoveL_headMoveR pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_headMoveL_headMoveR pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_headMoveL_headMoveR pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_headMoveL_headMoveR pBool pTup
 >     ]
 
 `headMoveR` examples:
 
-> prop_FingerTreeZip_headMoveR_examples
+> check_FingerTreeZip_headMoveR_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headMoveR_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_headMoveR_examples _ _ xs ys =
+>   check $
 >     ys == headMoveRFTZ xs
 > 
 > test_FingerTreeZip_headMoveR_examples :: TestTree
 > test_FingerTreeZip_headMoveR_examples =
 >   testGroup "headMoveR examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_headMoveR_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_headMoveR_examples pChar pCount)
 >       [ ( "in middle"
 >         , ( mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
 >           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
@@ -1013,23 +908,22 @@ Now test for functions which manipulate the read head.
 
 `headMoveL` examples:
 
-> prop_FingerTreeZip_headMoveL_examples
+> check_FingerTreeZip_headMoveL_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headMoveL_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_headMoveL_examples _ _ xs ys =
+>   check $
 >     ys == headMoveLFTZ xs
 > 
 > test_FingerTreeZip_headMoveL_examples :: TestTree
 > test_FingerTreeZip_headMoveL_examples =
 >   testGroup "headMoveL examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_headMoveL_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_headMoveL_examples pChar pCount)
 >       [ ( "in middle"
 >         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
 >           , mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
@@ -1046,79 +940,64 @@ Now test for functions which manipulate the read head.
 
 `headDeleteL` is a left inverse of `headInsertL`:
 
-> prop_FingerTreeZip_headDeleteL_headInsertL
->    , cprop_FingerTreeZip_headDeleteL_headInsertL
+> check_FingerTreeZip_headDeleteL_headInsertL
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headDeleteL_headInsertL _ _ a xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_headDeleteL_headInsertL _ _ a xs =
+>   check $
 >     xs == headDeleteLFTZ (headInsertLFTZ a xs)
-> 
-> cprop_FingerTreeZip_headDeleteL_headInsertL pa pm a xs =
->   cover 50 (not $ isEmptyFTZ xs) "xs nonempty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_headDeleteL_headInsertL pa pm a xs
 > 
 > test_FingerTreeZip_headDeleteL_headInsertL :: TestTree
 > test_FingerTreeZip_headDeleteL_headInsertL =
 >   testGroup "headDeleteL . headInsertL a == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_headDeleteL_headInsertL pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_headDeleteL_headInsertL pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_headDeleteL_headInsertL pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_headDeleteL_headInsertL pBool pTup
 >     ]
 
 `headDeleteR` is a left inverse of `headInsertR`:
 
-> prop_FingerTreeZip_headDeleteR_headInsertR
->    , cprop_FingerTreeZip_headDeleteR_headInsertR
+> check_FingerTreeZip_headDeleteR_headInsertR
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headDeleteR_headInsertR _ _ a xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_headDeleteR_headInsertR _ _ a xs =
+>   check $
 >     xs == headDeleteRFTZ (headInsertRFTZ a xs)
-> 
-> cprop_FingerTreeZip_headDeleteR_headInsertR pa pm a xs =
->   cover 50 (not $ isEmptyFTZ xs) "xs nonempty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_headDeleteR_headInsertR pa pm a xs
 > 
 > test_FingerTreeZip_headDeleteR_headInsertR :: TestTree
 > test_FingerTreeZip_headDeleteR_headInsertR =
 >   testGroup "headDeleteR . headInsertR a == id"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_headDeleteR_headInsertR pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_headDeleteR_headInsertR pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_headDeleteR_headInsertR pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_headDeleteR_headInsertR pBool pTup
 >     ]
 
 Examples of `headDeleteL`:
 
-> prop_FingerTreeZip_headDeleteL_examples
+> check_FingerTreeZip_headDeleteL_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headDeleteL_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_headDeleteL_examples _ _ xs ys =
+>   check $
 >     ys == headDeleteLFTZ xs
 > 
 > test_FingerTreeZip_headDeleteL_examples :: TestTree
 > test_FingerTreeZip_headDeleteL_examples =
 >   testGroup "headDeleteL examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_headDeleteL_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_headDeleteL_examples pChar pCount)
 >       [ ( "inner"
 >         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d', 'e']
 >           , mkTapeFocusFTZ ['a'] 'c' ['d', 'e']
@@ -1135,23 +1014,22 @@ Examples of `headDeleteL`:
 
 Examples of `headDeleteR`:
 
-> prop_FingerTreeZip_headDeleteR_examples
+> check_FingerTreeZip_headDeleteR_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headDeleteR_examples _ _ xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_headDeleteR_examples _ _ xs ys =
+>   check $
 >     ys == headDeleteRFTZ xs
 > 
 > test_FingerTreeZip_headDeleteR_examples :: TestTree
 > test_FingerTreeZip_headDeleteR_examples =
 >   testGroup "headDeleteR examples"
->     [ testCases
->       (uncurry $ prop_FingerTreeZip_headDeleteR_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry $ check_FingerTreeZip_headDeleteR_examples pChar pCount)
 >       [ ( "inner"
 >         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d', 'e']
 >           , mkTapeFocusFTZ ['a', 'b'] 'c' ['e']
@@ -1168,23 +1046,22 @@ Examples of `headDeleteR`:
 
 Examples of `headInsertL`:
 
-> prop_FingerTreeZip_headInsertL_examples
+> check_FingerTreeZip_headInsertL_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headInsertL_examples _ _ a xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_headInsertL_examples _ _ a xs ys =
+>   check $
 >     ys == (headInsertLFTZ a xs)
 > 
 > test_FingerTreeZip_headInsertL_examples :: TestTree
 > test_FingerTreeZip_headInsertL_examples =
 >   testGroup "headInsertL examples"
->     [ testCases
->       (uncurry3 $ prop_FingerTreeZip_headInsertL_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_headInsertL_examples pChar pCount)
 >       [ ( "middle"
 >         , ( 'z'
 >           , mkTapeFocusFTZ ['a'] 'b' ['c']
@@ -1210,23 +1087,22 @@ Examples of `headInsertL`:
 
 Examples of `headInsertR`:
 
-> prop_FingerTreeZip_headInsertR_examples
+> check_FingerTreeZip_headInsertR_examples
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> FingerTreeZip m a
 >   -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_headInsertR_examples _ _ a xs ys =
->   property $
+>   -> Check
+> check_FingerTreeZip_headInsertR_examples _ _ a xs ys =
+>   check $
 >     ys == (headInsertRFTZ a xs)
 > 
 > test_FingerTreeZip_headInsertR_examples :: TestTree
 > test_FingerTreeZip_headInsertR_examples =
 >   testGroup "headInsertR examples"
->     [ testCases
->       (uncurry3 $ prop_FingerTreeZip_headInsertR_examples pChar pCount)
+>     [ testKrebCases "Count/Char"
+>       (uncurry3 $ check_FingerTreeZip_headInsertR_examples pChar pCount)
 >       [ ( "middle"
 >         , ( 'z'
 >           , mkTapeFocusFTZ ['a'] 'b' ['c']
@@ -1266,62 +1142,48 @@ Some pairs of actions commute with each other; these make good tests.
 
 `initInsert` and `lastInsert` commute:
 
-> prop_FingerTreeZip_initInsert_lastInsert
->    , cprop_FingerTreeZip_initInsert_lastInsert
+> check_FingerTreeZip_initInsert_lastInsert
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initInsert_lastInsert _ _ u v xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_initInsert_lastInsert _ _ u v xs =
+>   check $
 >     if isEmptyFTZ xs
 >       then True
 >       else (initInsertFTZ u $ lastInsertFTZ v xs)
 >             == (lastInsertFTZ v $ initInsertFTZ u xs)
 > 
-> cprop_FingerTreeZip_initInsert_lastInsert pa pm u v xs =
->   cover 50 (not $ isEmptyFTZ xs) "xs nonempty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_initInsert_lastInsert pa pm u v xs
-> 
 > test_FingerTreeZip_initInsert_lastInsert :: TestTree
 > test_FingerTreeZip_initInsert_lastInsert =
 >   testGroup "initInsert and lastInsert commute"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initInsert_lastInsert pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initInsert_lastInsert pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initInsert_lastInsert pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initInsert_lastInsert pBool pTup
 >     ]
 
 `initDelete` and `lastDelete` commute:
 
-> prop_FingerTreeZip_initDelete_lastDelete
->    , cprop_FingerTreeZip_initDelete_lastDelete
+> check_FingerTreeZip_initDelete_lastDelete
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> a -> a -> FingerTreeZip m a
->   -> Property
-> 
-> prop_FingerTreeZip_initDelete_lastDelete _ _ u v xs =
->   property $
+>   -> Check
+> check_FingerTreeZip_initDelete_lastDelete _ _ u v xs =
+>   check $
 >     (initDeleteFTZ $ lastDeleteFTZ xs)
 >       == (lastDeleteFTZ $ initDeleteFTZ xs)
-> 
-> cprop_FingerTreeZip_initDelete_lastDelete pa pm u v xs =
->   cover 50 (not $ isEmptyFTZ xs) "xs nonempty" $
->   cover 30 (depthFTZ xs > 2) "depth xs > 2" $
->   prop_FingerTreeZip_initDelete_lastDelete pa pm u v xs
 > 
 > test_FingerTreeZip_initDelete_lastDelete :: TestTree
 > test_FingerTreeZip_initDelete_lastDelete =
 >   testGroup "initDelete and lastDelete commute"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_initDelete_lastDelete pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_initDelete_lastDelete pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_initDelete_lastDelete pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_initDelete_lastDelete pBool pTup
 >     ]
 
 
@@ -1329,32 +1191,27 @@ Some pairs of actions commute with each other; these make good tests.
 Split and integrate
 -------------------
 
-> prop_FingerTreeZip_split_integrate
->    , cprop_FingerTreeZip_split_integrate
+> check_FingerTreeZip_split_integrate
 >   :: forall a m
 >    . ( Eq a, Valued m a )
 >   => Proxy a -> Proxy m
 >   -> Fun m Bool -> FingerTree m a
->   -> Property
-> 
-> prop_FingerTreeZip_split_integrate _ _ p xs =
->   (applyFun p mempty == False) ==>
->   (applyFun p (value xs) == True) ==>
->   xs == integrateFTZ (splitFTZ (applyFun p) xs)
-> 
-> cprop_FingerTreeZip_split_integrate pa pm p xs =
->   cover 30 (depthFT xs > 2) "depth xs > 2" $
->   cover 20 (depthFT xs <= 2) "depth xs <= 2" $
->   prop_FingerTreeZip_split_integrate pa pm p xs
+>   -> Check
+> check_FingerTreeZip_split_integrate _ _ p xs =
+>   check $ if (apFun p mempty == False) && (apFun p (value xs) == True)
+>     then xs == integrateFTZ (splitFTZ (apFun p) xs)
+>     else True
 > 
 > test_FingerTreeZip_split_integrate :: TestTree
 > test_FingerTreeZip_split_integrate =
 >   testGroup "Split then integrate"
->     [ testProperty "Char/Count" $
->         cprop_FingerTreeZip_split_integrate pChar pCount
->     , testProperty "Bool/Tup" $
->         cprop_FingerTreeZip_split_integrate pBool pTup
+>     [ testKreb "Char/Count" $
+>         check_FingerTreeZip_split_integrate pChar pCount
+>     , testKreb "Bool/Tup" $
+>         check_FingerTreeZip_split_integrate pBool pTup
 >     ]
+
+
 
 
 
@@ -1374,6 +1231,8 @@ FTZ test suite
 
 
 
+
+
 Tape tests
 ==========
 
@@ -1386,56 +1245,42 @@ Test converting between lists and tapes:
 
 > test_Tape_conversion
 >   :: ( Tape t a
->      , Eq a, Show a, Arbitrary a
->      , Eq (t a), Show (t a), Arbitrary (t a) )
+>      , Eq a, Show a, Arb a, Prune a
+>      , Eq (t a), Show (t a), Arb (t a), Prune (t a) )
 >   => Proxy a -> Proxy t
 >   -> TestTree
 > test_Tape_conversion pa pt =
 >   testGroup "Conversion properties"
->     [ testProperty "unTape . mkTape == id" $
->         cprop_Tape_mkTape_unTape pa pt
->     , testProperty "mkTape . unTape == initMove" $
->         cprop_Tape_unTape_mkTape pa pt
+>     [ testKreb "unTape . mkTape == id" $
+>         check_Tape_mkTape_unTape pa pt
+>     , testKreb "mkTape . unTape == initMove" $
+>         check_Tape_unTape_mkTape pa pt
 >     ]
 
 `unTape` is a left inverse of `mkTape`:
 
-> prop_Tape_unTape_mkTape
->    , cprop_Tape_unTape_mkTape
+> check_Tape_unTape_mkTape
 >   :: forall a t
 >    . ( Tape t a, Eq a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> [a]
->   -> Property
-> 
-> prop_Tape_unTape_mkTape _ _ xs =
->   property $
+>   -> Check
+> check_Tape_unTape_mkTape _ _ xs =
+>   check $
 >     let z = mkTape xs :: t a
 >     in xs == unTape z
-> 
-> cprop_Tape_unTape_mkTape pa pt xs =
->   cover 1 (xs == []) "xs empty" $
->   cover 30 (length xs > 10) "length xs > 10" $
->   prop_Tape_unTape_mkTape pa pt xs
 
 `mkTape` is a left inverse of `unTape` (almost):
 
-> prop_Tape_mkTape_unTape
->    , cprop_Tape_mkTape_unTape
+> check_Tape_mkTape_unTape
 >   :: forall a t
 >    . ( Tape t a, Eq a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_mkTape_unTape _ _ xs =
->   property $
+>   -> Check
+> check_Tape_mkTape_unTape _ _ xs =
+>   check $
 >     (initMove xs) == mkTape (unTape xs)
-> 
-> cprop_Tape_mkTape_unTape pa pt xs =
->   cover 1 (not $ isEmpty xs) "xs not empty" $
->   cover 30 (not $ isAtInit xs) "xs not at init" $
->   prop_Tape_mkTape_unTape pa pt xs
 
 
 
@@ -1446,144 +1291,102 @@ Tests manipulating the beginning of the list:
 
 > test_Tape_init
 >   :: ( Tape t a
->      , Eq a, Show a, Arbitrary a
->      , Eq (t a), Show (t a), Arbitrary (t a) )
+>      , Eq a, Show a, Arb a, Prune a
+>      , Eq (t a), Show (t a), Arb (t a), Prune (t a) )
 >   => Proxy a -> Proxy t
 >   -> TestTree
 > test_Tape_init pa pt =
 >   testGroup "Init related properties"
->     [ testProperty "isAtInit mkTapeFocus" $
->         cprop_Tape_isAtInit_mkTapeFocus pa pt
->     , testProperty "initAlter" $
->         cprop_Tape_initAlter pa pt
->     , testProperty "initRead initInsert" $
->         cprop_Tape_initRead_initInsert pa pt
->     , testProperty "initDelete initInsert" $
->         cprop_Tape_initDelete_initInsert pa pt
->     , testProperty "initMove isAtInit" $
->         cprop_Tape_initMove_isAtInit pa pt
->     , testProperty "initMove idempotent" $
->         cprop_Tape_initMove_idempotent pa pt
+>     [ testKreb "isAtInit mkTapeFocus" $
+>         check_Tape_isAtInit_mkTapeFocus pa pt
+>     , testKreb "initAlter" $
+>         check_Tape_initAlter pa pt
+>     , testKreb "initRead initInsert" $
+>         check_Tape_initRead_initInsert pa pt
+>     , testKreb "initDelete initInsert" $
+>         check_Tape_initDelete_initInsert pa pt
+>     , testKreb "initMove isAtInit" $
+>         check_Tape_initMove_isAtInit pa pt
+>     , testKreb "initMove idempotent" $
+>         check_Tape_initMove_idempotent pa pt
 >     ]
 
 `isAtInit` returns true if and only if the segment before the read head is empty.
 
-> prop_Tape_isAtInit_mkTapeFocus
->    , cprop_Tape_isAtInit_mkTapeFocus
+> check_Tape_isAtInit_mkTapeFocus
 >   :: forall a (t :: * -> *)
 >    . ( Eq a, Tape t a )
 >   => Proxy a -> Proxy t
 >   -> [a] -> a -> [a]
->   -> Property
-> 
-> prop_Tape_isAtInit_mkTapeFocus _ _ as x bs =
+>   -> Check
+> check_Tape_isAtInit_mkTapeFocus _ _ as x bs =
 >   let w = mkTapeFocus as x bs :: t a in
->   property $
+>   check $
 >     (as == []) == (isAtInit w)
-> 
-> cprop_Tape_isAtInit_mkTapeFocus pa pt as x bs =
->   cover 1 (as == []) "as empty" $
->   cover 1 (bs == []) "bs empty" $
->   prop_Tape_isAtInit_mkTapeFocus pa pt as x bs
 
 `initAlter` behaves predictably with `initInsert`.
 
-> prop_Tape_initAlter
->    , cprop_Tape_initAlter
+> check_Tape_initAlter
 >   :: forall a t
 >    . ( Eq	a, Eq (t a), Tape t a )
 >   => Proxy a -> Proxy t
 >   -> a -> a -> t a
->   -> Property
-> 
-> prop_Tape_initAlter _ _ u v xs =
+>   -> Check
+> check_Tape_initAlter _ _ u v xs =
 >   let swop x = if x == u then v else x in
->   property $
+>   check $
 >     (initInsert v xs)
 >       == (initAlter swop $ initInsert u xs)
-> 
-> cprop_Tape_initAlter pa pm u v xs =
->   cover 1 (isEmpty xs) "xs empty" $
->   cover 40 (u /= v) "u /= v" $
->   prop_Tape_initAlter pa pm u v xs
 
 `initRead` interacts predictably with `initInsert`:
 
-> prop_Tape_initRead_initInsert
->    , cprop_Tape_initRead_initInsert
+> check_Tape_initRead_initInsert
 >   :: forall a t
 >    . ( Eq a, Tape t a )
 >   => Proxy a -> Proxy t
 >   -> a -> t a
->   -> Property
-> 
-> prop_Tape_initRead_initInsert _ _ a xs =
->   property $
+>   -> Check
+> check_Tape_initRead_initInsert _ _ a xs =
+>   check $
 >     (Just a)
 >       == (initRead (initInsert a xs))
-> 
-> cprop_Tape_initRead_initInsert pa pm a xs =
->   cover 1 (isEmpty xs) "xs empty" $
->   cover 30 (not $ isAtInit xs) "xs not at init" $
->   prop_Tape_initRead_initInsert pa pm a xs
 
 `initDelete` interacts predictably with `initInsert`.
 
-> prop_Tape_initDelete_initInsert
->    , cprop_Tape_initDelete_initInsert
+> check_Tape_initDelete_initInsert
 >   :: forall a t
 >    . ( Eq a, Eq (t a), Tape t a )
 >   => Proxy a -> Proxy t
 >   -> a -> t a
->   -> Property
-> 
-> prop_Tape_initDelete_initInsert _ _ a xs =
->   property $
+>   -> Check
+> check_Tape_initDelete_initInsert _ _ a xs =
+>   check $
 >     xs == (initDelete $ initInsert a xs)
-> 
-> cprop_Tape_initDelete_initInsert pa pm a xs =
->   cover 1 (isEmpty xs) "xs empty" $
->   cover 30 (not $ isAtInit xs) "xs not at init" $
->   prop_Tape_initDelete_initInsert pa pm a xs
 
 After moving to the beginning of the stream, we are at the beginning of the stream.
 
-> prop_Tape_initMove_isAtInit
->    , cprop_Tape_initMove_isAtInit
+> check_Tape_initMove_isAtInit
 >   :: forall a t
 >    . ( Eq a, Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_initMove_isAtInit _ _ xs =
->   property $
+>   -> Check
+> check_Tape_initMove_isAtInit _ _ xs =
+>   check $
 >     isAtInit (initMove xs)
-> 
-> cprop_Tape_initMove_isAtInit pa pm xs =
->   cover 30 (not $ isAtInit xs) "not at init" $
->   cover 1 (isEmpty xs) "xs empty" $
->   prop_Tape_initMove_isAtInit pa pm xs
 
 `initMove` is idempotent:
 
-> prop_Tape_initMove_idempotent
->    , cprop_Tape_initMove_idempotent
+> check_Tape_initMove_idempotent
 >   :: forall a t
 >    . ( Eq a, Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_initMove_idempotent _ _ xs =
->   property $
+>   -> Check
+> check_Tape_initMove_idempotent _ _ xs =
+>   check $
 >     (initMove xs)
 >       == (initMove $ initMove xs)
-> 
-> cprop_Tape_initMove_idempotent pa pm xs =
->   cover 30 (not $ isAtInit xs) "not at init" $
->   cover 40 (not $ isEmpty xs) "xs not empty" $
->   prop_Tape_initMove_idempotent pa pm xs
 
 
 
@@ -1594,122 +1397,87 @@ Tests manipulating the beginning of the list:
 
 > test_Tape_last
 >   :: ( Tape t a
->      , Eq a, Show a, Arbitrary a
->      , Eq (t a), Show (t a), Arbitrary (t a) )
+>      , Eq a, Show a, Arb a, Prune a
+>      , Eq (t a), Show (t a), Arb (t a), Prune (t a) )
 >   => Proxy a -> Proxy t
 >   -> TestTree
 > test_Tape_last pa pt =
 >   testGroup "last related properties"
->     [ testProperty "lastAlter" $
->         cprop_Tape_lastAlter pa pt
->     , testProperty "lastRead lastInsert" $
->         cprop_Tape_lastRead_lastInsert pa pt
->     , testProperty "lastDelete lastInsert" $
->         cprop_Tape_lastDelete_lastInsert pa pt
->     , testProperty "lastMove isAtLast" $
->         cprop_Tape_lastMove_isAtLast pa pt
->     , testProperty "lastMove idempotent" $
->         cprop_Tape_lastMove_idempotent pa pt
+>     [ testKreb "lastAlter" $
+>         check_Tape_lastAlter pa pt
+>     , testKreb "lastRead lastInsert" $
+>         check_Tape_lastRead_lastInsert pa pt
+>     , testKreb "lastDelete lastInsert" $
+>         check_Tape_lastDelete_lastInsert pa pt
+>     , testKreb "lastMove isAtLast" $
+>         check_Tape_lastMove_isAtLast pa pt
+>     , testKreb "lastMove idempotent" $
+>         check_Tape_lastMove_idempotent pa pt
 >     ]
 
 `lastAlter` behaves predictably with `lastInsert`.
 
-> prop_Tape_lastAlter
->    , cprop_Tape_lastAlter
+> check_Tape_lastAlter
 >   :: forall a t
 >    . ( Eq a, Eq (t a), Tape t a )
 >   => Proxy a -> Proxy t
 >   -> a -> a -> t a
->   -> Property
-> 
-> prop_Tape_lastAlter _ _ u v xs =
+>   -> Check
+> check_Tape_lastAlter _ _ u v xs =
 >   let swop x = if x == u then v else x in
->   property $
+>   check $
 >     (lastInsert v xs)
 >       == (lastAlter swop $ lastInsert u xs)
-> 
-> cprop_Tape_lastAlter pa pm u v xs =
->   cover 1 (isEmpty xs) "xs empty" $
->   cover 40 (u /= v) "u /= v" $
->   prop_Tape_lastAlter pa pm u v xs
 
 `lastRead` interacts predictably with `lastInsert`:
 
-> prop_Tape_lastRead_lastInsert
->    , cprop_Tape_lastRead_lastInsert
+> check_Tape_lastRead_lastInsert
 >   :: forall a t
 >    . ( Eq a, Tape t a )
 >   => Proxy a -> Proxy t
 >   -> a -> t a
->   -> Property
-> 
-> prop_Tape_lastRead_lastInsert _ _ a xs =
->   property $
+>   -> Check
+> check_Tape_lastRead_lastInsert _ _ a xs =
+>   check $
 >     (Just a)
 >       == (lastRead (lastInsert a xs))
-> 
-> cprop_Tape_lastRead_lastInsert pa pm a xs =
->   cover 1 (isEmpty xs) "xs empty" $
->   cover 30 (not $ isAtLast xs) "xs not at last" $
->   prop_Tape_lastRead_lastInsert pa pm a xs
 
 `lastDelete` interacts predictably with `lastInsert`.
 
-> prop_Tape_lastDelete_lastInsert
->    , cprop_Tape_lastDelete_lastInsert
+> check_Tape_lastDelete_lastInsert
 >   :: forall a t
 >    . ( Eq a, Eq (t a), Tape t a )
 >   => Proxy a -> Proxy t
 >   -> a -> t a
->   -> Property
-> 
-> prop_Tape_lastDelete_lastInsert _ _ a xs =
->   property $
+>   -> Check
+> check_Tape_lastDelete_lastInsert _ _ a xs =
+>   check $
 >     xs == (lastDelete $ lastInsert a xs)
-> 
-> cprop_Tape_lastDelete_lastInsert pa pm a xs =
->   cover 1 (isEmpty xs) "xs empty" $
->   cover 30 (not $ isAtLast xs) "xs not at last" $
->   prop_Tape_lastDelete_lastInsert pa pm a xs
 
 After moving to the beginning of the stream, we are at the beginning of the stream.
 
-> prop_Tape_lastMove_isAtLast
->    , cprop_Tape_lastMove_isAtLast
+> check_Tape_lastMove_isAtLast
 >   :: forall a t
 >    . ( Eq a, Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_lastMove_isAtLast _ _ xs =
->   property $
+>   -> Check
+> check_Tape_lastMove_isAtLast _ _ xs =
+>   check $
 >     isAtLast (lastMove xs)
-> 
-> cprop_Tape_lastMove_isAtLast pa pm xs =
->   cover 30 (not $ isAtLast xs) "not at last" $
->   cover 1 (isEmpty xs) "xs empty" $
->   prop_Tape_lastMove_isAtLast pa pm xs
 
 `lastMove` is idempotent:
 
-> prop_Tape_lastMove_idempotent
->    , cprop_Tape_lastMove_idempotent
+> check_Tape_lastMove_idempotent
 >   :: forall a t
 >    . ( Eq a, Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_lastMove_idempotent _ _ xs =
->   property $
+>   -> Check
+> check_Tape_lastMove_idempotent _ _ xs =
+>   check $
 >     (lastMove xs)
 >       == (lastMove $ lastMove xs)
-> 
-> cprop_Tape_lastMove_idempotent pa pt xs =
->   cover 30 (not $ isAtLast xs) "not at last" $
->   cover 40 (not $ isEmpty xs) "xs not empty" $
->   prop_Tape_lastMove_idempotent pa pt xs
 
 
 
@@ -1720,101 +1488,73 @@ Tests manipulating the read head:
 
 > test_Tape_head
 >   :: ( Tape t a
->      , Eq a, Show a, Arbitrary a
->      , Eq (t a), Show (t a), Arbitrary (t a) )
+>      , Eq a, Show a, Arb a, Prune a
+>      , Eq (t a), Show (t a), Arb (t a), Prune (t a) )
 >   => Proxy a -> Proxy t
 >   -> TestTree
 > test_Tape_head pa pt =
 >   testGroup "Head properties"
->     [ testProperty "headMoveR . headMoveL == id" $
->         cprop_Tape_headMoveR_headMoveL pa pt
->     , testProperty "headMoveL . headMoveR == id" $
->         cprop_Tape_headMoveL_headMoveR pa pt
->     , testProperty "headDeleteL . headInsertL a == id" $
->         cprop_Tape_headDeleteL_headInsertL pa pt
->     , testProperty "headDeleteR . headInsertR a == id" $
->         cprop_Tape_headDeleteR_headInsertR pa pt
+>     [ testKreb "headMoveR . headMoveL == id" $
+>         check_Tape_headMoveR_headMoveL pa pt
+>     , testKreb "headMoveL . headMoveR == id" $
+>         check_Tape_headMoveL_headMoveR pa pt
+>     , testKreb "headDeleteL . headInsertL a == id" $
+>         check_Tape_headDeleteL_headInsertL pa pt
+>     , testKreb "headDeleteR . headInsertR a == id" $
+>         check_Tape_headDeleteR_headInsertR pa pt
 >     ]
 
 `headMoveR` is a left inverse of `headMoveL` (almost):
 
-> prop_Tape_headMoveR_headMoveL
->    , cprop_Tape_headMoveR_headMoveL
+> check_Tape_headMoveR_headMoveL
 >   :: forall a t
 >    . ( Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_headMoveR_headMoveL _ _ xs =
->   property $
+>   -> Check
+> check_Tape_headMoveR_headMoveL _ _ xs =
+>   check $
 >     if isAtInit xs
 >       then True
 >       else xs == headMoveR (headMoveL xs)
-> 
-> cprop_Tape_headMoveR_headMoveL pa pm xs =
->   cover 60 (not $ isEmpty xs) "xs not empty" $
->   cover 20 (not $ isAtInit xs) "xs not at init" $
->   prop_Tape_headMoveR_headMoveL pa pm xs
 
 `headMoveL` is a left inverse of `headMoveR` (almost):
 
-> prop_Tape_headMoveL_headMoveR
->    , cprop_Tape_headMoveL_headMoveR
+> check_Tape_headMoveL_headMoveR
 >   :: forall a t
 >    . ( Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_headMoveL_headMoveR _ _ xs =
->   property $
+>   -> Check
+> check_Tape_headMoveL_headMoveR _ _ xs =
+>   check $
 >     if isAtLast xs
 >       then True
 >       else xs == headMoveL (headMoveR xs)
-> 
-> cprop_Tape_headMoveL_headMoveR pa pm xs =
->   cover 60 (not $ isEmpty xs) "xs not empty" $
->   cover 20 (not $ isAtInit xs) "xs not at init" $
->   prop_Tape_headMoveL_headMoveR pa pm xs
 
 `headDeleteL` is a left inverse of `headInsertL`:
 
-> prop_Tape_headDeleteL_headInsertL
+> check_Tape_headDeleteL_headInsertL
 >   :: forall a t
 >    . ( Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> a -> t a
->   -> Property
-> 
-> prop_Tape_headDeleteL_headInsertL _ _ a xs =
->   property $
+>   -> Check
+> check_Tape_headDeleteL_headInsertL _ _ a xs =
+>   check $
 >     xs == headDeleteL (headInsertL a xs)
-> 
-> cprop_Tape_headDeleteL_headInsertL pa pm a xs =
->   cover 60 (not $ isEmpty xs) "xs not empty" $
->   cover 20 (not $ isAtInit xs) "xs not at init" $
->   cover 20 (not $ isAtLast xs) "xs not at last" $
->   prop_Tape_headDeleteL_headInsertL pa pm a xs
 
 `headDeleteR` is a left inverse of `headInsertR`:
 
-> prop_Tape_headDeleteR_headInsertR
+> check_Tape_headDeleteR_headInsertR
 >   :: forall a t
 >    . ( Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> a -> t a
->   -> Property
-> 
-> prop_Tape_headDeleteR_headInsertR _ _ a xs =
->   property $
+>   -> Check
+> check_Tape_headDeleteR_headInsertR _ _ a xs =
+>   check $
 >     xs == headDeleteR (headInsertR a xs)
-> 
-> cprop_Tape_headDeleteR_headInsertR pa pm a xs =
->   cover 60 (not $ isEmpty xs) "xs not empty" $
->   cover 20 (not $ isAtInit xs) "xs not at init" $
->   cover 20 (not $ isAtLast xs) "xs not at last" $
->   prop_Tape_headDeleteR_headInsertR pa pm a xs
 
 
 
@@ -1823,59 +1563,45 @@ Commuting actions for Tape
 
 > test_Tape_commuting_actions
 >   :: ( Tape t a
->      , Eq a, Show a, Arbitrary a
->      , Eq (t a), Show (t a), Arbitrary (t a) )
+>      , Eq a, Show a, Arb a, Prune a
+>      , Eq (t a), Show (t a), Arb (t a), Prune (t a) )
 >   => Proxy a -> Proxy t
 >   -> TestTree
 > test_Tape_commuting_actions pa pt =
 >   testGroup "Commuting Actions"
->     [ testProperty "initInsert and lastInsert commute" $
->         cprop_Tape_initInsert_lastInsert_commute pa pt
->     , testProperty "initDelete and lastDelete commute" $
->         cprop_Tape_initDelete_lastDelete_commute pa pt
+>     [ testKreb "initInsert and lastInsert commute" $
+>         check_Tape_initInsert_lastInsert_commute pa pt
+>     , testKreb "initDelete and lastDelete commute" $
+>         check_Tape_initDelete_lastDelete_commute pa pt
 >     ]
 
 `initInsert` and `lastInsert` commute:
 
-> prop_Tape_initInsert_lastInsert_commute
+> check_Tape_initInsert_lastInsert_commute
 >   :: forall a t
 >    . ( Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> a -> a -> t a
->   -> Property
-> 
-> prop_Tape_initInsert_lastInsert_commute _ _ u v xs =
->   property $
+>   -> Check
+> check_Tape_initInsert_lastInsert_commute _ _ u v xs =
+>   check $
 >     if isEmpty xs
 >       then True
 >       else (initInsert u $ lastInsert v xs :: t a)
 >             == (lastInsert v $ initInsert u xs)
-> 
-> cprop_Tape_initInsert_lastInsert_commute pa pt u v xs =
->   cover 60 (not $ isEmpty xs) "xs not empty" $
->   cover 20 (not $ isAtInit xs) "xs not at init" $
->   cover 20 (not $ isAtLast xs) "xs not at last" $
->   prop_Tape_initInsert_lastInsert_commute pa pt u v xs
 
 `initDelete` and `lastDelete` commute:
 
-> prop_Tape_initDelete_lastDelete_commute
+> check_Tape_initDelete_lastDelete_commute
 >   :: forall a t
 >    . ( Tape t a, Eq (t a) )
 >   => Proxy a -> Proxy t
 >   -> t a
->   -> Property
-> 
-> prop_Tape_initDelete_lastDelete_commute _ _ xs =
->   property $
+>   -> Check
+> check_Tape_initDelete_lastDelete_commute _ _ xs =
+>   check $
 >     (initDelete $ lastDelete xs :: t a)
 >       == (lastDelete $ initDelete xs)
-> 
-> cprop_Tape_initDelete_lastDelete_commute pa pt xs =
->   cover 60 (not $ isEmpty xs) "xs not empty" $
->   cover 20 (not $ isAtInit xs) "xs not at init" $
->   cover 20 (not $ isAtLast xs) "xs not at last" $
->   prop_Tape_initDelete_lastDelete_commute pa pt xs
 
 
 
@@ -1884,8 +1610,8 @@ Tape test suite
 
 > test_Tape
 >   :: ( Tape t a
->      , Eq a, Arbitrary a, Show a
->      , Eq (t a), Arbitrary (t a), Show (t a) )
+>      , Eq a, Arb a, Show a, Prune a
+>      , Eq (t a), Arb (t a), Show (t a), Prune (t a) )
 >   => Proxy a -> Proxy (t :: * -> *)
 >   -> TestTree
 > test_Tape pa pt =
@@ -1896,5 +1622,3 @@ Tape test suite
 >     , test_Tape_head pa pt
 >     , test_Tape_commuting_actions pa pt
 >     ]
-
-> -}

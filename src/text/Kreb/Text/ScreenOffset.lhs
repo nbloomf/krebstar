@@ -92,7 +92,7 @@ We will represent the possible character widths using the `Span` type.
 >     )
 > 
 > instance Prune Span where
->   prune _ = []
+>   prune z = if z == Fixed1 then [] else [Fixed1]
 
 There's actually one more special case -- newlines, whose width is however many cells away it is from the end of the terminal window. But we'll handle these differently in a moment.
 
@@ -105,15 +105,17 @@ We will be using run length encoded lists of spans, and it will be very useful t
 >     w :: Int -> RunLengthEncoding Span -> Int
 >     w m xs = case firstRun xs of
 >       Nothing -> m
->       Just (Run (k,a), bs) -> case a of
->         Fixed0 -> w m bs
->         Fixed1 -> w (m + k) bs
->         Fixed2 -> w (m + 2*k) bs
->         Stretchy ->
->           let n = tab * (1 + quot m tab) in
->           if k == 1
->             then w n bs
->             else w (n + tab*(k-1)) bs
+>       Just (Run (k',a), bs) ->
+>         let k = fromIntegral k'
+>         in case a of
+>           Fixed0 -> w m bs
+>           Fixed1 -> w (m + k) bs
+>           Fixed2 -> w (m + 2*k) bs
+>           Stretchy ->
+>             let n = tab * (1 + quot m tab) in
+>             if k == 1
+>               then w n bs
+>               else w (n + tab*(k-1)) bs
 
 
 
@@ -208,7 +210,7 @@ The `ScreenOffset` type models the position of a given character on the screen. 
 >         [ NoNewlines xs, NoNewlines ys ] ++
 >         do
 >           as <- prune xs
->           m <- [1..k]
+>           let m = max 1 (k`div`2)
 >           bs <- prune ys
 >           return $ WithNewlines as m bs
 
@@ -229,12 +231,12 @@ The `takeChunk` function performs this operation. The details are a little hairi
 >     else greedy 0 mempty rle
 >   where
 >     greedy
->       :: Int
+>       :: Integer
 >       -> RunLengthEncoding Span
 >       -> RunLengthEncoding Span
 >       -> Maybe (RunLengthEncoding Span, RunLengthEncoding Span)
 >     greedy m as bs =
->       if m >= width
+>       if (fromIntegral m) >= width
 > 
 >         -- chunk is full; make sure remainder is not empty.
 >         then case firstRun bs of
@@ -252,14 +254,14 @@ The `takeChunk` function performs this operation. The details are a little hairi
 >             case a of
 >               Fixed0 -> greedy m (as <> fromFreqList [(k,a)]) ds
 > 
->               Fixed1 -> let capacity = width - m in
+>               Fixed1 -> let capacity = (fromIntegral width) - m in
 >                 if k <= capacity
 >                   then greedy (m+k) (as <> fromFreqList [(k,a)]) ds
 >                   else Just
 >                     ( as <> fromFreqList [(capacity,a)]
 >                     , fromFreqList [(k-capacity,a)] <> ds )
 > 
->               Fixed2 -> let capacity = width - m in
+>               Fixed2 -> let capacity = (fromIntegral width) - m in
 >                 if capacity < 2
 >                   then Just (as, bs)
 >                   else if (2*k) <= capacity
@@ -272,17 +274,17 @@ The `takeChunk` function performs this operation. The details are a little hairi
 > 
 >               Stretchy ->
 >                 -- next tab stop
->                 let n = tab * (1 + quot m tab) in
->                 if n >= width
+>                 let n = (fromIntegral tab) * (1 + quot m (fromIntegral tab)) in
+>                 if n >= (fromIntegral width)
 >                   then greedy n
 >                     (as <> fromFreqList [(1,a)])
 >                     (fromFreqList [(k-1,a)] <> ds)
->                   else let capacity = width - n in
->                     if (tab*(k-1)) <= capacity
->                       then greedy (n + tab*(k-1))
+>                   else let capacity = (fromIntegral width) - n in
+>                     if ((fromIntegral tab)*(k-1)) <= capacity
+>                       then greedy (n + (fromIntegral tab)*(k-1))
 >                         (as <> fromFreqList [(k,a)]) ds
->                       else let q = capacity `quot` tab in
->                         greedy (n + tab*q)
+>                       else let q = capacity `quot` (fromIntegral tab) in
+>                         greedy (n + (fromIntegral tab)*q)
 >                           (as <> fromFreqList [(q+1,a)])
 >                           (fromFreqList [(k-q-1,a)] <> ds)
 
@@ -337,14 +339,14 @@ We're finally prepared to define a helper function for constructing screen offse
 
 > mkNoNewlines
 >   :: ( IsWidth w, IsTab t )
->   => [(Int, Span)]
+>   => [(Integer, Span)]
 >   -> ScreenOffset w t
 > mkNoNewlines xs =
 >   NoNewlines (fromFreqList xs)
 > 
 > mkWithNewlines
 >   :: ( IsWidth w, IsTab t )
->   => [(Int, Span)] -> Int -> [(Int, Span)]
+>   => [(Integer, Span)] -> Int -> [(Integer, Span)]
 >   -> ScreenOffset w t
 > mkWithNewlines as k bs =
 >   WithNewlines (fromFreqList as) k (fromFreqList bs)
@@ -352,14 +354,14 @@ We're finally prepared to define a helper function for constructing screen offse
 > defNoNewlines
 >   :: ( IsWidth w, IsTab t )
 >   => Proxy w -> Proxy t
->   -> [(Int, Span)]
+>   -> [(Integer, Span)]
 >   -> ScreenOffset w t
 > defNoNewlines _ _ = mkNoNewlines
 > 
 > defWithNewlines
 >   :: ( IsWidth w, IsTab t )
 >   => Proxy w -> Proxy t
->   -> [(Int, Span)] -> Int -> [(Int, Span)]
+>   -> [(Integer, Span)] -> Int -> [(Integer, Span)]
 >   -> ScreenOffset w t
 > defWithNewlines _ _ = mkWithNewlines
 
@@ -433,6 +435,6 @@ And now the most important function of this module after the monoid instance -- 
 >         applyBlockOffset w t cs pos
 >       WithNewlines as k bs ->
 >         let (_,v) = applyBlockOffset w t as pos
->         in applyBlockOffset w t bs (0,k+v)
+>         in applyBlockOffset w t bs (0,(fromIntegral k)+v)
 
 There's no standard type class for this, but in the tests we'll verify that `applyScreenOffset` is a monoid action on the set of valid screen coordinates.

@@ -24,7 +24,7 @@ There's not much to say about `Seq`.
 > #-}
 > 
 > module Kreb.Struct.Seq.Test (
->  --   test_Seq
+>     test_Seq
 > ) where
 > 
 > import Data.Proxy
@@ -36,10 +36,13 @@ There's not much to say about `Seq`.
 > import Kreb.Struct.FingerTree.Test
 > import Kreb.Struct.FingerTreeZip.Test
 
-> {-
+
 
 Generators
 ==========
+
+> pChar :: Proxy Char
+> pChar = Proxy
 
 > pSeq :: Proxy Seq
 > pSeq = Proxy
@@ -57,5 +60,3 @@ We get all our `Seq` tests for free.
 >     [ testGroup "Char"
 >       [ test_Tape pChar pSeq ]
 >     ]
-
-> -}

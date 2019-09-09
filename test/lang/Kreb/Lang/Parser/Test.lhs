@@ -9,9 +9,9 @@
 
 > import Data.Proxy
 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
+
+> import Kreb.Check
 
 > import Kreb.Lang.Loc
 > import Kreb.Lang.Type
@@ -20,7 +20,7 @@
 > import Kreb.Lang.Module
 > import Kreb.Lang.Parser
 
-> import Kreb.Check
+
 
 > test_Parser :: TestTree
 > test_Parser =
@@ -30,24 +30,25 @@
 
 > prop_Parse_examples
 >   :: (String, Module)
->   -> Property
+>   -> Check
 > prop_Parse_examples (str, ast) =
 >   case runParser pModule str of
->     Left err -> error $ show err
->     Right x -> x === ast
+>     Left err -> reject $ show err
+>     Right x -> claimEqual x ast
 
 > prop_ParsePhrase_examples
 >   :: (String, Phrase)
->   -> Property
+>   -> Check
 > prop_ParsePhrase_examples (str, ast) =
 >   case runParser pPhrase str of
->     Left err -> error $ show err
->     Right x -> x === ast
+>     Left err -> reject $ show err
+>     Right x -> claimEqual x ast
 
 > test_Parse_examples :: TestTree
 > test_Parse_examples =
 >   testGroup "Parsing Modules"
->     [ testCases prop_Parse_examples
+>     [ testKrebCases "Parsing"
+>       prop_Parse_examples
 >       [ ( "#1"
 >         , ( "@define foo :: S -> S == #id\n@end"
 >           , Module
@@ -62,7 +63,8 @@
 >         )
 >       ]
 > 
->     , testCases prop_ParsePhrase_examples
+>     , testKrebCases "Parse"
+>       prop_ParsePhrase_examples
 >       [ ( "#1"
 >         , ( "2"
 >           , Then (BuiltIn (BuiltIn_Int 2)) Silence

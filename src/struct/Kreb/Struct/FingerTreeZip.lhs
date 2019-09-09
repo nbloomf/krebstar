@@ -103,6 +103,13 @@ The general strategy for constructing a zipper over a type involves expressing i
 >   where
 >     arb = FingerTreeZip <$> arb
 > 
+> instance
+>   ( Prune a, Valued m a
+>   ) => Prune (FingerTreeZip m a)
+>   where
+>     prune (FingerTreeZip x) =
+>       map FingerTreeZip $ prune x
+> 
 > emptyFTZ :: FingerTreeZip m a
 > emptyFTZ = FingerTreeZip
 >   { unFingerTreeZip = Nothing

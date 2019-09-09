@@ -59,6 +59,7 @@ Introduction
 
 > import Data.List (unlines)
 
+> import Kreb.Check
 > import Kreb.Control
 > import Kreb.Struct
 > import Kreb.Text.MeasureText
@@ -265,6 +266,37 @@ Queries
 
 >   | TextBoxClear
 >   deriving (Eq, Show)
+
+> instance Arb TextBoxAction where
+>   arb = selectFrom
+>     [ TextBoxInsert <$> arb
+>     , TextBoxInsertMany <$> arb
+>     , return TextBoxBackspace
+>     , return TextBoxCursorDown
+>     , return TextBoxCursorUp
+>     , return TextBoxCursorRight
+>     , return TextBoxCursorLeft
+>     , do
+>         Positive w <- arb
+>         Positive h <- arb
+>         return $ TextBoxResize (w,h)
+>     ]
+> 
+> instance Prune TextBoxAction where
+>   prune x = case x of
+>     TextBoxInsertMany cs ->
+>       map TextBoxInsertMany $ prune cs
+>     _ -> []
+
+> instance Arb TextBox where
+>   arb = do
+>     Positive x <- arb
+>     Positive y <- arb
+>     Positive t <- arb
+>     mkTextBox (x,y) t <$> arb
+
+
+
 
 > alterTextBox
 >   :: [TextBoxAction]

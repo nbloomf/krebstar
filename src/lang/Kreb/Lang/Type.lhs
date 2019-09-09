@@ -19,6 +19,8 @@
 > import qualified Data.Map.Merge.Lazy as M
 > import Control.Monad (ap)
 
+> import Kreb.Check
+
 > import Kreb.Lang.PrettyPrint
 > import Kreb.Lang.Expr
 
@@ -27,6 +29,12 @@
 > data Uniq
 >   = Uniq Int
 >   deriving (Eq, Ord, Show)
+> 
+> instance Arb Uniq where
+>   arb = Uniq <$> arb
+> 
+> instance Prune Uniq where
+>   prune (Uniq k) = map Uniq $ prune k
 
 
 
@@ -39,13 +47,46 @@ Type Grammar
 >   = ForAll Vars Arrow
 >   deriving (Show)
 > 
+> instance Arb Scheme where
+>   arb = do
+>     xs <- adjustSize (`div` 2) arb
+>     ar <- adjustSize (`div` 2) arb
+>     return $ ForAll xs ar
+> 
+> instance Prune Scheme where
+>   prune (ForAll xs ar) =
+>     [ ForAll u ar | u <- prune xs ] ++
+>     [ ForAll xs u | u <- prune ar ]
+> 
 > data Arrow
 >   = Arrow Stack Stack
 >   deriving (Eq, Show)
 > 
+> instance Arb Arrow where
+>   arb = Arrow
+>     <$> (adjustSize (`div` 2) arb)
+>     <*> (adjustSize (`div` 2) arb)
+> 
+> instance Prune Arrow where
+>   prune (Arrow x y) =
+>     [ Arrow u y | u <- prune x ] ++
+>     [ Arrow x u | u <- prune y ]
+> 
 > data Stack
 >   = Stack (V Stack) [Type]
 >   deriving (Eq, Show)
+> 
+> instance Arb Stack where
+>   arb = do
+>     k <- randIn (0,5)
+>     ts <- if k == 0
+>       then pure []
+>       else vectOf k $ adjustSize (`div` k) arb
+>     Stack <$> arb <*> pure ts
+> 
+> instance Prune Stack where
+>   prune (Stack x ts) =
+>     map (Stack x) $ prune ts
 > 
 > data Type
 >   = TyCon (C Type)
@@ -54,14 +95,64 @@ Type Grammar
 >   | TyArr Arrow
 >   deriving (Eq, Show)
 > 
+> instance Arb Type where
+>   arb = do
+>     k <- askSize
+>     p <- arb
+>     if p || (k <= 0)
+>       then pickFrom2
+>         ( TyCon <$> arb
+>         , TyVar <$> arb
+>         )
+>       else adjustSize (`div` 2) $ pickFrom4
+>         ( TyCon <$> arb
+>         , TyVar <$> arb
+>         , TyApp <$> arb <*> arb
+>         , TyArr <$> arb
+>         )
+> 
+> instance Prune Type where
+>   prune z = case z of
+>     TyCon _ -> []
+>     TyVar _ -> []
+>     TyApp t1 t2 ->
+>       [ t1, t2 ] ++
+>       [ TyApp u t2 | u <- prune t1 ] ++
+>       [ TyApp t1 u | u <- prune t2 ]
+>     TyArr a -> map TyArr $ prune a
+> 
 > data V u
 >   = V String
 >   | Skolem Uniq
 >   deriving (Eq, Ord, Show)
 > 
+> instance Arb (V Stack) where
+>   arb = do
+>     c <- pickFrom3 (pure 'S', pure 'T', pure 'U')
+>     i <- randIn (0 :: Int, 5)
+>     return $ V (c : show i)
+> 
+> instance Arb (V Type) where
+>   arb = do
+>     c <- pickFrom3 (pure 'a', pure 'b', pure 'c')
+>     i <- randIn (0 :: Int, 5)
+>     return $ V (c : show i)
+> 
+> instance Prune (V u) where
+>   prune _ = []
+> 
 > data C u
 >   = C String
 >   deriving (Eq, Ord, Show)
+> 
+> instance Arb (C Type) where
+>   arb = do
+>     c <- pickFrom2 (pure 'h', pure 'k')
+>     i <- randIn (0 :: Int, 5)
+>     return $ C (c : show i)
+> 
+> instance Prune (C Type) where
+>   prune _ = []
 
 
 
@@ -97,6 +188,19 @@ Variables
 >   { _stVar :: [V Stack]
 >   , _tyVar :: [V Type]
 >   } deriving (Eq, Show)
+> 
+> instance Arb Vars where
+>   arb = do
+>     i <- randIn (0,5)
+>     j <- randIn (0,5)
+>     Vars
+>       <$> (nub <$> vectOf i (adjustSize (`div` (i+1)) arb))
+>       <*> (nub <$> vectOf j (adjustSize (`div` (j+1)) arb))
+> 
+> instance Prune Vars where
+>   prune (Vars xs ys) =
+>     [ Vars u ys | u <- prune xs ] ++
+>     [ Vars xs u | u <- prune ys ]
 > 
 > isSubsetOf :: Vars -> Vars -> Bool
 > isSubsetOf (Vars s1 t1) (Vars s2 t2) = and
@@ -141,6 +245,20 @@ Substitutions
 >   { _st :: M.Map (V Stack) Stack
 >   , _ty :: M.Map (V Type) Type
 >   } deriving (Eq, Show)
+> 
+> instance Arb Subs where
+>   arb = Subs
+>     <$> (do
+>           ma <- randIn (0,10)
+>           M.fromList <$> vectOf ma (adjustSize (`div` (ma+1)) arb))
+>     <*> (do
+>           mb <- randIn (0,10)
+>           M.fromList <$> vectOf mb (adjustSize (`div` (mb+1)) arb))
+> 
+> instance Prune Subs where
+>   prune (Subs xs ys) =
+>     [ Subs u ys | u <- prune xs ] ++
+>     [ Subs xs u | u <- prune ys ]
 > 
 > dom :: Subs -> Vars
 > dom (Subs st ty) = Vars (M.keys st) (M.keys ty)

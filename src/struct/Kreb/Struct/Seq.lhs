@@ -35,7 +35,7 @@ So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type
 >   , debugShowSeq
 > ) where
 > 
-> import Kreb.Check (Arb(..))
+> import Kreb.Check (Arb(..), Prune(..))
 > 
 > import Kreb.Struct.FingerTree
 > import Kreb.Struct.FingerTreeZip
@@ -63,9 +63,16 @@ There's not much special about `Seq`; it's actually just a wrapper for finger tr
 
 > instance
 >   ( Arb a, Valued Count a
->   ) => Arb (Seq a) where
->   arb = mkTapeFocus
->     <$> arb <*> arb <*> arb
+>   ) => Arb (Seq a)
+>   where
+>     arb = mkTapeFocus
+>       <$> arb <*> arb <*> arb
+> 
+> instance
+>   ( Prune a, Valued Count a
+>   ) => Prune (Seq a)
+>   where
+>     prune (Seq x) = map Seq $ prune x
 
 
 

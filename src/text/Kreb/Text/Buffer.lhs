@@ -115,6 +115,7 @@ Exposed API
 > import Control.Monad (join)
 > import Debug.Trace
 > 
+> import Kreb.Check
 > import Kreb.Reflect
 > import Kreb.Struct
 > 
@@ -138,6 +139,15 @@ Cell
 >   fmap f x = case x of
 >     Cell c -> Cell (f c)
 >     EOF -> EOF
+> 
+> instance
+>   ( Arb a, IsChar a
+>   ) => Arb (Cell a)
+>   where
+>     arb = cell <$> arb
+> 
+> instance Prune (Cell a) where
+>   prune _ = []
 > 
 > instance
 >   ( IsChar a
@@ -210,6 +220,26 @@ A _buffer_ is just a zipped finger tree with value monoid `MeasureText w t` for 
 >   ) => Valued (MeasureText w t) (Buffer w t a)
 >   where
 >     value = value . integrateFTZ . unBuffer
+> 
+> instance
+>   ( IsWidth w, IsTab t, IsChar a, Eq a
+>   , Arb a, Valued (MeasureText w t) a
+>   ) => Arb (Buffer w t a)
+>   where
+>     arb = mkTapeFocus
+>       <$> arb <*> arb <*> arb
+> 
+> instance
+>   ( IsWidth w, IsTab t, IsChar a, Eq a
+>   , Prune a, Valued (MeasureText w t) a
+>   ) => Prune (Buffer w t a)
+>   where
+>     prune buf =
+>       case unBufferFocus buf of
+>         Nothing -> []
+>         Just (as, x, bs) -> mkEmptyBuffer :
+>           [ mkBufferFocus'' as' x bs'
+>             | as' <- prune as, bs' <- prune bs ]
 
 Immediately we can give `Buffer` a `Tape` instance:
 

@@ -14,13 +14,16 @@
 >   , makeToExtendWith
 >   , makeToIntegralWith
 > 
->  -- , Fun(..)
+>   , Fun(..)
 >   , apFun
+>   , apFun2
+>   , apFun3
 >   , (@@)
 > ) where
 > 
 > import Data.List (intersperse, subsequences)
 > import Data.Word (Word8)
+> import Data.Char (ord, chr)
 > 
 > import Kreb.Check.Arb
 
@@ -265,6 +268,9 @@ Base Constructors
 > instance MakeTo Int where
 >   makeTo = makeToIntegral
 
+> instance MakeTo Char where
+>   makeTo = makeToExtend ord chr
+
 
 
 
@@ -288,6 +294,14 @@ Base Constructors
 >   :: Fun a b -> a -> b
 > apFun (Fun _ _ _ f) = f
 > (@@) = apFun
+
+> apFun2
+>   :: Fun (a,b) c -> a -> b -> c
+> apFun2 (Fun _ _ _ f) a b = f (a, b)
+> 
+> apFun3
+>   :: Fun (a,b,c) d -> a -> b -> c -> d
+> apFun3 (Fun _ _ _ f) a b c = f (a,b,c)
 
 > instance
 >   ( Show a, Show b

@@ -29,21 +29,6 @@ common test-deps
 
 
 
--- ============ --
--- Kreb Control --
--- ============ --
-
-library kreb-control
-  default-language: Haskell2010
-  hs-source-dirs: src/control
-  exposed-modules:
-      Kreb.Control
-    , Kreb.Control.LocalSt
-  build-depends:
-      base >=4.7 && <5
-
-
-
 -- ========== --
 -- Kreb Check --
 -- ========== --
@@ -66,8 +51,12 @@ library kreb-check
     , Kreb.Check.Laws.Eq
     , Kreb.Check.Laws.Semigroup
     , Kreb.Check.Laws.Monoid
+    , Kreb.Check.Laws.Functor
+    , Kreb.Check.Laws.Foldable
+    , Kreb.Check.Laws.Ringlike
   build-depends:
       base >=4.7 && <5
+    , containers >=0.6.0.1
     , QuickCheck >=2.12.6.1
     , tasty >=1.2
     , tasty-quickcheck >=0.10.1
@@ -76,8 +65,10 @@ library kreb-check
 test-suite kreb-check-test
   default-language: Haskell2010
   type: exitcode-stdio-1.0
-  hs-source-dirs: test
-  main-is: check/Kreb/Check/Test.lhs
+  hs-source-dirs: test/check
+  other-modules:
+      Kreb.Check.Test.Suite
+  main-is: Kreb/Check/Test.lhs
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -85,6 +76,21 @@ test-suite kreb-check-test
     , tasty >=1.2
 
     , kreb-check
+
+
+
+-- ============ --
+-- Kreb Control --
+-- ============ --
+
+library kreb-control
+  default-language: Haskell2010
+  hs-source-dirs: src/control
+  exposed-modules:
+      Kreb.Control
+    , Kreb.Control.LocalSt
+  build-depends:
+      base >=4.7 && <5
 
 
 
@@ -122,7 +128,8 @@ test-suite kreb-reflect-test
   hs-source-dirs: test/reflect
   main-is: Kreb/Reflect/Test.lhs
   other-modules:
-      Kreb.Reflect.Nat.Test
+      Kreb.Reflect.Test.Suite
+    , Kreb.Reflect.Nat.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -158,7 +165,8 @@ test-suite kreb-struct-test
   hs-source-dirs: test/struct
   main-is: Kreb/Struct/Test.lhs
   other-modules:
-      Kreb.Struct.FingerTree.Test
+      Kreb.Struct.Test.Suite
+    , Kreb.Struct.FingerTree.Test
     , Kreb.Struct.FingerTreeZip.Test
     , Kreb.Struct.Seq.Test
     , Kreb.Struct.RunLengthEncoding.Test
@@ -199,14 +207,18 @@ library kreb-text
 test-suite kreb-text-test
   default-language: Haskell2010
   type: exitcode-stdio-1.0
-  hs-source-dirs: test/text
+  hs-source-dirs: test/text, test/struct
   main-is: Kreb/Text/Test.lhs
   other-modules:
-      Kreb.Text.ScreenOffset.Test
+      Kreb.Text.Test.Suite
+    , Kreb.Text.ScreenOffset.Test
     , Kreb.Text.MeasureText.Test
     , Kreb.Text.Glyph.Test
     , Kreb.Text.Buffer.Test
     , Kreb.Text.TextBox.Test
+
+    , Kreb.Struct.FingerTree.Test
+    , Kreb.Struct.FingerTreeZip.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -249,14 +261,16 @@ library kreb-lang
     , text >=1.2.3.1
     , containers >=0.6.0.1
 
+    , kreb-check
+
 test-suite kreb-lang-test
-  import: test-deps
   default-language: Haskell2010
   type: exitcode-stdio-1.0
   hs-source-dirs: test/lang
   main-is: Kreb/Lang/Test.lhs
   other-modules:
-      Kreb.Lang.Type.Test
+      Kreb.Lang.Test.Suite
+    , Kreb.Lang.Type.Test
     , Kreb.Lang.Module.Test
     , Kreb.Lang.Interpreter.Test
     , Kreb.Lang.Parser.Test
@@ -265,6 +279,7 @@ test-suite kreb-lang-test
   build-depends:
       base >=4.7 && <5
     , containers >=0.6.0.1
+    , tasty >=1.2
 
     , kreb-check
     , kreb-lang
@@ -300,7 +315,6 @@ library kreb-editor
     , kreb-lang
 
 test-suite kreb-editor-test
-  import: test-deps
   default-language: Haskell2010
   type: exitcode-stdio-1.0
   hs-source-dirs: test/editor
@@ -311,6 +325,7 @@ test-suite kreb-editor-test
   build-depends:
       base >=4.7 && <5
     , containers >=0.6.0.1
+    , tasty >=1.2
 
     , kreb-check
     , kreb-lang
@@ -402,3 +417,51 @@ executable lang
   build-depends:
       base >=4.7 && <5
     , kreb-lang
+
+
+
+test-suite kreb-test
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs:
+      test/all
+    , test/check
+    , test/reflect
+    , test/struct
+    , test/text
+    , test/lang
+  main-is: Test.lhs
+  other-modules:
+      Kreb.Check.Test.Suite
+    , Kreb.Reflect.Test.Suite
+    , Kreb.Struct.Test.Suite
+    , Kreb.Text.Test.Suite
+    , Kreb.Lang.Test.Suite
+
+    , Kreb.Lang.Interpreter.Test
+    , Kreb.Lang.Module.Test
+    , Kreb.Lang.Parser.Test
+    , Kreb.Lang.Type.Test
+    , Kreb.Reflect.Nat.Test
+    , Kreb.Struct.FingerTree.Test
+    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.RunLengthEncoding.Test
+    , Kreb.Struct.Seq.Test
+    , Kreb.Text.Buffer.Test
+    , Kreb.Text.Glyph.Test
+    , Kreb.Text.MeasureText.Test
+    , Kreb.Text.ScreenOffset.Test
+    , Kreb.Text.TextBox.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+    , tasty >=1.2
+
+    , kreb-check
+    , kreb-reflect
+    , kreb-struct
+    , kreb-text
+    , kreb-lang
+    , kreb-editor

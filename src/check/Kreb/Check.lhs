@@ -11,7 +11,7 @@
 >   , module Kreb.Check.Laws
 > 
 >   , module Kreb.Check.Fun
-> --  , module Kreb.Check.Build
+>   , module Kreb.Check.Build
 >   , module Kreb.Check.StateMachine
 > 
 >   , uncurry3
@@ -66,61 +66,3 @@ It appears that `testCases` can only work with properties that take a single arg
 >   -> (a1,a2,a3,a4) -> b
 > uncurry4 f (a1,a2,a3,a4) =
 >   f a1 a2 a3 a4
-
-
-
-> {-
-
-
-
-
-> visitOutcomes :: Rose Outcome -> Outcome
-> visitOutcomes z = case z of
->   Rose Accept _ -> Accept
->   Rose failure1 children ->
->     let failure2 = find (isFailure . roseVal) children
->     in case failure2 of
->       Nothing -> failure1
->       Just x -> visitOutcomes x
-
-
-> isFailure Accept = False
-> isFailure _ = True
-
-
-
-
-
-
-
-> checkCase
->   :: ( Checkable check )
->   => Int -> Int -> Depth -> Size -> check -> Outcome
-> checkCase num seed d s c = runAll (check c)
->   where
->     runAll :: Check -> Outcome
->     runAll pr = foldMap (runOne pr) $ take num $ [seed..]
-> 
->     runOne :: Check -> Int -> Outcome
->     runOne pr sd =
->       let result = visitOutcomes $ runCheck pr $ initArbEnvWith (Seed seed) d s
->       in case result of
->         Accept -> Accept
->         Reject _ _ _ args msg -> Reject (Seed sd) d s args msg
-
-> krebCheck :: Checkable prop => prop -> IO Outcome
-> krebCheck = krebCheckWith 100 5 5
-
-> krebCheckWith :: Checkable prop => Int -> Depth -> Size -> prop -> IO Outcome
-> krebCheckWith attemptNb d s prop = do
->   seed <- randomIO
->   return $ checkCase attemptNb seed d s prop
-
-
-
-
-
-> -}
-
-
-

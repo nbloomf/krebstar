@@ -25,7 +25,7 @@ Introduction
 > #-}
 > 
 > module Kreb.Text.Buffer.Test (
->  --   test_Buffer
+>     test_Buffer
 > ) where
 > 
 > import Data.Proxy
@@ -34,71 +34,49 @@ Introduction
 > 
 > import Test.Tasty
 > 
+> import Kreb.Check
 > import Kreb.Struct
-> import Kreb.Reflect.Nat
+> import Kreb.Reflect
 > import Kreb.Text
 > 
-> import Kreb.Check
+> import Kreb.Struct.FingerTreeZip.Test
 > 
 > import Kreb.Text.ScreenOffset.Test
 > import Kreb.Text.MeasureText.Test
 > import Kreb.Text.Glyph.Test
 
-> {-
+
 
 Generators
 ==========
-
-> instance
->   ( Arbitrary a, IsChar a
->   ) => Arbitrary (Cell a)
->   where
->     arbitrary = cell <$> arbitrary
-
-> instance
->   ( IsWidth w, IsTab t, IsChar a, Eq a
->   , Arbitrary a, Valued (MeasureText w t) a
->   ) => Arbitrary (Buffer w t a)
->   where
->     arbitrary = mkTapeFocus
->       <$> arbitrary
->       <*> arbitrary
->       <*> arbitrary
-> 
->     shrink buf =
->       case unBufferFocus buf of
->         Nothing -> []
->         Just (as, x, bs) -> mkEmptyBuffer :
->           [ mkBufferFocus'' as' x bs'
->             | as' <- shrink as, bs' <- shrink bs ]
 
 Generates valid input/output pairs for `renderBuffer`.
 
 > genRenderBuffer
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> NonNegative Int
->   -> Gen (Int, Int, Buffer w t a, [Maybe Int], [[a]])
+>   -> Seeded (Int, Int, Buffer w t a, [Maybe Int], [[a]])
 > genRenderBuffer pw pt _ (NonNegative k) = do
 >   let
 >     w = toWidth pw
 >     t = toTab pt
 > 
->     brokenLine :: Int -> Gen [(Maybe Int, [a])]
+>     brokenLine :: Int -> Seeded [(Maybe Int, [a])]
 >     brokenLine n = do
->       u <- choose (k*w, (k+1)*w - 2)
->       let char = fromChar <$> choose ('a','z')
->       cs <- vectorOf u char
+>       u <- randIn (k*w, (k+1)*w - 2)
+>       let char = fromChar <$> randIn ('a','z')
+>       cs <- vectOf u char
 >       let
 >         labels = Just n : repeat Nothing
 >         chunks = breakLinesAtWidth t w (cs ++ [fromChar '\n'])
 >       return $ zip labels chunks
 > 
->   NonNegative top <- arbitrary
->   Positive height <- arbitrary
->   NonNegative pad <- arbitrary
+>   NonNegative top <- arb
+>   Positive height <- arb
+>   NonNegative pad <- arb
 > 
 >   (labelss, chunkss) <- (unzip . concat) <$>
 >     mapM brokenLine [0..(top+height+pad)]
@@ -112,47 +90,20 @@ Generates valid input/output pairs for `renderBuffer`.
 > 
 >   return (top, height, buf, labels, chunks)
 
-> {- genBufferFixed1
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
->   => [Positive Int]
->   -> Gen ([Maybe Int], [[a]], Buffer w t a)
-> genBufferFixed1 ks = do
->   let
->     w = toWidth (Proxy :: Proxy w)
 
->     ln
->       :: (Int, Positive Int)
->       -> Gen ([Maybe Int], [[a]], [a])
->     ln (i, Positive k) = do
->       as <- map fromChar
->         <$> vectorOf k (choose ('a','z'))
->       let
->         (lbs, lns) = unzip $ zip
->           (Just i : repeat Nothing)
->           (chunksOf w as)
->       return (lbs, lns, as)
 
->   (labelss, liness, css) <-
->     unzip3 <$> (sequence $ map ln $ zip [0..] ks)
 
->   return
->     ( concat labelss
->     , concat liness
->     , mkBuffer $ intercalate [fromChar '\n'] css
->     )
 
-> genRenderWrapFixed1
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
->   => Positive Int
->   -> Gen ([Maybe Int], [[a]], Buffer w t a)
-> genRenderWrapFixed1 (Positive h) = do
->   let w = toWidth (Proxy :: Proxy w)
->   len <- choose (w+1, w*h)
->   genBufferFixed1 [Positive len] -}
+> pGlyph :: Proxy Glyph
+> pGlyph = Proxy
+
+> pBuffer :: Proxy w -> Proxy t -> Proxy (Buffer w t)
+> pBuffer _ _ = Proxy
+
+> pChar :: Proxy Char
+> pChar = Proxy
+
+
 
 
 
@@ -161,14 +112,14 @@ Tests
 
 > test_Buffer_properties
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_properties pw pt pa =
 >   testGroup "Buffer"
 >     [ test_Buffer_basics pw pt pa
 >     , test_Buffer_nav pw pt pa
 >     , test_Buffer_split pw pt pa
->     , localOption (QuickCheckTests 500) $
+>     , localOption (KrebCheckTests 100) $
 >         test_Buffer_renderBuffer pw pt pa
 >     ]
 
@@ -179,59 +130,60 @@ Basics
 
 > test_Buffer_basics
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_basics pw pt pa =
 >   testGroup "Basics"
 >     [ test_Buffer_validate pw pt pa
 >     , test_Buffer_debug pw pt pa
 >     , test_Buffer_atLineCol_monotone pw pt pa
->     , localOption (QuickCheckTests 1000) $
+>     , localOption (KrebCheckTests 1000) $
 >         test_Buffer_atScreenCoords_monotone pw pt pa
->     , localOption (QuickCheckTests 1000) $
+>     , localOption (KrebCheckTests 1000) $
 >         test_Buffer_atScreenLine_monotone pw pt pa
 >     ]
 
 > prop_Buffer_validate
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_validate _ _ _ buf =
->   property $ validateBuffer buf
+>   check $ validateBuffer buf
 > 
 > test_Buffer_validate
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_validate pw pt pa =
->   testProperty "Validate" $
+>   testKreb "Validate" $
 >     prop_Buffer_validate pw pt pa
 
 > prop_Buffer_debug
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Buffer w t a
->   -> [(Cell Char, MeasureText w t)]
->   -> Property
+>   -> ( Buffer w t a
+>      , [(Cell Char, MeasureText w t)]
+>      )
+>   -> Check
 > 
-> prop_Buffer_debug _ _ _ buf zs =
+> prop_Buffer_debug _ _ _ (buf, zs) =
 >   let ws = map (\(c, m) -> (fmap fromChar c, m)) zs in
->   ws === toListDebugBuffer buf
+>   claimEqual ws (toListDebugBuffer buf)
 > 
 > test_Buffer_debug
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_debug pw pt pa =
 >   testGroup "Debug examples"
->     [ testCases
->       (uncurry $ prop_Buffer_debug pw pt pa)
+>     [ testKrebCases "Debug"
+>       (prop_Buffer_debug pw pt pa)
 >       [ ( "#1"
 >         , ( charBuffer pw pt
 >               "a"
@@ -278,72 +230,72 @@ Basics
 
 > prop_Buffer_atLineCol_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a
 >   -> LineCol
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_atLineCol_monotone _ _ _ buf w =
->   property $
+>   check $
 >     and $ dropWhile (== False) $
 >       map (atLineCol w . snd) $
 >       toListDebugBuffer buf
 > 
 > test_Buffer_atLineCol_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_atLineCol_monotone pw pt pa =
->   testProperty "atLineCol is monotone on buffers" $
+>   testKreb "atLineCol is monotone on buffers" $
 >     prop_Buffer_atLineCol_monotone pw pt pa
 
 > prop_Buffer_atScreenCoords_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a
 >   -> (NonNegative Int, NonNegative Int)
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_atScreenCoords_monotone _ _ _ buf (NonNegative u, NonNegative v) =
->   property $
+>   check $
 >     and $ dropWhile (== False) $
 >       map (atScreenCoords (u,v) . snd) $
 >       toListDebugBuffer buf
 > 
 > test_Buffer_atScreenCoords_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_atScreenCoords_monotone pw pt pa =
->   testProperty "atScreenCoords is monotone on buffers" $
+>   testKreb "atScreenCoords is monotone on buffers" $
 >     prop_Buffer_atScreenCoords_monotone pw pt pa
 
 > prop_Buffer_atScreenLine_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a
 >   -> NonNegative Int
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_atScreenLine_monotone _ _ _
 >   buf (NonNegative u) =
->   property $
+>   check $
 >     and $ dropWhile (== False) $
 >       map (atScreenLine u . snd) $
 >       toListDebugBuffer buf
 > 
 > test_Buffer_atScreenLine_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_atScreenLine_monotone pw pt pa =
->   testProperty "atScreenLine is monotone on buffers" $
+>   testKreb "atScreenLine is monotone on buffers" $
 >     prop_Buffer_atScreenLine_monotone pw pt pa
 
 
@@ -353,17 +305,17 @@ Navigation properties
 
 > test_Buffer_nav
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_nav pw pt pa =
 >   testGroup "Basic navigation"
->     [ testProperty "initMove; getBufferHeadLineCol" $
+>     [ testKreb "initMove; getBufferHeadLineCol" $
 >         prop_Buffer_getBufferHeadLineCol_initMove pw pt pa
->     , testProperty "bufferHeadLineCol; splitBufferAtLineCol" $
+>     , testKreb "bufferHeadLineCol; splitBufferAtLineCol" $
 >         prop_Buffer_getBufferHeadLineCol_splitBufferAtLineCol pw pt pa
->     , testProperty "bufferHeadLineCol headMoveAfter" $
->         cprop_Buffer_getBufferHeadLineCol_headMoveAfter pw pt pa
+>     , testKreb "bufferHeadLineCol headMoveAfter" $
+>         prop_Buffer_getBufferHeadLineCol_headMoveAfter pw pt pa
 >     ]
 
 Steps:
@@ -378,9 +330,9 @@ Expect:
 > prop_Buffer_getBufferHeadLineCol_initMove
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, Show a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Buffer w t a -> Property
+>   -> Buffer w t a -> Check
 > prop_Buffer_getBufferHeadLineCol_initMove _ _ _ xs =
->   mempty === getBufferHeadLineCol (initMove xs)
+>   claimEqual mempty (getBufferHeadLineCol (initMove xs))
 
 Steps:
 
@@ -394,9 +346,9 @@ Expect:
 > prop_Buffer_getBufferHeadLineCol_splitBufferAtLineCol
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Buffer w t a -> Property
+>   -> Buffer w t a -> Check
 > prop_Buffer_getBufferHeadLineCol_splitBufferAtLineCol _ _ _ xs =
->   xs === splitBufferAtLineCol (getBufferHeadLineCol xs) xs
+>   claimEqual xs (splitBufferAtLineCol (getBufferHeadLineCol xs) xs)
 
 Preconditions:
 
@@ -412,28 +364,23 @@ Expect:
     1. New line and column is old line and column <> head value
 
 > prop_Buffer_getBufferHeadLineCol_headMoveAfter
->    , cprop_Buffer_getBufferHeadLineCol_headMoveAfter
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, IsChar a, Eq a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_getBufferHeadLineCol_headMoveAfter _ _ _ buf =
 >   if (isEmpty buf) || (isAtLast buf)
->     then property True
+>     then accept
 >     else
 >       let
 >         Just a = headRead buf
 >         m = value a :: MeasureText w t
 >       in
->         getBufferHeadLineCol (headMoveR buf)
->          === (getBufferHeadLineCol buf) <> (logicalOffset m)
-> 
-> cprop_Buffer_getBufferHeadLineCol_headMoveAfter pw pt pa buf =
->   cover 30 (not $ isEmpty buf) "buf not empty" $
->   cover 30 (not $ isAtLast buf) "head not at last" $
->   prop_Buffer_getBufferHeadLineCol_headMoveAfter pw pt pa buf
+>         claimEqual
+>           (getBufferHeadLineCol (headMoveR buf))
+>           ((getBufferHeadLineCol buf) <> (logicalOffset m))
 
 
 
@@ -442,7 +389,7 @@ Splitting properties
 
 > test_Buffer_split
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_split pw pt pa =
@@ -450,9 +397,9 @@ Splitting properties
 >     [ test_Buffer_splitBufferAtScreenLine_examples pw pt pa
 >     , test_Buffer_atScreenLine_examples pw pt pa
 >     , test_Buffer_splitBufferAtScreenCoords_examples pw pt pa
->     , localOption (QuickCheckTests 1000)
+>     , localOption (KrebCheckTests 1000)
 >         $ test_Buffer_splitBufferAtLineCol_focus pw pt pa
->     , localOption (QuickCheckTests 1000)
+>     , localOption (KrebCheckTests 1000)
 >         $ test_Buffer_splitBufferAtScreenCoords_focus pw pt pa
 >     ]
 
@@ -460,22 +407,22 @@ Examples for checking our intuition about screen line splitting:
 
 > prop_Buffer_splitBufferAtScreenLine_examples
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> NonNegative Int -> Buffer w t a -> Maybe (Buffer w t a)
->   -> Property
+>   -> (NonNegative Int, Buffer w t a, Maybe (Buffer w t a))
+>   -> Check
 > prop_Buffer_splitBufferAtScreenLine_examples _ _ _
->   (NonNegative k) buf1 buf2 =
->   buf2 === splitBufferAtScreenLine k buf1
+>   ((NonNegative k), buf1, buf2) =
+>   claimEqual buf2 (splitBufferAtScreenLine k buf1)
 > 
 > test_Buffer_splitBufferAtScreenLine_examples
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_splitBufferAtScreenLine_examples pw pt pa =
 >   testGroup "Examples"
->     [ testCases
->       (uncurry3 $ prop_Buffer_splitBufferAtScreenLine_examples pw pt pa)
+>     [ testKrebCases "splitBufferAtScreenLine"
+>       (prop_Buffer_splitBufferAtScreenLine_examples pw pt pa)
 >       [ ( "Line 0"
 >         , ( NonNegative 0
 >           , charBufferFocus pw pt pa
@@ -589,13 +536,13 @@ Examples for checking our intuition about screen line splitting:
 >      , Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> NonNegative Int -> Buffer w t a -> [(Cell a, Bool)]
->   -> Property
+>   -> Check
 > prop_Buffer_atScreenLine_examples _ _ _
 >   (NonNegative k) xs ys =
 >   let
 >     zs = map (\(a,b) -> (a, atScreenLine k b))
 >           $ toListDebugBuffer xs
->   in zs === ys
+>   in claimEqual zs ys
 
 > test_Buffer_atScreenLine_examples
 >   :: forall w t a
@@ -605,7 +552,7 @@ Examples for checking our intuition about screen line splitting:
 >   -> TestTree
 > test_Buffer_atScreenLine_examples pw pt pa =
 >   testGroup "atScreenLine examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 0)
 >           ( defBufferFocus'' pw pt
@@ -615,7 +562,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,      True )
 >           ]
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 0)
 >           ( defBufferFocus'' pw pt
@@ -625,7 +572,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,       True )
 >           ]
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 0)
 >           ( defBufferFocus'' pw pt
@@ -636,7 +583,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,       True )
 >           ]
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
 >           ( defBufferFocus'' pw pt
@@ -646,7 +593,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,      False )
 >           ]
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
 >           ( defBufferFocus'' pw pt
@@ -656,7 +603,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,       True )
 >           ]
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
 >           ( defBufferFocus'' pw pt
@@ -667,7 +614,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,       True )
 >           ]
 > 
->     , testProperty "#7" $
+>     , testKreb "#7" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
 >           ( defBufferFocus'' pw pt
@@ -679,7 +626,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,       True )
 >           ]
 > 
->     , testProperty "#8" $
+>     , testKreb "#8" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
 >           ( defBufferFocus'' pw pt
@@ -691,7 +638,7 @@ Examples for checking our intuition about screen line splitting:
 >           , ( eof,       True )
 >           ]
 > 
->     , testProperty "#9" $
+>     , testKreb "#9" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
 >           ( defBufferFocus'' pw pt
@@ -708,23 +655,25 @@ Examples for checking our intuition about screen coordinate splitting:
 
 > prop_Buffer_splitBufferAtScreenCoords_examples
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> (NonNegative Int, NonNegative Int)
->   -> Buffer w t a -> Buffer w t a
->   -> Property
+>   -> ( (NonNegative Int, NonNegative Int)
+>      , Buffer w t a
+>      , Buffer w t a
+>      )
+>   -> Check
 > prop_Buffer_splitBufferAtScreenCoords_examples _ _ _
->   (NonNegative u, NonNegative v) buf1 buf2 =
->   buf2 === splitBufferAtScreenCoords (u,v) buf1
+>   ((NonNegative u, NonNegative v), buf1, buf2) =
+>   claimEqual buf2 (splitBufferAtScreenCoords (u,v) buf1)
 > 
 > test_Buffer_splitBufferAtScreenCoords_examples
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_splitBufferAtScreenCoords_examples pw pt pa =
 >   testGroup "Examples"
->     [ testCases
->       (uncurry3 $ prop_Buffer_splitBufferAtScreenCoords_examples pw pt pa)
+>     [ testKrebCases "splitBufferAtScreenCoords"
+>       (prop_Buffer_splitBufferAtScreenCoords_examples pw pt pa)
 >       [ ( "(0,0)"
 >         , ( (NonNegative 0, NonNegative 0)
 >           , charBufferFocus pw pt pa
@@ -757,33 +706,33 @@ Examples for checking our intuition about screen coordinate splitting:
 > prop_Buffer_splitBufferAtLineCol_focus
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a -> a -> Buffer w t a
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_splitBufferAtLineCol_focus _ _ _ as x bs =
 >   let
 >     m = value as <> value x :: MeasureText w t
 >     z = mkBufferFocus' as x bs
 >   in
->     z === (splitBufferAtLineCol (logicalCoords m) z)
+>     claimEqual z (splitBufferAtLineCol (logicalCoords m) z)
 > 
 > test_Buffer_splitBufferAtLineCol_focus
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_splitBufferAtLineCol_focus pw pt pa =
->   testProperty "splitBufferAtLineCol (prepared focus)" $
+>   testKreb "splitBufferAtLineCol (prepared focus)" $
 >     prop_Buffer_splitBufferAtLineCol_focus pw pt pa
 
 > prop_Buffer_splitBufferAtScreenCoords_focus
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> [a] -> a -> [a]
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_splitBufferAtScreenCoords_focus pw pt _ as x bs =
 >   let
@@ -794,15 +743,15 @@ Examples for checking our intuition about screen coordinate splitting:
 >     z2 = splitBufferAtScreenCoords pos z1
 >   in
 >     if validateBuffer z2
->       then z1 === z2
->       else error "z2 does not validate!"
+>       then claimEqual z1 z2
+>       else reject "z2 does not validate!"
 > 
 > test_Buffer_splitBufferAtScreenCoords_focus
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Show a, Eq a, IsChar a )
+>      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_splitBufferAtScreenCoords_focus pw pt pa =
->   testProperty "splitBufferAtScreenCoords (prepared focus)" $
+>   testKreb "splitBufferAtScreenCoords (prepared focus)" $
 >     prop_Buffer_splitBufferAtScreenCoords_focus pw pt pa
 
 
@@ -813,50 +762,50 @@ Examples
 > prop_Buffer_validateBuffer_examples
 >   :: ( IsWidth w, IsTab t )
 >   => Buffer w t Char
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_validateBuffer_examples x =
->   property $ validateBuffer x
+>   check $ validateBuffer x
 > 
 > test_Buffer_validateBuffer_examples :: TestTree
 > test_Buffer_validateBuffer_examples =
 >   testGroup "Validate"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "" 'a' "aaaaaaaaaaaaaaaaaa"
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "a" 'a' "aaaaaaaaaaaaaaaaa"
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "aa" 'a' "aaaaaaaaaaaaaaaa"
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "aaa" 'a' "aaaaaaaaaaaaaaa"
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "aaaa" 'a' "aaaaaaaaaaaaaa"
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "aaaaa" 'a' "aaaaaaaaaaaaa"
 > 
->     , testProperty "#7" $
+>     , testKreb "#7" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "aaaaaa" 'a' "aaaaaaaaaaaa"
 > 
->     , testProperty "#8" $
+>     , testKreb "#8" $
 >         prop_Buffer_validateBuffer_examples $
 >           defBufferFocus nat3 nat1
 >             "aaaaaaa" 'a' "aaaaaaaaaaa"
@@ -865,14 +814,14 @@ Examples
 > prop_Buffer_splitAtScreenCoords_examples
 >   :: ( IsWidth w, IsTab t )
 >   => ((Int, Int), Buffer w t Char, Buffer w t Char)
->   -> Property
+>   -> Check
 > prop_Buffer_splitAtScreenCoords_examples (pos, buf1, buf2) =
->   buf2 === splitBufferAtScreenCoords pos buf1
+>   claimEqual buf2 (splitBufferAtScreenCoords pos buf1)
 > 
 > test_Buffer_splitAtScreenCoords_examples :: TestTree
 > test_Buffer_splitAtScreenCoords_examples =
 >   testGroup "splitAtScreenCoords examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (0,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -880,7 +829,7 @@ Examples
 >               "" 'a' "aaaaaaaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (1,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -888,7 +837,7 @@ Examples
 >               "a" 'a' "aaaaaaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (2,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -896,7 +845,7 @@ Examples
 >               "aa" 'a' "aaaaaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (3,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -904,7 +853,7 @@ Examples
 >               "aa" 'a' "aaaaaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (0,1)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -912,7 +861,7 @@ Examples
 >               "aaa" 'a' "aaaaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (1,1)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -920,7 +869,7 @@ Examples
 >               "aaaa" 'a' "aaaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#7" $
+>     , testKreb "#7" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (2,1)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -928,7 +877,7 @@ Examples
 >               "aaaaa" 'a' "aaaaaaaaaaaaa"
 >           )
 > 
->     , testProperty "#8" $
+>     , testKreb "#8" $
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (0,2)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
@@ -941,57 +890,57 @@ Examples
 >   :: forall w t
 >    . ( IsWidth w, IsTab t )
 >   => (Buffer w t Char, (Int, Int))
->   -> Property
+>   -> Check
 > prop_Buffer_screenCoords_value_examples (buf1, pos) =
 >   let offset = screenCoords (value buf1 :: MeasureText w t)
->   in pos === (applyScreenOffset offset (0,0))
+>   in claimEqual pos (applyScreenOffset offset (0,0))
 > 
 > test_Buffer_screenCoords_value_examples :: TestTree
 > test_Buffer_screenCoords_value_examples =
 >   testGroup "Buffer value examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "a"
 >           , (1,0)
 >           )
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aa"
 >           , (2,0)
 >           )
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aaa"
 >           , (0,1)
 >           )
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aaaa"
 >           , (1,1)
 >           )
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aaaaa"
 >           , (2,1)
 >           )
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aaaaaa"
 >           , (0,2)
 >           )
 > 
->     , testProperty "#7" $
+>     , testKreb "#7" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aaaaaaa"
 >           , (1,2)
 >           )
 > 
->     , testProperty "#8" $
+>     , testKreb "#8" $
 >         prop_Buffer_screenCoords_value_examples
 >           ( defBuffer nat3 nat1 "aaaaaaaa"
 >           , (2,2)
@@ -1006,16 +955,16 @@ Rendering
 > test_Buffer_renderBuffer
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_renderBuffer pw pt pa =
 >   testGroup "Rendering"
->     [ testProperty "Prepared 0" $
+>     [ testKreb "Prepared 0" $
 >         prop_Buffer_renderBuffer_prepared_0 pw pt pa
->     , testProperty "Prepared 1" $
+>     , testKreb "Prepared 1" $
 >         prop_Buffer_renderBuffer_prepared_1 pw pt pa
->     , testProperty "Prepared 2" $
+>     , testKreb "Prepared 2" $
 >         prop_Buffer_renderBuffer_prepared_2 pw pt pa
 >     ]
 
@@ -1024,27 +973,30 @@ Rendering
 >    , prop_Buffer_renderBuffer_prepared_2
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Property
+>   -> Check
 > 
 > prop_Buffer_renderBuffer_prepared_0 pw pt pa =
->   forAll (genRenderBuffer pw pt pa (NonNegative 0)) $
+>   forEach (genRenderBuffer pw pt pa (NonNegative 0)) prune $
 >     \(top, height, buf, labels, lines) ->
->       (labels, lines)
->         === renderBuffer defaultBufferRenderSettings top height buf
+>       claimEqual
+>         (labels, lines)
+>         (renderBuffer defaultBufferRenderSettings top height buf)
 > 
 > prop_Buffer_renderBuffer_prepared_1 pw pt pa =
->   forAll (genRenderBuffer pw pt pa (NonNegative 1)) $
+>   forEach (genRenderBuffer pw pt pa (NonNegative 1)) prune $
 >     \(top, height, buf, labels, lines) ->
->       (labels, lines)
->         === renderBuffer defaultBufferRenderSettings top height buf
+>       claimEqual
+>         (labels, lines)
+>         (renderBuffer defaultBufferRenderSettings top height buf)
 > 
 > prop_Buffer_renderBuffer_prepared_2 pw pt pa =
->   forAll (genRenderBuffer pw pt pa (NonNegative 2)) $
+>   forEach (genRenderBuffer pw pt pa (NonNegative 2)) prune $
 >     \(top, height, buf, labels, lines) ->
->       (labels, lines)
->         === renderBuffer defaultBufferRenderSettings top height buf
+>       claimEqual
+>         (labels, lines)
+>         (renderBuffer defaultBufferRenderSettings top height buf)
 
 
 
@@ -1053,13 +1005,13 @@ Take Line
 
 > test_Buffer_takeLine
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
->      , Valued (MeasureText w t) a, Show a, Arbitrary a )
+>      , Valued (MeasureText w t) a, Show a, Arb a, Prune a )
 >   => Proxy w -> Proxy t -> Proxy a -> TestTree
 > test_Buffer_takeLine pw pt pa =
 >   testGroup "Take Line"
->     [ testProperty "takeLine concat"
+>     [ testKreb "takeLine concat"
 >         $ prop_Buffer_takeLine_concat pw pt pa
->     , testProperty "takeLines concat"
+>     , testKreb "takeLines concat"
 >         $ prop_Buffer_takeLines_concat pw pt pa
 >     , test_Buffer_takeLine_examples pw pt pa
 >     , test_Buffer_takeLines_examples pw pt pa
@@ -1071,13 +1023,13 @@ Take Line
 >      , Valued (MeasureText w t) a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> FingerTree (MeasureText w t) (Cell a)
->   -> Property
+>   -> Check
 > prop_Buffer_takeLine_concat _ _ _ xs =
->   property $
+>   check $
 >     let zs = xs <> fromListFT [eof] in
 >     case takeLine zs of
->       Nothing -> xs === mempty
->       Just (as,bs) -> zs === (as <> bs)
+>       Nothing -> claimEqual xs mempty
+>       Just (as,bs) -> claimEqual zs (as <> bs)
 
 > prop_Buffer_takeLines_concat
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
@@ -1085,13 +1037,13 @@ Take Line
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> NonNegative Int
 >   -> FingerTree (MeasureText w t) (Cell a)
->   -> Property
+>   -> Check
 > prop_Buffer_takeLines_concat _ _ _ (NonNegative k) xs =
->   property $
+>   check $
 >     let
 >       zs = xs <> fromListFT [eof]
 >       (uss,vs) = takeLines k zs
->     in zs === (mconcat uss <> vs)
+>     in claimEqual zs (mconcat uss <> vs)
 
 > prop_Buffer_takeLine_examples
 >   :: forall w t a
@@ -1099,7 +1051,7 @@ Take Line
 >      , Valued (MeasureText w t) a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> [Cell Char] -> ([Cell Char], [Cell Char])
->   -> Property
+>   -> Check
 > prop_Buffer_takeLine_examples _ _ _ xs (as, bs) =
 >   let
 >     zs :: FingerTree (MeasureText w t) (Cell a)
@@ -1107,52 +1059,52 @@ Take Line
 >   in case takeLine zs of
 >     Nothing -> error "prop_Buffer_takeLine_examples: panic"
 >     Just (us,vs) ->
->       (us === (fromListFT $ map (fmap fromChar) as)) .&&.
->       (vs === (fromListFT $ map (fmap fromChar) bs))
+>       (claimEqual us (fromListFT $ map (fmap fromChar) as)) .&&.
+>       (claimEqual vs (fromListFT $ map (fmap fromChar) bs))
 
 > test_Buffer_takeLine_examples
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
->      , Valued (MeasureText w t) a, Show a, Arbitrary a )
+>      , Valued (MeasureText w t) a, Show a, Arb a, Prune a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_takeLine_examples pw pt pa =
 >   testGroup "takeLine examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_takeLine_examples pw pt pa
 >           [ cell 'a', eof ]
 >           ( [ cell 'a', eof ]
 >           , []
 >           )
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_takeLine_examples pw pt pa
 >           [ cell '\n', eof ]
 >           ( [ cell '\n' ]
 >           , [ eof ]
 >           )
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_takeLine_examples pw pt pa
 >           [ cell 'a', cell '\n', eof ]
 >           ( [ cell 'a', cell '\n' ]
 >           , [ eof ]
 >           )
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_takeLine_examples pw pt pa
 >           [ cell 'a', cell '\n', cell 'b', eof ]
 >           ( [ cell 'a', cell '\n' ]
 >           , [ cell 'b', eof ]
 >           )
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_Buffer_takeLine_examples pw pt pa
 >           [ cell 'a', cell '\n', cell '\n', eof ]
 >           ( [ cell 'a', cell '\n' ]
 >           , [ cell '\n', eof ]
 >           )
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_Buffer_takeLine_examples pw pt pa
 >           [ cell '\n', cell '\n', eof ]
 >           ( [ cell '\n' ]
@@ -1167,7 +1119,7 @@ Take Line
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> NonNegative Int
 >   -> [Cell Char] -> ([[Cell Char]], [Cell Char])
->   -> Property
+>   -> Check
 > prop_Buffer_takeLines_examples _ _ _
 >   (NonNegative h) xs (uss, vs) =
 >   let
@@ -1176,20 +1128,20 @@ Take Line
 >     f zs = fromListFT $ map (fmap fromChar) zs
 > 
 >     (css, ds) = takeLines h (f xs)
->   in conjoin
->     [ property (length css <= h)
->     , css === map f uss
->     , ds === f vs
+>   in checkAll
+>     [ check (length css <= h)
+>     , claimEqual css (map f uss)
+>     , claimEqual ds (f vs)
 >     ]
 
 > test_Buffer_takeLines_examples
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
->      , Valued (MeasureText w t) a, Show a, Arbitrary a )
+>      , Valued (MeasureText w t) a, Show a, Arb a, Prune a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_takeLines_examples pw pt pa =
 >   testGroup "takeLines examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_takeLines_examples pw pt pa
 >           (NonNegative 1)
 >           [ cell 'a', eof ]
@@ -1198,7 +1150,7 @@ Take Line
 >           , []
 >           )
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_takeLines_examples pw pt pa
 >           (NonNegative 1)
 >           [ cell '\n', eof ]
@@ -1207,7 +1159,7 @@ Take Line
 >           , [ eof ]
 >           )
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_takeLines_examples pw pt pa
 >           (NonNegative 2)
 >           [ cell '\n', cell 'a', cell '\n', eof ]
@@ -1217,7 +1169,7 @@ Take Line
 >           , [ eof ]
 >           )
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_takeLines_examples pw pt pa
 >           (NonNegative 2)
 >           [ cell '\n', cell '\n', eof ]
@@ -1231,7 +1183,7 @@ Take Line
 > test_Buffer_takeLines_wrap_examples :: TestTree
 > test_Buffer_takeLines_wrap_examples =
 >   testGroup "takeLines (wrapping)"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_takeLines_examples nat3 nat1 pChar
 >           (NonNegative 2)
 >           [ cell 'a', cell 'a', cell 'a'
@@ -1242,7 +1194,7 @@ Take Line
 >           , []
 >           )
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_takeLines_examples nat3 nat1 pChar
 >           (NonNegative 5)
 >           [ cell 'a', cell 'a', cell 'a'
@@ -1267,7 +1219,7 @@ Take Line
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> [Cell Char]
 >   -> [[Cell Char]] -> [([Cell Char], Maybe Int)]
->   -> Property
+>   -> Check
 > prop_Buffer_getLineNumbers_examples _ _ _
 >   m xs uss =
 >   let
@@ -1276,16 +1228,16 @@ Take Line
 >     f zs = fromListFT $ map (fmap fromChar) zs
 > 
 >     css = getLineNumbers (value $ f m) (map f xs)
->   in css === map (\(us, k) -> (f us, k)) uss
+>   in claimEqual css (map (\(us, k) -> (f us, k)) uss)
 > 
 > test_Buffer_getLineNumbers_examples
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
->      , Valued (MeasureText w t) a, Show a, Arbitrary a )
+>      , Valued (MeasureText w t) a, Show a, Arb a, Prune a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
 > test_Buffer_getLineNumbers_examples pw pt pa =
 >   testGroup "getLineNumbers examples"
->     [ testProperty "#1" $
+>     [ testKreb "#1" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell 'a' ]
@@ -1293,7 +1245,7 @@ Take Line
 >           [ ( [ cell 'a' ], Just 0 )
 >           ]
 > 
->     , testProperty "#2" $
+>     , testKreb "#2" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell '\n' ]
@@ -1301,7 +1253,7 @@ Take Line
 >           [ ( [ cell '\n' ], Just 0 )
 >           ]
 > 
->     , testProperty "#3" $
+>     , testKreb "#3" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell '\n' ]
@@ -1311,7 +1263,7 @@ Take Line
 >           , ( [ cell '\n' ], Just 1 )
 >           ]
 > 
->     , testProperty "#4" $
+>     , testKreb "#4" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell '\n' ]
@@ -1321,7 +1273,7 @@ Take Line
 >           , ( [ cell 'a' ], Just 1 )
 >           ]
 > 
->     , testProperty "#5" $
+>     , testKreb "#5" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell 'a', cell '\n' ]
@@ -1331,7 +1283,7 @@ Take Line
 >           , ( [ cell 'a' ], Just 1 )
 >           ]
 > 
->     , testProperty "#6" $
+>     , testKreb "#6" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           [ cell 'a', cell '\n' ]
 >           [ [ cell 'a' ]
@@ -1339,7 +1291,7 @@ Take Line
 >           [ ( [ cell 'a' ], Just 1 )
 >           ]
 > 
->     , testProperty "#7" $
+>     , testKreb "#7" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           [ cell 'a', cell '\n' ]
 >           [ [ cell '\n' ]
@@ -1347,7 +1299,7 @@ Take Line
 >           [ ( [ cell '\n' ], Just 1 )
 >           ]
 > 
->     , testProperty "#8" $
+>     , testKreb "#8" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell 'a', cell '\n' ]
@@ -1357,7 +1309,7 @@ Take Line
 >           , ( [ cell 'a', cell '\n' ], Just 1 )
 >           ]
 > 
->     , testProperty "#9" $
+>     , testKreb "#9" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell '\n' ]
@@ -1367,7 +1319,7 @@ Take Line
 >           , ( [ cell 'a', cell '\n' ], Just 1 )
 >           ]
 > 
->     , testProperty "#10" $
+>     , testKreb "#10" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ eof ]
@@ -1375,7 +1327,7 @@ Take Line
 >           [ ( [ eof ], Just 0 )
 >           ]
 > 
->     , testProperty "#11" $
+>     , testKreb "#11" $
 >         prop_Buffer_getLineNumbers_examples pw pt pa
 >           []
 >           [ [ cell '\n' ]
@@ -1385,6 +1337,8 @@ Take Line
 >           , ( [ eof ], Just 1 )
 >           ]
 >     ]
+
+
 
 
 
@@ -1438,18 +1392,82 @@ Test Suite
 
 
 
-> pGlyph :: Proxy Glyph
-> pGlyph = Proxy
 
-> pBuffer :: Proxy w -> Proxy t -> Proxy (Buffer w t)
-> pBuffer _ _ = Proxy
+
+
+> {-
+
+> These are very old tests; the value of converting them to the current
+> test library is debatable but i am too big a coward to simply delete
+> them so here we are.
+
+> {- genBufferFixed1
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
+>   => [Positive Int]
+>   -> Gen ([Maybe Int], [[a]], Buffer w t a)
+> genBufferFixed1 ks = do
+>   let
+>     w = toWidth (Proxy :: Proxy w)
+
+>     ln
+>       :: (Int, Positive Int)
+>       -> Gen ([Maybe Int], [[a]], [a])
+>     ln (i, Positive k) = do
+>       as <- map fromChar
+>         <$> vectorOf k (choose ('a','z'))
+>       let
+>         (lbs, lns) = unzip $ zip
+>           (Just i : repeat Nothing)
+>           (chunksOf w as)
+>       return (lbs, lns, as)
+
+>   (labelss, liness, css) <-
+>     unzip3 <$> (sequence $ map ln $ zip [0..] ks)
+
+>   return
+>     ( concat labelss
+>     , concat liness
+>     , mkBuffer $ intercalate [fromChar '\n'] css
+>     )
+
+> genRenderWrapFixed1
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
+>   => Positive Int
+>   -> Gen ([Maybe Int], [[a]], Buffer w t a)
+> genRenderWrapFixed1 (Positive h) = do
+>   let w = toWidth (Proxy :: Proxy w)
+>   len <- choose (w+1, w*h)
+>   genBufferFixed1 [Positive len] -}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 > genBufferFixed1
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => [Positive Int]
 >   -> Gen ([Maybe Int], [[a]], Buffer w t a)
 > genBufferFixed1 ks = do
@@ -1504,9 +1522,9 @@ Test Suite
 > prop_renderBuffer_one_line_no_wrap
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Positive Int -> Property
+>   -> Positive Int -> Check
 > prop_renderBuffer_one_line_no_wrap _ _ _ (Positive h) =
 >   forAll genRenderNoWrapFixed1 $
 >     \(lb, as, buf :: Buffer w t a) ->
@@ -1518,7 +1536,7 @@ Test Suite
 > genRenderNoWrapFixed1
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Gen ([Maybe Int], [[a]], Buffer w t a)
 > genRenderNoWrapFixed1 = do
 >   let w = toWidth (Proxy :: Proxy w)
@@ -1530,9 +1548,9 @@ Test Suite
 > prop_renderBuffer_one_line_wrap
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Positive Int -> Property
+>   -> Positive Int -> Check
 > prop_renderBuffer_one_line_wrap _ _ _ (Positive h) =
 >   (h > 1) ==>
 >   forAll (genRenderWrapFixed1 (Positive h)) $
@@ -1542,7 +1560,7 @@ Test Suite
 > genRenderWrapFixed1
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Positive Int
 >   -> Gen ([Maybe Int], [[a]], Buffer w t a)
 > genRenderWrapFixed1 (Positive h) = do
@@ -1559,9 +1577,9 @@ Test Suite
 > prop_splitBufferAtScreenLine_one_line_wrap
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arbitrary a, Eq a, Show a, IsChar a )
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Positive Int -> Property
+>   -> Positive Int -> Check
 > prop_splitBufferAtScreenLine_one_line_wrap _ _ _ (Positive h) =
 >   (h > 1) ==>
 >   forAll (genRenderWrapFixed1 (Positive h)) $

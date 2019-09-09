@@ -9,9 +9,7 @@
 
 > import Data.Proxy
 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
 
 > import Kreb.Lang.Type
 > import Kreb.Lang.Expr
@@ -22,6 +20,8 @@
 > import Kreb.Lang.Runtime
 
 > import Kreb.Check
+
+
 
 > test_Interpreter :: TestTree
 > test_Interpreter =
@@ -45,21 +45,22 @@
 
 > prop_InterpretAll_examples
 >   :: ([Command], Either ReplError DataStack)
->   -> Property
+>   -> Check
 > prop_InterpretAll_examples (cs, result) =
 >   let Id actual = runRuntime (interpretAll cs) (initRuntimeState (const Nothing) (const Nothing)) in
 >   case (result, actual) of
->     (Left err1, Left err2) -> err1 === err2
->     (Right st1, Right (st2, env2)) -> conjoin
->       [ st1 === (_rtStack env2) ]
+>     (Left err1, Left err2) -> claimEqual err1 err2
+>     (Right st1, Right (st2, env2)) -> checkAll
+>       [ claimEqual st1 (_rtStack env2) ]
 
 
 
 > test_InterpretAll_examples :: TestTree
 > test_InterpretAll_examples =
->   localOption (QuickCheckTests 1) $
+>   localOption (KrebCheckTests 1) $
 >   testGroup "interpretAll"
->     [ testCases prop_InterpretAll_examples
+>     [ testKrebCases "interpretAll"
+>       prop_InterpretAll_examples
 >       [ ( "(empty)"
 >         , ( []
 >           , Right Empty
@@ -81,9 +82,3 @@
 >         )
 >       ]
 >     ]
-
-
-
-
-
-

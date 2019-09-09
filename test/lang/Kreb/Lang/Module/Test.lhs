@@ -1,5 +1,5 @@
 > module Kreb.Lang.Module.Test (
->     test_Module
+>    test_Module
 > ) where
 
 > import Prelude hiding (Word)
@@ -9,14 +9,12 @@
 
 > import Data.Proxy
 
-> import Test.QuickCheck
 > import Test.Tasty
-> import Test.Tasty.QuickCheck
+
+> import Kreb.Check
 
 > import Kreb.Lang.Type
 > import Kreb.Lang.Expr
-
-> import Kreb.Check
 
 
 

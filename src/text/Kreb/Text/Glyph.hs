@@ -35,6 +35,9 @@ instance
 instance Arb Glyph where
   arb = mkGlyph <$> arb
 
+instance Prune Glyph where
+  prune (Glyph c) = map Glyph $ prune c
+
 
 
 instance IsChar Glyph where
