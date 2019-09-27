@@ -11,6 +11,7 @@
 - fix tab
 - undo and redo
 
+- existential type for panes
 
 
 - navigation primitives (go to line, line+col, top, regex after cursor)
@@ -23,12 +24,6 @@
 
 TODO BY SUBPROJECT
 ==================
-
-check
------
-1. Write it
-2. Rewrite tests in other libs against this
-3. State machine API
 
 format
 ------
@@ -83,9 +78,7 @@ ISSUES
 
 Test lib ideas
 ==============
-- built in primitives for testing state machines with invariants
 - happy path also provides for running individual tests from the shell
-- Structural construction and shrinking
 
 types:
   - integer: ..., -1, 0, 1, 2, ...

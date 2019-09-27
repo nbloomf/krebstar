@@ -63,8 +63,8 @@ _handleEvent event = do
 
 _logDebugMessages :: ( Monad m ) => App m ()
 _logDebugMessages = do
-  st <- get
-  askM1 logMessage $ renderDebugMessage st
+  -- st <- get
+  -- askM1 logMessage $ renderDebugMessage st
   return ()
 
 newtype ConsoleT r s m a = ConsoleT

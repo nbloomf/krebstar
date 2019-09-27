@@ -34,7 +34,7 @@ appEnvIO = do
   config <- standardIOConfig
   vty <- mkVty $ config
     { mouseMode = Just True
-    , debugLog = Just "/Users/nathan/code/ned/vty-debug.txt"
+    , debugLog = Nothing -- Just "/Users/nathan/code/ned/vty-debug.txt"
     }
   setMode (outputIface vty) Mouse True
   setMode (outputIface vty) Focus True
@@ -45,15 +45,10 @@ appEnvIO = do
     render st = do
       let
         (x,y) = getAbsCursorPos st
-        blk = Picture
-          (Cursor x y)
-          [charFill defAttr ' ' w0 h0]
-          (ClearBackground)
         pic = Picture
           (Cursor x y)
           [imageAppState st]
           (ClearBackground)
-      update vty blk
       update vty pic
 
   return 

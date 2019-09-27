@@ -134,23 +134,3 @@
 >           this = checkImpls u st (f u)
 >           rest = h us (transition u st)
 >         in (u, this) : rest
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

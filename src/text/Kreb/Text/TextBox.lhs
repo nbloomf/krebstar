@@ -191,22 +191,29 @@ Queries
 
 
 
-> -- | Returns the @TextBox@ with an updated coordinate chart.
 > renderTextBox
 >   :: BufferRenderSettings
 >   -> TextBox
 >   -> ([Maybe Int], [[Glyph]])
-> renderTextBox opts TextBox{..} =
->   querySizedBuffer
->     (renderBuffer defaultBufferRenderSettings textboxOffset textboxHeight) $
->   textboxBuffer
+> renderTextBox opts box@TextBox{..} =
+>   let
+>     w = getTextBoxWidth box
+>     (labels', lines') =
+>       querySizedBuffer
+>         (renderBuffer defaultBufferRenderSettings textboxOffset textboxHeight) $
+>       textboxBuffer
+>   in
+>     ( take textboxHeight $ labels' ++ repeat Nothing
+>     , map (\ln -> take w $ ln ++ repeat (fromChar ' ')) $
+>         take textboxHeight $ lines' ++ repeat []
+>     )
 
 > -- | Width in character cells of the line labels for
 > -- a @TextBox@.
 > textboxLabelWidth :: TextBox -> Int
-> textboxLabelWidth box = 2
-> --  let m = lineNum $ textboxOffset box in
-> --  1 + dlog (textboxLabelBase box) m
+> textboxLabelWidth box =
+>   let m = textboxOffset box in
+>   1 + dlog (textboxLabelBase box) m
 
 
 > mkTextBox

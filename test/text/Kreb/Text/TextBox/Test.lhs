@@ -60,6 +60,7 @@ Test suite
 >           $ test_TextBox_resize
 >       , test_TextBox_action_examples
 >       ]
+> 
 >     , localOption (KrebCheckTests 100)
 >         $ test_TextBox_cursor
 >     ]
@@ -214,6 +215,18 @@ Test Helpers
 >     then [as]
 >     else as : takeBy k bs
 
+> padQuad :: (Int, Int) -> a -> [[a]] -> [[a]]
+> padQuad (w,h) a xss =
+>   pad h (replicate w a) $
+>     map (\xs -> pad w a xs) xss
+>   where
+>     pad :: Int -> b -> [b] -> [b]
+>     pad k c zs = if k <= 0
+>       then zs
+>       else case zs of
+>         [] -> replicate k c
+>         w:ws -> w : pad (k-1) c ws
+
 > hasCoherentCursor
 >   :: TextBox -> Check
 > hasCoherentCursor box =
@@ -300,16 +313,18 @@ Insert One Character
 >     (Width_ w, Height_ h) = dim
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_one_char dim tab x
+>     padC = padQuad (w,h) (mkGlyph ' ')
+>     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
 >     [ claimEqual labels $
->         case (h, toChar c) of
+>         padL $ case (h, toChar c) of
 >           (1, '\n') -> [Just 1]
 >           (_, '\n') -> [Just 0, Just 1]
 >           (1, '\t') -> if t >= w then [Nothing] else [Just 0]
 >           (_, '\t') -> [Just 0]
 >           _ -> [Just 0]
 >     , claimEqual lines $
->         case (h, toChar c) of
+>         padC $ case (h, toChar c) of
 >           (1, '\n') -> [[]]
 >           (_, '\n') -> [[c], []]
 >           (1, '\t') -> if t >= w then [[]] else [[c]]
@@ -358,14 +373,16 @@ Insert many 'a's
 >     l = (q - h) + if r == 0 then 1 else 1
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_many_as dim tab k
+>     padC = padQuad (w,h) (mkGlyph ' ')
+>     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
 >     [ heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box
 >         (r, min q (h-1))
->     , claimEqual labels (take h $ drop l $
+>     , claimEqual labels $ padL $ (take h $ drop l $
 >         (Just 0) : [Nothing | i <- [1..q]])
->     , claimEqual lines (take h $ drop l $
+>     , claimEqual lines $ padC $ (take h $ drop l $
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
 >     ]
@@ -396,15 +413,17 @@ Insert only newlines
 >   -> Check
 > prop_TextBox_insert_some_newlines dim tab k =
 >   let
->     (_, Height_ h) = dim
+>     (Width_ w, Height_ h) = dim
 >     Positive u = k
 >     z = if u >= h then 1 else 0
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_newlines dim tab k
+>     padC = padQuad (w,h) (mkGlyph ' ')
+>     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
->     [ claimEqual labels
+>     [ claimEqual labels $ padL
 >         (map Just [(max (u-h+z) 0)..u])
->     , claimEqual lines
+>     , claimEqual lines $ padC
 >         ((replicate (min u (h-1)) [fromChar '\n']) ++ [[]])
 >     , heightIs box h
 >     , hasCoherentCursor box
@@ -442,10 +461,12 @@ Insert some, then left
 >     (q,r) = quotRem u w
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_left dim tab k
+>     padC = padQuad (w,h) (mkGlyph ' ')
+>     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
->     [ claimEqual labels (take h
+>     [ claimEqual labels $ padL (take h
 >         (Just 0 : (replicate q Nothing)))
->     , claimEqual lines (take h
+>     , claimEqual lines $ padC (take h
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
 >     , heightIs box h
@@ -484,9 +505,11 @@ Insert some, then backspace
 >     Positive u = k
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_backspace dim tab k b
+>     padC = padQuad (w,h) (mkGlyph ' ')
+>     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
->     [ claimEqual labels [Just 0]
->     , claimEqual lines [[]]
+>     [ claimEqual labels $ padL [Just 0]
+>     , claimEqual lines $ padC [[]]
 >     , heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
@@ -521,11 +544,14 @@ Insert no characters
 >   -> Check
 > prop_TextBox_insert_no_chars act dim tab =
 >   let
+>     (Positive w, Positive h) = dim
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_no_chars act dim tab
+>     padC = padQuad (w,h) (mkGlyph ' ')
+>     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
->     [ claimEqual labels [Just 0]
->     , claimEqual lines [[]]
+>     [ claimEqual labels $ padL [Just 0]
+>     , claimEqual lines $ padC [[]]
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
 >     ]
@@ -602,7 +628,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0]
->           , [ "a" ]
+>           , [ "a  " ]
 >           , (1,0)
 >           )
 > 
@@ -615,7 +641,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0]
->           , [ "a" ]
+>           , [ "a  " ]
 >           , (0,0)
 >           )
 > 
@@ -629,7 +655,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0]
->           , [ "ba" ]
+>           , [ "ba " ]
 >           , (1,0)
 >           )
 > 
@@ -643,7 +669,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0, Just 1]
->           , [ "\n", "a" ]
+>           , [ "\n  ", "a  " ]
 >           , (0,0)
 >           )
 > 
@@ -657,7 +683,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0, Just 1]
->           , [ "\n", "" ]
+>           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
 > 
@@ -673,7 +699,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0, Just 1]
->           , [ "ab\n", "" ]
+>           , [ "ab\n", "   " ]
 >           , (1,0)
 >           )
 > 
@@ -688,7 +714,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0, Nothing]
->           , [ "abc", "" ]
+>           , [ "abc", "   " ]
 >           , (0,1)
 >           )
 > 
@@ -700,7 +726,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 0, Just 1]
->           , [ "\n", "" ]
+>           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
 > 
@@ -713,7 +739,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 1, Just 2]
->           , [ "\n", "" ]
+>           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
 > 
@@ -727,7 +753,7 @@ Action examples
 >             ]
 >           )
 >           ( [Just 2, Just 3]
->           , [ "\n", "" ]
+>           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
 > 
@@ -745,7 +771,7 @@ Action examples
 >             ]
 >           )
 >           ( [ Nothing ]
->           , [ "" ]
+>           , [ "   " ]
 >           , (0,0)
 >           )
 > 
@@ -769,7 +795,7 @@ Action examples
 >             ]
 >           )
 >           ( [ Nothing, Nothing ]
->           , [ "jkl", "" ]
+>           , [ "jkl", "   " ]
 >           , (0,1)
 >           )
 > 
@@ -779,8 +805,8 @@ Action examples
 >           , 1
 >           , []
 >           )
->           ( [ Just 0 ]
->           , [ "" ]
+>           ( [ Just 0, Nothing ]
+>           , [ "   ", "   " ]
 >           , (0,0)
 >           )
 > 
@@ -792,8 +818,8 @@ Action examples
 >             , TextBoxBackspace
 >             ]
 >           )
->           ( [Just 0]
->           , [ "" ]
+>           ( [ Just 0, Nothing ]
+>           , [ "   ", "   " ]
 >           , (0,0)
 >           )
 > 
@@ -806,8 +832,8 @@ Action examples
 >             , TextBoxBackspace
 >             ]
 >           )
->           ( [Just 0]
->           , [ "" ]
+>           ( [ Just 0, Nothing ]
+>           , [ "   ", "   " ]
 >           , (0,0)
 >           )
 > 
@@ -821,8 +847,8 @@ Action examples
 >             , TextBoxBackspace
 >             ]
 >           )
->           ( [Just 0]
->           , [ "b" ]
+>           ( [ Just 0, Nothing ]
+>           , [ "b  ", "   " ]
 >           , (0,0)
 >           )
 > 
@@ -838,7 +864,7 @@ Action examples
 >             , TextBoxResize (3,1)
 >             ]
 >           )
->           ( [Nothing]
+>           ( [ Nothing ]
 >           , [ "def" ]
 >           , (0,0)
 >           )

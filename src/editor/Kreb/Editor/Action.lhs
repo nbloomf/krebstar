@@ -193,7 +193,8 @@
 
 > evalHook
 >   :: ( Monad m )
->   => String -> AppState m -> m (Either (Either Error ReplError) (AppState m))
+>   => String -> AppState m
+>   -> m (Either (Either Error ReplError) (AppState m))
 > evalHook str st =
 >   case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)

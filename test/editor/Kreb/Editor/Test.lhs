@@ -6,6 +6,8 @@
 
 > import Test.Tasty
 
+> import Kreb.Editor.Test.Suite
+
 
 
 > main :: IO ()
@@ -14,6 +16,4 @@
 >   setEnv "TASTY_QUICKCHECK_MAX_SIZE" "300"
 >   setEnv "TASTY_QUICKCHECK_TESTS" "10000"
 >   putStrLn "\n"
->   defaultMain $ testGroup "All Tests"
->     [ 
->     ]
+>   defaultMain kreb_editor_test_suite

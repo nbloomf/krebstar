@@ -12,32 +12,41 @@ import Kreb.Editor
 imageAppState
   :: ( Monad m ) => AppState m -> Image
 imageAppState st =
-  let (w,_) = windowDim st in
-  case getActiveTab $ tabbedBuffers st of
+  let
+    (w,_) = windowDim st
+  in case getActiveTab $ tabbedBuffers st of
     Nothing -> char defAttr ' '
-    Just t -> case renderedStatusBar $ statusBar st of
-      Nothing -> imageTiles w (panels t)
-      Just rs ->
-        vertCat
-          [ imageTiles w (panels t)
-          , string defAttr $ replicate w '░'
-          , imageRenderedStatusBar rs
-          ]
+    Just t -> imageTiles w t
 
 imageTiles
-  :: Int -> Tiled Panel -> Image
-imageTiles w (Tiled panel) =
+  :: Int -> Panel -> Image
+imageTiles w panel =
   case renderedPanel panel of
     Nothing -> char defAttr ' '
     Just rp -> imageRenderedPanel w rp
 
-imageRenderedStatusBar
-  :: RenderedStatusBar -> Image
-imageRenderedStatusBar rs =
-  horizCat
-    [ string defAttr $ statusbarMode rs
-    , string defAttr $ statusbarError rs
-    ]
+drawCell :: Rune -> Image
+drawCell (Rune c fore back) =
+  string (withForeColor (withBackColor defAttr (getColor back)) (getColor fore)) c
+
+getColor :: RuneColor -> Color
+getColor (RuneColor hue brightness) = case (hue, brightness) of
+  (HueBlack,   BrightnessDull)  -> black
+  (HueRed,     BrightnessDull)  -> red
+  (HueGreen,   BrightnessDull)  -> green
+  (HueYellow,  BrightnessDull)  -> yellow
+  (HueBlue,    BrightnessDull)  -> blue
+  (HueMagenta, BrightnessDull)  -> magenta
+  (HueCyan,    BrightnessDull)  -> cyan
+  (HueWhite,   BrightnessDull)  -> white
+  (HueBlack,   BrightnessVivid) -> brightBlack
+  (HueRed,     BrightnessVivid) -> brightRed
+  (HueGreen,   BrightnessVivid) -> brightGreen
+  (HueYellow,  BrightnessVivid) -> brightYellow
+  (HueBlue,    BrightnessVivid) -> brightBlue
+  (HueMagenta, BrightnessVivid) -> brightMagenta
+  (HueCyan,    BrightnessVivid) -> brightCyan
+  (HueWhite,   BrightnessVivid) -> brightWhite
 
 imageRenderedPanel
   :: Int -> RenderedPanel -> Image
@@ -54,12 +63,16 @@ imageRenderedPanel w rp =
             Just k -> string defAttr $ show k
             Nothing -> char defAttr ' '
     vsep = vertCat $ map (string defAttr) $ labelSep rp
+    ssep = vertCat $ map (string defAttr) $ histSep rp
     hsep = horizCat $ map (char defAttr) $ cmdSep rp
+    tsep = horizCat $ map (char defAttr) $ statusSep rp
 
-    text = vertCat $ map (resize w 1 . string defAttr . map toChar) (textLines rp)
-    cmd  = vertCat $ map (string defAttr . map toChar) (cmdLines rp)
+    text = vertCat $ map (horizCat . map drawCell) (textLines rp)
+    cmd  = vertCat $ map (horizCat . map drawCell) (cmdLines rp)
+    hist = vertCat $ map (horizCat . map drawCell) (histLines rp)
+    stat = vertCat $ map (horizCat . map drawCell) (statusLine rp)
   in
     vertCat
-      [ horizCat [ labels, vsep, text ]
-      , hsep, cmd
+      [ horizCat [ labels, vsep, text, ssep, vertCat [ hist, hsep, cmd ] ]
+      , tsep, stat
       ]

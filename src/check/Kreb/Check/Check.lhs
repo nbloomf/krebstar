@@ -23,6 +23,12 @@ Outcome of a single test case
 >   deriving Show
 > 
 > type Reason = String
+> 
+> prependReason
+>   :: String -> Reason -> Reason
+> prependReason str reason =
+>   str ++ reason
+
 > type ShowArg = String
 > 
 > noteArg :: ShowArg -> Outcome -> Outcome
@@ -108,11 +114,16 @@ Outcome of a single test case
 > claimEqual
 >   :: ( Eq a, Show a )
 >   => a -> a -> Check
-> claimEqual x y =
+> claimEqual = claimEqualNamed ""
+> 
+> claimEqualNamed
+>   :: ( Eq a, Show a )
+>   => String -> a -> a -> Check
+> claimEqualNamed str x y =
 >   if x == y
 >     then accept
 >     else reject $ concat
->       [ "expecting ", show x
+>       [ str, "expecting ", show x
 >       , " to equal ", show y ]
 > 
 > claimLT

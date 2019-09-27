@@ -9,6 +9,7 @@
 > import Kreb.Struct.Test.Suite
 > import Kreb.Text.Test.Suite
 > import Kreb.Lang.Test.Suite
+> import Kreb.Editor.Test.Suite
 
 > main :: IO ()
 > main = do
@@ -24,4 +25,5 @@
 >       , kreb_struct_test_suite
 >       , kreb_text_test_suite
 >       , kreb_lang_test_suite
+>       , kreb_editor_test_suite
 >       ]

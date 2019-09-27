@@ -6,7 +6,6 @@
 >   , module Kreb.Editor.Settings
 >   , module Kreb.Editor.State
 >   , module Kreb.Editor.Tab
->   , module Kreb.Editor.Tile
 >   , module Kreb.Editor.Mock
 > ) where
 
@@ -17,5 +16,4 @@
 > import Kreb.Editor.Settings
 > import Kreb.Editor.State
 > import Kreb.Editor.Tab
-> import Kreb.Editor.Tile
 > import Kreb.Editor.Mock

@@ -32,16 +32,20 @@ module Kreb.Editor.State (
 import Data.List (unlines)
 import Control.Monad (ap)
 
+import Kreb.Text
+import Kreb.Lang
+
 import Kreb.Editor.Tab
 import Kreb.Editor.Settings
 import Kreb.Editor.Panel
-import Kreb.Lang
 
 
 
 data AppState (m :: * -> *) = AppState
   { windowDim     :: (Int, Int)
   , editorMode    :: EditorMode
+  , bufferRenderSettings :: BufferRenderSettings
+  , glyphRenderSettings :: GlyphRenderSettings
   , absCursorPos  :: (Int, Int)
   , tabbedBuffers :: Tabs
   , statusBar     :: StatusBar
@@ -53,6 +57,8 @@ instance Show (AppState m) where
     [ "windowDim = ", show $ windowDim st
     , "editorMode = ", show $ editorMode st
     , "absCursorPos = ", show $ absCursorPos st
+    , "bufferRenderSettings = ", show $ bufferRenderSettings st
+    , "glyphRenderSettings = ", show $ glyphRenderSettings st
     , "tabbedBuffers = ", show $ tabbedBuffers st
     , "statusBar = ", show $ statusBar st
     ]
@@ -63,6 +69,8 @@ initAppState rts (w,h) = AppState
   , editorMode    = NormalMode
   , absCursorPos  = (0,0)
   , tabbedBuffers = initTabs (w,h) 4
+  , glyphRenderSettings = defaultGlyphRenderSettings
+  , bufferRenderSettings = defaultBufferRenderSettings
   , statusBar     = defaultStatusBar
   , runtimeSt     = rts
   }
@@ -73,7 +81,8 @@ newtype Hook m a = Hook
 
 instance
   ( Monad m
-  ) => Monad (Hook m) where
+  ) => Monad (Hook m)
+  where
     return a = Hook $ \st -> return (a, st)
 
     (Hook x) >>= f = Hook $ \st -> do
@@ -131,8 +140,10 @@ updateRenderedState st =
     (w,h) = windowDim st
     sb = statusBar st
     tabs = tabbedBuffers st
+    opts = bufferRenderSettings st
+    settings = glyphRenderSettings st
   in st
-    { tabbedBuffers = updateRenderedTabs (w,h-2) tabs
+    { tabbedBuffers = updateRenderedTabs opts settings (w,h) tabs
     , statusBar = updateRenderedStatusBar mode sb
     }
 

@@ -3,9 +3,7 @@
 
 module Kreb.Editor.Tab (
     Tabs()
-  , Tab(..)
 
-  , initTab
   , initTabs
 
   , getActiveTab
@@ -17,53 +15,32 @@ module Kreb.Editor.Tab (
   , queryActivePanelTabs
 
   , setTabsDim
-  , setTabDim
 
-  , debugShowTab
   , debugShowTabs
 ) where
 
 import Kreb.Editor.Settings
 import Kreb.Text.Buffer
+import Kreb.Text.Glyph
 import Kreb.Editor.Panel
-import Kreb.Editor.Tile
 import Kreb.Struct.FingerTree
 import Kreb.Struct.FingerTreeZip
 import Kreb.Struct.Seq
 
-data Tab = Tab
-  { panels :: Tiled Panel
-  } deriving (Eq, Show)
 
-alterPanels
-  :: (Tiled Panel -> Tiled Panel)
-  -> Tab -> Tab
-alterPanels f tab =
-  let p = panels tab in
-  tab { panels = f p }
 
-instance Valued Count Tab where
+instance Valued Count Panel where
   value _ = Count 1
 
-initTab
-  :: (Int,Int)
-  -> Int
-  -> Tab
-initTab (w,h) t = Tab
-  { panels = mkTiled (initPanel (w,h) t)
-  }
-
-
-
 data Tabs = Tabs
-  { unTabs :: Seq Tab
+  { unTabs :: Seq Panel
   } deriving (Eq, Show)
 
 setTabsDim
   :: (Int, Int) -> Tabs -> (Tabs, (Int, Int))
 setTabsDim dim (Tabs ts) =
   let
-    us = fmapSeq (setTabDim dim) ts
+    us = fmapSeq (setPanelDim dim) ts
   in
     case headRead us of
       Nothing -> error "setTabsDim: no tabs"
@@ -72,12 +49,6 @@ setTabsDim dim (Tabs ts) =
         , pos
         )
 
-setTabDim
-  :: (Int, Int) -> Tab -> (Tab, (Int, Int))
-setTabDim dim (Tab x) =
-  let (y,z) = setTiledDim setPanelDim dim x
-  in (Tab y, z)
-
 
 
 initTabs
@@ -85,64 +56,40 @@ initTabs
   -> Int
   -> Tabs
 initTabs (w,h) t = Tabs
-  { unTabs = mkTapeFocus [] (initTab (w,h) t) []
+  { unTabs = mkTapeFocus [] (initPanel (w,h) t) []
   }
 
 getActiveTab
-  :: Tabs -> Maybe Tab
+  :: Tabs -> Maybe Panel
 getActiveTab (Tabs xs) =
   headRead xs
 
 updateRenderedTabs
-  :: (Int, Int) -> Tabs -> Tabs
-updateRenderedTabs dim =
-  Tabs . headAlter (updateRenderedTab dim) . unTabs
+  :: BufferRenderSettings -> GlyphRenderSettings -> (Int, Int) -> Tabs -> Tabs
+updateRenderedTabs opts settings dim =
+  Tabs . headAlter (updateRenderedPanel opts settings dim) . unTabs
 
-updateRenderedTab
-  :: (Int, Int) -> Tab -> Tab
-updateRenderedTab dim =
-  alterPanels (fmap (updateRenderedPanel defaultBufferRenderSettings dim))
 
 getAbsCursorPosTabs
   :: (Int, Int) -> EditorMode -> Tabs -> (Int, Int)
 getAbsCursorPosTabs dim mode tabs =
   case headRead $ unTabs tabs of
     Nothing -> (0,0)
-    Just ts -> getAbsCursorPosTab dim mode ts
-
-getAbsCursorPosTab
-  :: (Int, Int) -> EditorMode -> Tab -> (Int, Int)
-getAbsCursorPosTab dim mode tab =
-  getAbsCursorPosTiled (getAbsCursorPosPanel dim mode) $ panels tab
+    Just ts -> getAbsCursorPosPanel dim mode ts
 
 
 
 alterActivePanelTabs
   :: (Panel -> Panel) -> Tabs -> Tabs
 alterActivePanelTabs f =
-  Tabs . headAlter (alterActivePanelTab f) . unTabs
+  Tabs . headAlter f . unTabs
 
 queryActivePanelTabs
   :: (Panel -> a) -> Tabs -> Maybe a
 queryActivePanelTabs f =
-  fmap (queryActivePanelTab f) . headRead . unTabs
-
-alterActivePanelTab
-  :: (Panel -> Panel) -> Tab -> Tab
-alterActivePanelTab f tab =
-  let tiles = panels tab in
-  tab { panels = alterFocusTiled f tiles }
-
-queryActivePanelTab
-  :: (Panel -> a) -> Tab -> a
-queryActivePanelTab f tab =
-  let tiles = panels tab in
-  queryFocusTiled f tiles
+  fmap f . headRead . unTabs
 
 
 
 debugShowTabs :: Tabs -> String
-debugShowTabs (Tabs ts) = debugShowSeq debugShowTab ts
-
-debugShowTab :: Tab -> String
-debugShowTab (Tab t) = debugShowTiled debugShowPanel t
+debugShowTabs (Tabs ts) = debugShowSeq debugShowPanel ts
