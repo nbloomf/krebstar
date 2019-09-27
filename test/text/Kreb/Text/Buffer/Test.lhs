@@ -103,6 +103,9 @@ Generates valid input/output pairs for `renderBuffer`.
 > pChar :: Proxy Char
 > pChar = Proxy
 
+> fixRender :: ([Maybe Int], [[(a, Int)]]) -> ([Maybe Int], [[a]])
+> fixRender (as, bs) = (as, map (map fst) bs)
+
 
 
 
@@ -982,21 +985,21 @@ Rendering
 >     \(top, height, buf, labels, lines) ->
 >       claimEqual
 >         (labels, lines)
->         (renderBuffer defaultBufferRenderSettings top height buf)
+>         (fixRender $ renderBuffer defaultBufferRenderSettings top height buf)
 > 
 > prop_Buffer_renderBuffer_prepared_1 pw pt pa =
 >   forEach (genRenderBuffer pw pt pa (NonNegative 1)) prune $
 >     \(top, height, buf, labels, lines) ->
 >       claimEqual
 >         (labels, lines)
->         (renderBuffer defaultBufferRenderSettings top height buf)
+>         (fixRender $ renderBuffer defaultBufferRenderSettings top height buf)
 > 
 > prop_Buffer_renderBuffer_prepared_2 pw pt pa =
 >   forEach (genRenderBuffer pw pt pa (NonNegative 2)) prune $
 >     \(top, height, buf, labels, lines) ->
 >       claimEqual
 >         (labels, lines)
->         (renderBuffer defaultBufferRenderSettings top height buf)
+>         (fixRender $ renderBuffer defaultBufferRenderSettings top height buf)
 
 
 
@@ -1528,7 +1531,7 @@ Test Suite
 > prop_renderBuffer_one_line_no_wrap _ _ _ (Positive h) =
 >   forAll genRenderNoWrapFixed1 $
 >     \(lb, as, buf :: Buffer w t a) ->
->       (lb, as) === renderBuffer defaultBufferRenderSettings 0 h buf
+>       (lb, as) === fixRender $ renderBuffer defaultBufferRenderSettings 0 h buf
 
 -- Generate a buffer with a single nonempty, non-wrapping logical line
 -- consisting only of width 1 characters.
@@ -1555,7 +1558,7 @@ Test Suite
 >   (h > 1) ==>
 >   forAll (genRenderWrapFixed1 (Positive h)) $
 >     \(lb, as, buf :: Buffer w t a) ->
->       (lb, as) === renderBuffer defaultBufferRenderSettings 0 h buf
+>       (lb, as) === fixRender $ renderBuffer defaultBufferRenderSettings 0 h buf
 
 > genRenderWrapFixed1
 >   :: forall w t a

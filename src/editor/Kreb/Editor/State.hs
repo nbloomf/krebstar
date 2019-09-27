@@ -26,7 +26,6 @@ module Kreb.Editor.State (
   , setWindowDim
 
   , StatusBar(..)
-  , RenderedStatusBar(..)
 ) where
 
 import Data.List (unlines)
@@ -48,6 +47,7 @@ data AppState (m :: * -> *) = AppState
   , glyphRenderSettings :: GlyphRenderSettings
   , absCursorPos  :: (Int, Int)
   , tabbedBuffers :: Tabs
+  , tabWidth      :: Int
   , statusBar     :: StatusBar
   , runtimeSt     :: RuntimeState (Hook m)
   }
@@ -58,7 +58,6 @@ instance Show (AppState m) where
     , "editorMode = ", show $ editorMode st
     , "absCursorPos = ", show $ absCursorPos st
     , "bufferRenderSettings = ", show $ bufferRenderSettings st
-    , "glyphRenderSettings = ", show $ glyphRenderSettings st
     , "tabbedBuffers = ", show $ tabbedBuffers st
     , "statusBar = ", show $ statusBar st
     ]
@@ -68,6 +67,7 @@ initAppState rts (w,h) = AppState
   { windowDim     = (w,h)
   , editorMode    = NormalMode
   , absCursorPos  = (0,0)
+  , tabWidth      = 4
   , tabbedBuffers = initTabs (w,h) 4
   , glyphRenderSettings = defaultGlyphRenderSettings
   , bufferRenderSettings = defaultBufferRenderSettings
@@ -101,11 +101,10 @@ setWindowDim
   :: (Int, Int) -> AppState m -> AppState m
 setWindowDim dim st =
   let
-    (tabs, pos) =
+    tabs =
       setTabsDim dim $ tabbedBuffers st
   in st
-    { windowDim = dim
-    , absCursorPos = pos
+    { windowDim     = dim
     , tabbedBuffers = tabs
     }
 
@@ -139,12 +138,12 @@ updateRenderedState st =
     mode = editorMode st
     (w,h) = windowDim st
     sb = statusBar st
+    tab = tabWidth st
     tabs = tabbedBuffers st
     opts = bufferRenderSettings st
     settings = glyphRenderSettings st
   in st
-    { tabbedBuffers = updateRenderedTabs opts settings (w,h) tabs
-    , statusBar = updateRenderedStatusBar mode sb
+    { tabbedBuffers = updateRenderedTabs opts settings mode (w,h)  tab tabs
     }
 
 updateAbsCursorPos :: AppState m -> AppState m
@@ -194,39 +193,12 @@ clearLastError st =
 
 data StatusBar = StatusBar
   { lastError         :: Maybe String
-  , renderedStatusBar :: Maybe RenderedStatusBar
   } deriving (Eq, Show)
 
 defaultStatusBar :: StatusBar
 defaultStatusBar = StatusBar
   { lastError = Nothing
-  , renderedStatusBar = Nothing
   }
-
-data RenderedStatusBar = RenderedStatusBar
-  { statusbarMode  :: String
-  , statusbarError :: String
-  } deriving (Eq, Show)
-
-updateRenderedStatusBar
-  :: EditorMode -> StatusBar -> StatusBar
-updateRenderedStatusBar m sb =
-  let
-    mode = case m of
-      NormalMode  -> "Nor"
-      InsertMode  -> "Ins"
-      CommandMode -> "Cmd"
-      _ -> "???"
-
-    err = case lastError sb of
-      Nothing -> ""
-      Just xs -> xs
-
-    rs = RenderedStatusBar
-      { statusbarMode  = mode
-      , statusbarError = err
-      }
-  in sb { renderedStatusBar = Just rs }
 
 
 

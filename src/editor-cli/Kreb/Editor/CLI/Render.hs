@@ -62,10 +62,10 @@ imageRenderedPanel w rp =
           l x = case x of
             Just k -> string defAttr $ show k
             Nothing -> char defAttr ' '
-    vsep = vertCat $ map (string defAttr) $ labelSep rp
-    ssep = vertCat $ map (string defAttr) $ histSep rp
-    hsep = horizCat $ map (char defAttr) $ cmdSep rp
-    tsep = horizCat $ map (char defAttr) $ statusSep rp
+    vsep = vertCat $ map (horizCat . map drawCell) $ labelSep rp
+    ssep = vertCat $ map (horizCat . map drawCell) $ histSep rp
+    hsep = horizCat $ map drawCell $ cmdSep rp
+    tsep = horizCat $ map drawCell $ statusSep rp
 
     text = vertCat $ map (horizCat . map drawCell) (textLines rp)
     cmd  = vertCat $ map (horizCat . map drawCell) (cmdLines rp)

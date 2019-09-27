@@ -1,13 +1,11 @@
 all: test docs install
 
-test: golden
+test:
 	@echo 'Running generative tests...'
-	@stack test
-
-golden: install
+	@stack test krebstar:kreb-test
+	@echo
 	@echo 'Running golden tests...'
-	@shelltest --color golden/
-
+	@shelltest --hide-successes --color golden/
 
 install:
 	@echo 'Installing...'
@@ -45,4 +43,4 @@ docs/%.html: %.lhs
 	@echo 'Generating $< ==> $@'
 	@pandoc --mathjax -s -H aux/style.txt -o $@ $<
 
-.PHONY: all test docs install golden
+.PHONY: all test docs install

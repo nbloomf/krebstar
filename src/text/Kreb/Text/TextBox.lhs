@@ -194,7 +194,7 @@ Queries
 > renderTextBox
 >   :: BufferRenderSettings
 >   -> TextBox
->   -> ([Maybe Int], [[Glyph]])
+>   -> ([Maybe Int], [[(Glyph, Int)]])
 > renderTextBox opts box@TextBox{..} =
 >   let
 >     w = getTextBoxWidth box
@@ -204,7 +204,7 @@ Queries
 >       textboxBuffer
 >   in
 >     ( take textboxHeight $ labels' ++ repeat Nothing
->     , map (\ln -> take w $ ln ++ repeat (fromChar ' ')) $
+>     , map (\ln -> take w $ ln ++ repeat (fromChar ' ', 1)) $
 >         take textboxHeight $ lines' ++ repeat []
 >     )
 
@@ -570,7 +570,7 @@ Resizing should not change the logical coordinates of the focus.
 
 > data DebugTextBox = DebugTextBox
 >   { _labels :: [Maybe Int]
->   , _lines  :: [[Glyph]]
+>   , _lines  :: [[(Glyph, Int)]]
 >   , _box    :: TextBox
 >   }
 

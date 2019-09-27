@@ -849,12 +849,12 @@ Rendering
 >   -> Int -- top screen line
 >   -> Int -- view height
 >   -> Buffer w t a
->   -> ([Maybe Int], [[a]])
+>   -> ([Maybe Int], [[(a, Int)]])
 > renderBuffer _ t h buf =
 >   let (as, xs, _) = splitLines t h buf
 >   in
 >     unzip $
->       map (\(z,i) -> (i, unCells $ toList z)) $
+>       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, snd $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ toListDebugFT z)) $
 >       getLineNumbers (value as) xs
 
 

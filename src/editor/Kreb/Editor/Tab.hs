@@ -37,17 +37,10 @@ data Tabs = Tabs
   } deriving (Eq, Show)
 
 setTabsDim
-  :: (Int, Int) -> Tabs -> (Tabs, (Int, Int))
+  :: (Int, Int) -> Tabs -> Tabs
 setTabsDim dim (Tabs ts) =
-  let
-    us = fmapSeq (setPanelDim dim) ts
-  in
-    case headRead us of
-      Nothing -> error "setTabsDim: no tabs"
-      Just (_,pos) ->
-        ( Tabs $ fmapSeq fst us
-        , pos
-        )
+  Tabs $ fmapSeq (setPanelDim dim) ts
+
 
 
 
@@ -65,9 +58,9 @@ getActiveTab (Tabs xs) =
   headRead xs
 
 updateRenderedTabs
-  :: BufferRenderSettings -> GlyphRenderSettings -> (Int, Int) -> Tabs -> Tabs
-updateRenderedTabs opts settings dim =
-  Tabs . headAlter (updateRenderedPanel opts settings dim) . unTabs
+  :: BufferRenderSettings -> GlyphRenderSettings -> EditorMode -> (Int, Int) -> Int -> Tabs -> Tabs
+updateRenderedTabs opts settings mode dim tab =
+  Tabs . headAlter (updateRenderedPanel opts settings mode dim tab) . unTabs
 
 
 getAbsCursorPosTabs

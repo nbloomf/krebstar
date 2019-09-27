@@ -323,7 +323,7 @@ Insert One Character
 >           (1, '\t') -> if t >= w then [Nothing] else [Just 0]
 >           (_, '\t') -> [Just 0]
 >           _ -> [Just 0]
->     , claimEqual lines $
+>     , claimEqual (map (map fst) lines) $
 >         padC $ case (h, toChar c) of
 >           (1, '\n') -> [[]]
 >           (_, '\n') -> [[c], []]
@@ -382,7 +382,7 @@ Insert many 'a's
 >         (r, min q (h-1))
 >     , claimEqual labels $ padL $ (take h $ drop l $
 >         (Just 0) : [Nothing | i <- [1..q]])
->     , claimEqual lines $ padC $ (take h $ drop l $
+>     , claimEqual (map (map fst) lines) $ padC $ (take h $ drop l $
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
 >     ]
@@ -423,7 +423,7 @@ Insert only newlines
 >   in checkAll
 >     [ claimEqual labels $ padL
 >         (map Just [(max (u-h+z) 0)..u])
->     , claimEqual lines $ padC
+>     , claimEqual (map (map fst) lines) $ padC
 >         ((replicate (min u (h-1)) [fromChar '\n']) ++ [[]])
 >     , heightIs box h
 >     , hasCoherentCursor box
@@ -466,7 +466,7 @@ Insert some, then left
 >   in checkAll
 >     [ claimEqual labels $ padL (take h
 >         (Just 0 : (replicate q Nothing)))
->     , claimEqual lines $ padC (take h
+>     , claimEqual (map (map fst) lines) $ padC (take h
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
 >     , heightIs box h
@@ -509,7 +509,7 @@ Insert some, then backspace
 >     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
 >     [ claimEqual labels $ padL [Just 0]
->     , claimEqual lines $ padC [[]]
+>     , claimEqual (map (map fst) lines) $ padC [[]]
 >     , heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
@@ -551,7 +551,7 @@ Insert no characters
 >     padL xs = take h $ xs ++ repeat Nothing
 >   in checkAll
 >     [ claimEqual labels $ padL [Just 0]
->     , claimEqual lines $ padC [[]]
+>     , claimEqual (map (map fst) lines) $ padC [[]]
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
 >     ]
@@ -612,7 +612,7 @@ Action examples
 >       debugTextBox $ mkTextBox dim tab acts
 >   in checkAll
 >     [ claimEqual labels labels'
->     , claimEqual lines (map (map fromChar) lines')
+>     , claimEqual (map (map fst) lines) (map (map fromChar) lines')
 >     , claimEqual (textboxCursor box) cursor
 >     , hasCoherentCursor box
 >     ]

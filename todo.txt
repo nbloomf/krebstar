@@ -1,17 +1,21 @@
 0.0.1 Checklist
 ===============
+- Arrow up and down should 'remember' x coordinate
+- page up and down, home and end
+- show ghosted cursor on text and cmd panels
+- start the manual
 - File load and save (primitives and key bindings)
+- File close (warn if not saved)
 - Lang initial environment (and CL option)
 - Write tests using Mock monad
 - Color line numbers
-- Dedicated pane for showing errors
-- Mouse navigation
 - String primitives in kreblang
 - headless mode
 - fix tab
 - undo and redo
-
-- existential type for panes
+- command history
+- load lang definitions from a file
+- primitive operations for setting preferences
 
 
 - navigation primitives (go to line, line+col, top, regex after cursor)
@@ -28,8 +32,6 @@ TODO BY SUBPROJECT
 format
 ------
 1. Write it
-
-
 
 
 

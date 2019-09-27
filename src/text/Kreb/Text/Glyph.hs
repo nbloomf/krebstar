@@ -16,6 +16,7 @@ module Kreb.Text.Glyph (
   , Brightness(..)
 
   , plainRune
+  , dimRune
 ) where
 
 import Kreb.Check
@@ -26,14 +27,17 @@ import Kreb.Text.MeasureText
 
 data GlyphRenderSettings
   = GlyphRenderSettings
-    { _newlineGlyph :: Rune
-    , _tabGlyph     :: Rune
-    } deriving (Eq, Show)
+    { _newlineGlyph :: [Rune]
+    , _tabGlyph     :: Int -> Int -> [Rune]
+    }
 
 defaultGlyphRenderSettings :: GlyphRenderSettings
 defaultGlyphRenderSettings = GlyphRenderSettings
-  { _newlineGlyph = Rune " " (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)
-  , _tabGlyph = Rune "    " (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)
+  { _newlineGlyph = [Rune " " (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)]
+  , _tabGlyph = \tab col ->
+      let
+        k = tab - rem col tab
+      in replicate k $ Rune " " (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)
   }
 
 data Rune
@@ -64,11 +68,15 @@ plainRune :: Char -> Rune
 plainRune c =
   Rune [c] (RuneColor HueWhite BrightnessVivid) (RuneColor HueBlack BrightnessDull)
 
-renderGlyph :: GlyphRenderSettings -> Glyph -> Rune
-renderGlyph settings g = case toChar g of
+dimRune :: Char -> Rune
+dimRune c =
+  Rune [c] (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)
+
+renderGlyph :: GlyphRenderSettings -> Int -> (Glyph, Int) -> [Rune]
+renderGlyph settings tab (g, col) = case toChar g of
   '\n' -> _newlineGlyph settings
-  '\t' -> _tabGlyph settings
-  _    -> plainRune (toChar g)
+  '\t' -> _tabGlyph settings tab col
+  _    -> [plainRune (toChar g)]
 
 
 data Glyph

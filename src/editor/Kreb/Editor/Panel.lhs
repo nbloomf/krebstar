@@ -1,4 +1,4 @@
-> {-# LANGUAGE FlexibleContexts #-}
+> {-# LANGUAGE FlexibleContexts, RecordWildCards #-}
 
 > module Kreb.Editor.Panel (
 >     Panel(renderedPanel)
@@ -92,69 +92,93 @@
 > mkPanel xs = undefined
 
 
-> setPanelDim
->   :: (Int, Int) -> Panel -> (Panel, (Int, Int))
-> setPanelDim (panelW, panelH) panel =
+> data ComponentSizes = ComponentSizes
+>   { _textLabelSize :: (Int, Int)
+>   , _textSize      :: (Int, Int)
+>   , _historySize   :: (Int, Int)
+>   , _commandSize   :: (Int, Int)
+>   , _statusSize    :: (Int, Int)
+>   } deriving (Eq, Show)
+
+> computeComponentSizes
+>   :: (Int, Int) -> Panel -> ComponentSizes
+> computeComponentSizes (panelW, panelH) panel =
 >   let
->     labW = textboxLabelWidth $ textBox panel
->     labH = panelH - 2
+>     textLabelW = textboxLabelWidth $ textBox panel
+>     textLabelH = panelH - 2
 > 
 >     textW = textWidth panel
 >     textH = panelH - 2
 > 
->     cmdW = panelW - textWidth panel - 1 - labW - 1
->     cmdH = cmdHeight panel
+>     commandW = panelW - textWidth panel - 1 - textLabelW - 1
+>     commandH = cmdHeight panel
 > 
->     histW = cmdW
->     histH = panelH - cmdH - 3
->   in
->     ( panel
->         { textBox =
->             alterTextBox [TextBoxResize (textW, textH)] $ textBox panel
->         , histBox =
->             alterTextBox [TextBoxResize (histW, histH)] $ histBox panel
->         , cmdBox =
->             alterTextBox [TextBoxResize (cmdW, cmdH)] $ cmdBox panel
->         , statusBox =
->             alterTextBox [TextBoxResize (panelW, 1)] $ statusBox panel
->         }
->     , (0,0)
->     )
+>     historyW = commandW
+>     historyH = panelH - commandH - 3
+> 
+>     statusW = panelW - 4
+>     statusH = 1
+>   in ComponentSizes
+>     { _textLabelSize = (textLabelW, textLabelH)
+>     , _textSize      = (textW, textH)
+>     , _historySize   = (historyW, historyH)
+>     , _commandSize   = (commandW, commandH)
+>     , _statusSize    = (statusW, statusH)
+>     }
+
+
+
+
+> setPanelDim
+>   :: (Int, Int) -> Panel -> Panel
+> setPanelDim dim panel =
+>   let
+>     ComponentSizes{..} =
+>       computeComponentSizes dim panel
+>   in panel
+>     { textBox =
+>         alterTextBox [TextBoxResize _textSize] $ textBox panel
+>     , histBox =
+>         alterTextBox [TextBoxResize _historySize] $ histBox panel
+>     , cmdBox =
+>         alterTextBox [TextBoxResize _commandSize] $ cmdBox panel
+>     , statusBox =
+>         alterTextBox [TextBoxResize _statusSize] $ statusBox panel
+>     }
 
 > data RenderedPanel = RenderedPanel
 >   { lineLabels :: [Maybe Int]
->   , labelSep   :: [[Char]]
+>   , labelSep   :: [[Rune]]
 >   , textLines  :: [[Rune]]
 
->   , histSep    :: [[Char]]
+>   , histSep    :: [[Rune]]
 >   , histLines  :: [[Rune]]
 
->   , cmdSep     :: [Char]
+>   , cmdSep     :: [Rune]
 >   , cmdLines   :: [[Rune]]
 
->   , statusSep  :: [Char]
+>   , statusSep  :: [Rune]
 >   , statusLine :: [[Rune]]
 >   } deriving (Eq, Show)
 
 > updateRenderedPanel
 >   :: BufferRenderSettings
 >   -> GlyphRenderSettings
+>   -> EditorMode
 >   -> (Int, Int)
+>   -> Int
 >   -> Panel
 >   -> Panel
-> updateRenderedPanel opts settings (panelW, panelH) panel =
+> updateRenderedPanel opts settings mode (panelW, panelH) tab panel =
 >   let
->     labW = textboxLabelWidth $ textBox panel
->     labH = panelH - 2
+>     ComponentSizes{..} =
+>       computeComponentSizes (panelW, panelH) panel
 > 
->     textW = textWidth panel
->     textH = panelH - 2
-> 
->     cmdW = panelW - textWidth panel - 1 - labW - 1
->     cmdH = cmdHeight panel
-> 
->     histW = cmdW
->     histH = panelH - cmdH - 3
+>     (labW, labH) = _textLabelSize
+>     (textW, textH) = _textSize
+>     (cmdW, cmdH) = _commandSize
+>     (histW, histH) = _historySize
+>     (statW, statH) = _statusSize
 
 >     textL = textboxOffset $ textBox panel
 
@@ -170,20 +194,35 @@
 >     (_, stat) =
 >       renderTextBox opts (statusBox panel)
 > 
->     cropAndRender :: (Int, Int) -> [[Glyph]] -> [[Rune]]
+>     m = case mode of
+>       InsertMode -> map plainRune "INS "
+>       CommandMode -> map plainRune "CMD "
+>       NormalMode -> map plainRune "NOR "
+> 
+>     cropAndRender :: (Int, Int) -> [[(Glyph, Int)]] -> [[Rune]]
 >     cropAndRender (w, h) gss =
 >       take h $ (++ repeat (repeat $ plainRune ' ')) $
->         map (take w . map (renderGlyph settings)) gss
+>         map (take w . concatMap (renderGlyph settings tab)) gss
 > 
 >     rp = RenderedPanel
 >       { lineLabels = labels
->       , labelSep   = replicate (panelH - 2) [fromChar '|']
+>       , labelSep   = replicate (panelH - 2) [dimRune '│']
 >       , textLines  = cropAndRender (textW, textH) text
->       , histSep    = replicate (panelH - 2) [fromChar '|']
+>       , histSep    = concat
+>           [ replicate histH [dimRune '│']
+>           , [[dimRune '├']]
+>           , replicate cmdH [dimRune '│']
+>           ]
 >       , histLines  = cropAndRender (histW, histH) hist
->       , statusSep  = replicate panelW (fromChar '-')
->       , statusLine = cropAndRender (panelW, 1) stat
->       , cmdSep     = replicate histW (fromChar '-')
+>       , statusSep  = concat
+>           [ replicate labW (dimRune '═')
+>           , [dimRune '╧']
+>           , replicate textW (dimRune '═')
+>           , [dimRune '╧']
+>           , replicate histW (dimRune '═')
+>           ]
+>       , statusLine = fmap (m ++) $ cropAndRender (statW, statH) stat
+>       , cmdSep     = replicate histW (dimRune '─')
 >       , cmdLines   = cropAndRender (cmdW, cmdH) cmd
 >       }
 >   in panel
