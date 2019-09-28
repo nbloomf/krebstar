@@ -16,6 +16,9 @@
 - command history
 - load lang definitions from a file
 - primitive operations for setting preferences
+- command bar needs to understand :load, :reload, and :type
+
+- lang - an :explain command that shows word documentation
 
 
 - navigation primitives (go to line, line+col, top, regex after cursor)

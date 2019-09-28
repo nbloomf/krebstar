@@ -868,4 +868,21 @@ Action examples
 >           , [ "def" ]
 >           , (0,0)
 >           )
+> 
+>     , testKreb "#18" $
+>         prop_TextBox_action_examples
+>           ( (8,2)
+>           , 4
+>           , [ TextBoxInsert (mkGlyph '\t')
+>             , TextBoxInsert (mkGlyph 'b')
+>             , TextBoxCursorLeft
+>             , TextBoxCursorLeft
+>             , TextBoxInsert (mkGlyph 'a')
+>             ]
+>           )
+>           ( [ Just 0, Nothing ]
+>           , [ "a\tb     "
+>             , "        " ]
+>           , (1,0)
+>           )
 >     ]

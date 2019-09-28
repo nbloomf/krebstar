@@ -122,9 +122,19 @@ Outcome of a single test case
 > claimEqualNamed str x y =
 >   if x == y
 >     then accept
->     else reject $ concat
->       [ str, "expecting ", show x
->       , " to equal ", show y ]
+>     else
+>       let
+>         lx = length $ show x
+>         ly = length $ show y
+>       in
+>         reject $ concat $
+>         if lx > 30 || ly > 30
+>           then
+>             [ str, "expecting\n", show x
+>             , "\nto equal\n", show y ]
+>           else
+>             [ str, "expecting ", show x
+>             , " to equal ", show y ]
 > 
 > claimLT
 >   :: ( Ord a, Show a )

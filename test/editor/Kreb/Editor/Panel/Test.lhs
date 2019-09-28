@@ -111,4 +111,32 @@
 >           , statusSep = line "══╧═╧═"
 >           , statusLine = grid [ "NOR   " ]
 >           }
+> 
+>     , testKreb "#4" $
+>         prop_Panel_render_examples
+>         ( (16, 5), 4
+>         , [ PanelAlterText
+>             [ TextBoxInsert (mkGlyph '\t')
+>             , TextBoxInsert (mkGlyph 'b')
+>             , TextBoxCursorLeft
+>             , TextBoxCursorLeft
+>             , TextBoxInsert (mkGlyph 'a')]
+>             ]
+>         ) $
+>         RenderedPanel
+>           { lineLabels = [Just 0, Nothing, Nothing]
+>           , labelSep = dimGrid ["│", "│", "│"]
+>           , textLines = grid
+>               [ "a   b"
+>               , "     "
+>               , "     "
+>               ]
+>           , histSep = dimGrid ["│", "├", "│"]
+>           , histLines = grid
+>               [ "       " ]
+>           , cmdSep = line "───────"
+>           , cmdLines = grid [ "       " ]
+>           , statusSep = line "══╧═════╧═══════"
+>           , statusLine = grid [ "NOR             " ]
+>           }
 >     ]

@@ -1003,6 +1003,76 @@ Rendering
 
 
 
+> prop_Buffer_renderBuffer_examples
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
+>      , Arb a, Prune a, Eq a, Show a, IsChar a )
+>   => Proxy a
+>   -> (Int, Int, Buffer w t a)
+>   -> ([Maybe Int], [[(a, Int)]])
+>   -> Check
+> 
+> prop_Buffer_renderBuffer_examples pa
+>   (top, height, buf) out =
+>     claimEqual out $
+>       renderBuffer defaultBufferRenderSettings top height buf
+
+> test_Buffer_renderBuffer_examples :: TestTree
+> test_Buffer_renderBuffer_examples =
+>   testGroup "Buffer value examples"
+>     [ testKreb "#1" $
+>         prop_Buffer_renderBuffer_examples
+>           (Proxy :: Proxy Char)
+>           ( 0, 1
+>           , defBuffer nat3 nat1 "a"
+>           )
+>           ( [ Just 0 ]
+>           , [[('a', 0)]]
+>           )
+> 
+>     , testKreb "#2" $
+>         prop_Buffer_renderBuffer_examples
+>           (Proxy :: Proxy Char)
+>           ( 0, 1
+>           , defBuffer nat3 nat1 "ab"
+>           )
+>           ( [ Just 0 ]
+>           , [[('a', 0), ('b', 1)]]
+>           )
+> 
+>     , testKreb "#3" $
+>         prop_Buffer_renderBuffer_examples
+>           (Proxy :: Proxy Char)
+>           ( 0, 1
+>           , defBuffer nat3 nat1 "\n"
+>           )
+>           ( [ Just 0 ]
+>           , [[ ('\n', 0) ]]
+>           )
+> 
+>     , testKreb "#4" $
+>         prop_Buffer_renderBuffer_examples
+>           (Proxy :: Proxy Char)
+>           ( 0, 1
+>           , defBuffer nat8 nat4 "a\t"
+>           )
+>           ( [ Just 0 ]
+>           , [[('a', 0), ('\t', 1)]]
+>           )
+> 
+>     , testKreb "#5" $
+>         prop_Buffer_renderBuffer_examples
+>           (Proxy :: Proxy Char)
+>           ( 0, 1
+>           , defBuffer nat8 nat4 "\ta"
+>           )
+>           ( [ Just 0 ]
+>           , [[('\t', 0), ('a', 4)]]
+>           )
+>     ]
+
+
+
 Take Line
 ---------
 
@@ -1385,6 +1455,9 @@ Test Suite
 >       [ test_Buffer_takeLine nat5 nat2 pChar
 >       , test_Buffer_takeLines_wrap_examples
 >       ]
+> 
+>     , localOption (KrebCheckTests 1) $
+>         test_Buffer_renderBuffer_examples
 >     ]
 
 

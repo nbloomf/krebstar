@@ -854,7 +854,7 @@ Rendering
 >   let (as, xs, _) = splitLines t h buf
 >   in
 >     unzip $
->       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, snd $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ toListDebugFT z)) $
+>       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ toListDebugFT z)) $
 >       getLineNumbers (value as) xs
 
 

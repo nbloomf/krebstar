@@ -33,11 +33,11 @@ data GlyphRenderSettings
 
 defaultGlyphRenderSettings :: GlyphRenderSettings
 defaultGlyphRenderSettings = GlyphRenderSettings
-  { _newlineGlyph = [Rune " " (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)]
+  { _newlineGlyph = [Rune " " (RuneColor HueWhite BrightnessVivid) (RuneColor HueBlack BrightnessDull)]
   , _tabGlyph = \tab col ->
       let
         k = tab - rem col tab
-      in replicate k $ Rune " " (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)
+      in replicate k $ Rune " " (RuneColor HueWhite BrightnessVivid) (RuneColor HueBlack BrightnessDull)
   }
 
 data Rune
