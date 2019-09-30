@@ -1,0 +1,10 @@
+lang -s -q 'Nothing'
+<<<
+@data Maybe a
+  = Nothing
+  | Just a
+@end
+>>>
+Nothing
+>>>2
+>>>= 0

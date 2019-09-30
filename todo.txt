@@ -9,9 +9,7 @@
 - Lang initial environment (and CL option)
 - Write tests using Mock monad
 - Color line numbers
-- String primitives in kreblang
 - headless mode
-- fix tab
 - undo and redo
 - command history
 - load lang definitions from a file

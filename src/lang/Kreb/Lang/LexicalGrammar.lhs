@@ -7,16 +7,18 @@
 >   deriving (Eq, Show)
 
 > data Symbol
->   = SY_DoubleColon
->   | SY_MinusGreater
->   | SY_DoubleEqual
->   | SY_OpenBrack
->   | SY_ClosedBrack
->   | SY_OpenParen
+>   = SY_ClosedBrack
 >   | SY_ClosedParen
 >   | SY_Dollar
->   | SY_Equal
->   | SY_Pipe
->   | SY_ForAll
 >   | SY_Dot
+>   | SY_DoubleColon
+>   | SY_DoubleEqual
+>   | SY_DoubleQuote
+>   | SY_Equal
+>   | SY_ForAll
+>   | SY_MinusGreater
+>   | SY_OpenBrack
+>   | SY_OpenParen
+>   | SY_Pipe
+>   | SY_SingleQuote
 >   deriving (Eq, Show)

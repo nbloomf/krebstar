@@ -1,0 +1,10 @@
+lang -s -q '2'
+<<<
+@data Bool
+  = True
+  | False
+@end
+>>>
+2
+>>>2
+>>>= 0

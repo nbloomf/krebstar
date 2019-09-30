@@ -29,7 +29,7 @@
 > instance PrettyPrint Val where
 >   pretty x = case x of
 >     V_Prim p -> pretty p
->     V_Eff -> "#Eff"
+>     V_Eff -> "@Eff"
 >     V_Func f xs -> case xs of
 >       [] -> f
 >       _ -> "(" ++ f ++ " " ++ unwords (map pretty xs) ++ ")"
@@ -68,4 +68,10 @@
 >       Cons st1 v -> do
 >         (st2, vs) <- peel (k-1) st1
 >         return (st2, v:vs)
+
+> peelAndStick
+>   :: String -> Int -> DataStack -> Either RuntimeError DataStack
+> peelAndStick name num st = do
+>   (st', vals) <- peel num st
+>   return $ Cons st' (V_Func name vals)
 

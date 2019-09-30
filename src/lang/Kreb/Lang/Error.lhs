@@ -18,7 +18,7 @@
 >   | WordAlreadyTyped Atom
 >   | SignatureMismatch Scheme Scheme
 >   | DuplicateDataConst [Atom]
->   | ExtraneousVars
+>   | ExtraneousVars [V Type]
 >   deriving (Eq, Show)
 
 > data RuntimeError

@@ -10,107 +10,132 @@ import Kreb.Lang.Loc
 
 %wrapper "monadUserState"
 
-$whitechar = [\ \t\n\r]
 
-$pos = [1-9]
-$dec = [0-9]
-$hex = [0-9a-fA-F]
 
-@int = $pos [$dec]*
+-- Macros --
+
+@whitespace = [ \  \t \n \r ]+
+
+$hex = [ 0-9 a-f A-F ]
+@int = [ 1-9 ] [ 0-9 ]*
 
 @char = ' \\ 0 x $hex [$hex]* '
 
-$nameStart  = [\_ a-z A-Z]
-$nameMiddle = [ 0-9 \- ' ]
+@esc_simp = [ n t v ' \" \\ ]
 
-@name = $nameStart [ $nameStart $nameMiddle ]*
-@whitespace = [ $whitechar ]+
+@name = [ a-z A-Z \_ ] [ a-z A-Z 0-9 \_ \- ' ]*
+@func = [ A-Z ] [ a-z A-Z 0-9 ' ]*
+@tvar = [ a-z ] [ a-z A-Z 0-9 ]*
+@svar = \$ [ A-Z ] [ a-z A-Z 0-9 ]*
 
-$funcStart  = [A-Z]
-$funcMiddle = [a-zA-Z0-9']
-@func = $funcStart [ $funcMiddle ]*
 
-$tvarStart  = [a-z]
-$tvarMiddle = [a-z0-9]
-@tvar = $tvarStart [ $tvarMiddle ]*
 
-$svarStart  = [A-Z]
-$svarMiddle = [a-z0-9]
-@svar = $svarStart [ $svarMiddle ]*
+
 
 tokens :-
 
-@whitespace ;
+-- ======= --
+-- Phrases --
+-- ======= --
+
+-- Atoms
+<0,def>  @name        { _w TokenWord                          KeepCode }
+<0,def>  \#@name      { _w TokenBuiltIn                       KeepCode }
+
+-- Constants
+<0,def>  @int         { _w TokenInt                           KeepCode }
+<0,def>  '            { _t (TokenSymbol Lex.SY_SingleQuote)   (EnterCode chr) }
+<0,def>  "            { _t (TokenSymbol Lex.SY_DoubleQuote)   (EnterCode chr) }
+
+-- Quotations
+<0,def>  [\[]         { _t (TokenSymbol Lex.SY_OpenBrack)     KeepCode }
+<0,def>  [\]]         { _t (TokenSymbol Lex.SY_ClosedBrack)   KeepCode }
+
+
+
+-- ============= --
+-- Char Literals --
+-- ============= --
+
+<chr>  '              { _t (TokenSymbol Lex.SY_SingleQuote)   ExitCode }
+<chr>  \"             { _t (TokenSymbol Lex.SY_DoubleQuote)   ExitCode }
+
+<chr>  [\\]@esc_simp  { _w TokenChar                          KeepCode }
+
+<chr>  [.]            { _w TokenChar                          KeepCode }
+
+
 
 -- ================ --
 -- Word Definitions --
 -- ================ --
 
-<0>  [\[]         { _t (TokenSymbol Lex.SY_OpenBrack)     Nothing }
-<0>  [\]]         { _t (TokenSymbol Lex.SY_ClosedBrack)   Nothing }
+<0>    ^ \@define [\ \n] { _t (TokenKeyword Lex.KW_Define)       (EnterCode tok) }
 
-<0>  @name        { _w TokenWord                          Nothing }
-<0>  \#@name      { _w TokenBuiltIn                       Nothing }
-<0>  @int         { _w TokenInt                           Nothing }
-<0>  '.'          { _w TokenChar                          Nothing }
-<0>  @char        { _w TokenChar                          Nothing }
+<tok>  @name             { _w TokenWord                          (EnterCode sig) }
 
-<0> ^ \@define [\ \n] { _t (TokenKeyword Lex.KW_Define) (Just tok) }
+<sig>  [:][:]            { _t (TokenSymbol Lex.SY_DoubleColon)   KeepCode }
+<sig>  [\$]              { _t (TokenSymbol Lex.SY_Dollar)        KeepCode }
+<sig>  forall            { _t (TokenSymbol Lex.SY_ForAll)        KeepCode }
+<sig>  Int               { _t (TokenTypeConst "Int")             KeepCode }
+<sig>  Char              { _t (TokenTypeConst "Char")            KeepCode }
+<sig>  String            { _t (TokenTypeConst "String")          KeepCode }
+<sig>  \@Eff             { _w TokenEff                           KeepCode }
+<sig>  @tvar             { _w TokenVarT                          KeepCode }
+<sig>  @svar             { _w TokenVarS                          KeepCode }
+<sig>  @func             { _w TokenConst                         KeepCode }
+<sig>  \.                { _t (TokenSymbol Lex.SY_Dot)           KeepCode }
+<sig>  [\-][>]           { _t (TokenSymbol Lex.SY_MinusGreater)  KeepCode }
+<sig>  [\(]              { _t (TokenSymbol Lex.SY_OpenParen)     KeepCode }
+<sig>  [\)]              { _t (TokenSymbol Lex.SY_ClosedParen)   KeepCode }
 
-<tok>  @name        { _w TokenWord (Just typ) }
+<sig>  [=][=]            { _t (TokenSymbol Lex.SY_DoubleEqual)   (EnterCode def) }
 
-<typ>  [:][:]       { _t (TokenSymbol Lex.SY_DoubleColon)   Nothing }
-<typ>  [\$]         { _t (TokenSymbol Lex.SY_Dollar)        Nothing }
-<typ>  forall       { _t (TokenSymbol Lex.SY_ForAll)        Nothing }
-<typ>  Int          { _t (TokenTypeConst "Int")             Nothing }
-<typ>  Char         { _t (TokenTypeConst "Char")            Nothing }
-<typ>  String       { _t (TokenTypeConst "String")          Nothing }
-<typ>  @tvar        { _w TokenVarT Nothing }
-<typ>  @svar        { _w TokenVarS Nothing }
-<typ>  @func        { _w TokenConst Nothing }
-<typ>  \.           { _t (TokenSymbol Lex.SY_Dot)           Nothing }
-<typ>  [\-][>]      { _t (TokenSymbol Lex.SY_MinusGreater)  Nothing }
-<typ>  [\(]         { _t (TokenSymbol Lex.SY_OpenParen)     Nothing }
-<typ>  [\)]         { _t (TokenSymbol Lex.SY_ClosedParen)   Nothing }
+<def>  ^ \@end           { _t (TokenKeyword Lex.KW_End)          ResetCode }
 
-<typ>  [=][=]       { _t (TokenSymbol Lex.SY_DoubleEqual)   (Just def) }
-<def>  [\[]         { _t (TokenSymbol Lex.SY_OpenBrack)     Nothing }
-<def>  [\]]         { _t (TokenSymbol Lex.SY_ClosedBrack)   Nothing }
 
-<def>  @name        { _w TokenWord                          Nothing }
-<def>  \#@name      { _w TokenBuiltIn                       Nothing }
-<def>  @int         { _w TokenInt                           Nothing }
-<def>  '.'          { _w TokenChar                          Nothing }
-<def>  @char        { _w TokenChar                          Nothing }
-
-<def>  ^ \@end        { _t (TokenKeyword Lex.KW_End)          (Just 0) }
 
 -- ================= --
 -- Data Declarations --
 -- ================= --
 
-<0> ^ \@data [\ ]          { _t (TokenKeyword Lex.KW_Data)         (Just dec) }
+<0>    ^ \@data [\ \n] { _t (TokenKeyword Lex.KW_Data)         (EnterCode dec) }
 
-<dec>  [=]          { _t (TokenSymbol Lex.SY_Equal)         Nothing }
-<dec>  [\|]         { _t (TokenSymbol Lex.SY_Pipe)          Nothing }
-<dec>  [\$]         { _t (TokenSymbol Lex.SY_Dollar)        Nothing }
-<dec>  @tvar        { _w TokenVarT Nothing }
-<dec>  Int          { _t (TokenTypeConst "Int")             Nothing }
-<dec>  Char         { _t (TokenTypeConst "Char")            Nothing }
-<dec>  String       { _t (TokenTypeConst "String")          Nothing }
-<dec>  @func        { _w TokenConst Nothing }
-<dec>  [\-][>]      { _t (TokenSymbol Lex.SY_MinusGreater)  Nothing }
-<dec>  [\(]         { _t (TokenSymbol Lex.SY_OpenParen)     Nothing }
-<dec>  [\)]         { _t (TokenSymbol Lex.SY_ClosedParen)   Nothing }
+<dec>  [=]             { _t (TokenSymbol Lex.SY_Equal)         KeepCode }
+<dec>  [\|]            { _t (TokenSymbol Lex.SY_Pipe)          KeepCode }
+<dec>  [\$]            { _t (TokenSymbol Lex.SY_Dollar)        KeepCode }
+<dec>  @tvar           { _w TokenVarT                          KeepCode }
+<dec>  Int             { _t (TokenTypeConst "Int")             KeepCode }
+<dec>  Char            { _t (TokenTypeConst "Char")            KeepCode }
+<dec>  String          { _t (TokenTypeConst "String")          KeepCode }
+<dec>  @func           { _w TokenConst                         KeepCode }
+<dec>  [\-][>]         { _t (TokenSymbol Lex.SY_MinusGreater)  KeepCode }
+<dec>  [\(]            { _t (TokenSymbol Lex.SY_OpenParen)     KeepCode }
+<dec>  [\)]            { _t (TokenSymbol Lex.SY_ClosedParen)   KeepCode }
 
-<dec> ^ \@end        { _t (TokenKeyword Lex.KW_End)          (Just 0) }
+<dec> ^ \@end          { _t (TokenKeyword Lex.KW_End)          ResetCode }
+
+
+
+@whitespace ;
+
 
 
 
 
 {
+
+data NextCode
+  = EnterCode Int
+  | ExitCode
+  | KeepCode
+  | ResetCode
+  deriving (Eq, Show)
+
+
 data AlexUserState = Trace
-  { _tokens :: [(Int, Token)]
+  { _tokens  :: [(Int, Token)]
+  , _lastscd :: Maybe Int
   }
 
 instance Show AlexUserState where
@@ -172,6 +197,7 @@ data Token
   | TokenVarS (String, Loc)
   | TokenTypeConst String Loc
   | TokenConst (String, Loc)
+  | TokenEff (String, Loc)
 
   | TokenInt (String, Loc)
   | TokenChar (String, Loc)
@@ -189,28 +215,44 @@ _skip _ _ = return ()
 
 _t
   :: (Loc -> Token)
-  -> Maybe Int
+  -> NextCode
   -> (AlexPosn, Char, [Byte], String)
   -> Int
   -> Alex Token
-_t tok scd (pos, _, _, _) _ = do
-  case scd of
-    Nothing -> return ()
-    Just k -> alexSetStartCode k
+_t tok next (pos, _, _, _) _ = do
+  case next of
+    KeepCode -> return ()
+    EnterCode k -> do
+      stashStartCode
+      alexSetStartCode k
+    ExitCode -> do
+      k <- stealStartCode
+      alexSetStartCode k
+    ResetCode -> do
+      stealStartCode
+      alexSetStartCode 0
   let token = tok $ toLoc pos
   trace token
   return $ token
 
 _w
   :: ((String, Loc) -> Token)
-  -> Maybe Int
+  -> NextCode
   -> (AlexPosn, Char, [Byte], String)
   -> Int
   -> Alex Token
-_w tok scd (pos, _, _, s) i = do
-  case scd of
-    Nothing -> return ()
-    Just k -> alexSetStartCode k
+_w tok next (pos, _, _, s) i = do
+  case next of
+    KeepCode -> return ()
+    EnterCode k -> do
+      stashStartCode
+      alexSetStartCode k
+    ExitCode -> do
+      k <- stealStartCode
+      alexSetStartCode k
+    ResetCode -> do
+      stealStartCode
+      alexSetStartCode 0
   let token = tok (take i s, toLoc pos)
   trace token
   return token 
@@ -241,6 +283,23 @@ gets f = Alex $ \ast ->
 muts :: (AlexState -> AlexState) -> Alex ()
 muts f = Alex $ \ast ->
   Right (f ast, ())
+
+stashStartCode :: Alex ()
+stashStartCode = do
+  k <- alexGetStartCode
+  muts $ \st -> st
+    { alex_ust = (alex_ust st) { _lastscd = Just k }
+    }
+
+stealStartCode :: Alex Int
+stealStartCode = do
+  k <- gets (_lastscd . alex_ust)
+  muts $ \st -> st
+    { alex_ust = (alex_ust st) { _lastscd = Nothing }
+    }
+  case k of
+    Nothing -> return 0
+    Just m -> return m
 
 debugAlex
   :: String -> Alex a -> Either String (AlexState, a)
@@ -276,6 +335,6 @@ debugParser mode p input = do
       putStrLn $ show $ alex_ust st
 
 alexInitUserState :: AlexUserState
-alexInitUserState = Trace []
+alexInitUserState = Trace [] Nothing
 
 }

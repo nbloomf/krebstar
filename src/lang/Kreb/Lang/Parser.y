@@ -63,11 +63,14 @@ import Kreb.Lang.Expr
   '='  { TokenSymbol Lex.SY_Equal $$ }
   '|'  { TokenSymbol Lex.SY_Pipe $$ }
   '.'  { TokenSymbol Lex.SY_Dot $$ }
+  '\''  { TokenSymbol Lex.SY_SingleQuote $$ }
+  '"'  { TokenSymbol Lex.SY_DoubleQuote $$ }
   'forall'  { TokenSymbol Lex.SY_ForAll $$ }
 
   'Int' {TokenTypeConst "Int" $$}
   'Char' {TokenTypeConst "Char" $$}
   'String' {TokenTypeConst "String" $$}
+  '@Eff' { TokenEff $$ }
 
   tvar { TokenVarT $$ }
   svar { TokenVarS $$ }
@@ -78,17 +81,35 @@ listOf(p)
   : p                                                  { [$1] }
   | listOf(p) p                                        { ($2:$1) }
 
-module :: { Module }
-  : blocks { Module $1 }
 
-blocks :: { [Decl] }
-  : listOf(block) { $1 }
 
-block :: { Decl }
+module ::           { Module }
+  : listOf( block ) { Module $1 }
+
+block ::         { Decl }
   : define_block { $1 }
+  | data_block   { $1 }
 
-define_block :: { Decl }
+
+
+define_block ::                                    { Decl }
   : '@define' atom '::' scheme '==' phrase '@end'  { Definition (Atom (fst $2)) $6 $4 }
+
+
+
+data_block ::                                       { Decl }
+  : '@data' func data_clauses '@end'                { DeclareData (fst $2, []) $3 }
+  | '@data' func listOf( tvar ) data_clauses '@end' { DeclareData (fst $2, map (V . fst) $3) $4 }
+
+data_clauses ::                                               { [(Atom, [Type])] }
+  : '=' func listOf( data_clauses_extra )                     { (Atom $ fst $2, []) : $3 }
+  | '=' func listOf( type_atom ) listOf( data_clauses_extra ) { (Atom $ fst $2, $3) : $4 }
+
+data_clauses_extra ::            { (Atom, [Type]) }
+  : '|' func                     { (Atom $ fst $2, []) }
+  | '|' func listOf( type_atom ) { (Atom $ fst $2, $3) }
+
+
 
 scheme :: { Scheme }
   : arrow { quantify $1 }
@@ -97,69 +118,65 @@ arrow :: { Arrow }
   : stack '->' stack { Arrow $1 $3 }
 
 stack :: { Stack }
-  : svar    { Stack (V (fst $1)) [] }
-  | svar listOf(type) { Stack (V (fst $1)) (reverse $2) }
+  : svar                     { Stack (V (tail $ fst $1)) [] }
+  | svar listOf( type_atom ) { Stack (V (tail $ fst $1)) (reverse $2) }
 
-type :: { Type }
-  : tvar   { TyVar (V (fst $1)) }
-  | prim   { TyCon $1 }
-  | '(' arrow ')' { TyArr $2 }
 
-prim :: { C Type }
+
+
+type_atom ::          { Type }
+  : tvar              { TyVar $ V $ fst $1 }
+  | type_prim         { TyCon $1 }
+  | func              { TyCon $ C $ fst $1 }
+  | '(' type_expr ')' { $2 }
+
+type_prim :: { C Type }
   : 'Int'    { C "Int" }
   | 'Char'   { C "Char" }
   | 'String' { C "String" }
+  | '@Eff'   { C "@Eff" }
 
-phrase :: { Phrase }
-  : word  { Then $1 Silence }
+type_func :: { Type }
+  : func                { TyCon $ C $ fst $1 }
+  | type_func type_atom { TyApp $1 $2 }
+
+type_expr :: { Type }
+  : type_func { $1 }
+  | arrow     { TyArr $1 }
+
+
+
+
+
+phrase ::       { Phrase }
+  : word        { Then $1 Silence }
   | word phrase { Then $1 $2 }
 
-word :: { Word }
-  : atom   { Only (Atom (fst $1)) }
-  | builtin { BuiltIn $1 }
+word ::            { Word }
+  : atom           { Only (Atom (fst $1)) }
+  | builtin        { BuiltIn $1 }
   | '[' phrase ']' { Quote $2 }
 
-builtin :: { BuiltIn }
-  : int { BuiltIn_Int (read (fst $1)) }
-  | char { BuiltIn_Char (read (fst $1)) }
+builtin ::         { BuiltIn }
+  : int            { BuiltIn_Int (read (fst $1)) }
+  | '\'' char '\''   { BuiltIn_Char (readStrChr (fst $2)) }
 
-  | 'int_plus' { BuiltIn_Int_Plus }
-  | 'int_times' { BuiltIn_Int_Times }
+  | '"' listOf( char ) '"' { BuiltIn_String (reverse $ map (readStrChr . fst) $2) }
 
-  | 'id' { BuiltIn_Id }
-  | 'swap' { BuiltIn_Swap }
-  | 'apply' { BuiltIn_Apply }
-  | 'quote' { BuiltIn_Quote }
-  | 'compose' { BuiltIn_Compose }
+  | 'int_plus'     { BuiltIn_Int_Plus }
+  | 'int_times'    { BuiltIn_Int_Times }
+
+  | 'id'           { BuiltIn_Id }
+  | 'swap'         { BuiltIn_Swap }
+  | 'apply'        { BuiltIn_Apply }
+  | 'quote'        { BuiltIn_Quote }
+  | 'compose'      { BuiltIn_Compose }
 
   | custom_builtin { BuiltIn_Ext (fst $1) }
+
 
 
 {
 parseError :: Token -> Parser a
 parseError = Parser . return . Left
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

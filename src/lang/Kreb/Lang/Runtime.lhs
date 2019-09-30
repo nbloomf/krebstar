@@ -217,6 +217,8 @@
 >     { atomEnv = M.insert atom arr $ atomEnv env}
 
 
+
+
 > checkType
 >   :: ( Monad m )
 >   => Phrase -> Scheme -> Runtime m ()
@@ -370,14 +372,3 @@
 >         ])
 > 
 >   BuiltIn_Ext str -> custom str
-
-
-
-
-
-
-
-
-
-
-

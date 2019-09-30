@@ -77,8 +77,7 @@
 
 
 
->   | SetError String
->   | ClearError
+>   | ShowDebug String
 
 >   | WindowResize (Int, Int)
 >   deriving (Eq, Show)
@@ -93,12 +92,8 @@
 >   NoOp ->
 >     return (GoOn, st)
 
->   SetError msg -> do
->     let st' = setLastError msg st
->     return (GoOn, st')
-
->   ClearError -> do
->     let st' = clearLastError st
+>   ShowDebug msg -> do
+>     let st' = alterActivePanel (showDebugMessage msg) st
 >     return (GoOn, st')
 
 >   Quit ->
@@ -168,18 +163,20 @@
 >         [PanelClearCmd]) st
 >     case cmd of
 >       Nothing -> do
->         let st3 = setLastError "no command" st2
+>         let st3 = alterActivePanel (showDebugMessage "no command") st2
 >         return (GoOn, st2)
 >       Just str -> do
 >         r <- evalHook str st2
 >         case r of
 >           Left err -> do
->             let st3 = setLastError (show err) st2
+>             let st3 = alterActivePanel (showDebugMessage $ show err) st2
 >             return (GoOn, st3)
 >           Right st' -> return (GoOn, st')
 
 >   act -> do
->     let st' = setLastError (" Not implemented: " ++ show act) st
+>     let
+>       st' = alterActivePanel
+>         (showDebugMessage $ " Not implemented: " ++ show act) st
 >     return (GoOn, st')
 
 
@@ -188,21 +185,30 @@
 
 > runHook
 >   :: ( Monad m )
->   => AppState m -> Hook m a -> m (a, (AppState m))
+>   => AppState m -> Hook m a -> m (a, AppState m)
 > runHook st (Hook x) = x st
 
 > evalHook
 >   :: ( Monad m )
 >   => String -> AppState m
 >   -> m (Either (Either Error ReplError) (AppState m))
-> evalHook str st =
->   case runParser pPhrase str of
+> evalHook str st = case str of
+>   ':':'t':' ':rest -> case runParser pPhrase rest of
+>     Left err -> return $ Left (Left err)
+>     Right ph -> do
+>       (r, x) <- runHook st $ evalRuntime (inferType ph) (runtimeSt st)
+>       case r of
+>         Left err -> return $ Left (Right err)
+>         Right tp -> return $ Right $
+>           alterActivePanel (updateHistory (TypeQuery str tp)) x
+>   _ -> case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
 >       (r, x) <- runHook st $ evalRuntime (doActionFor ph) (runtimeSt st)
 >       case r of
 >         Left err -> return $ Left (Right err)
->         Right () -> return $ Right x
+>         Right () -> return $ Right $
+>           alterActivePanel (updateHistory (RunCommand ph)) x
 
 
 > runtimeStateIO :: RuntimeState (Hook IO)
@@ -228,6 +234,16 @@
 >     ForAll (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [])
+> 
+>   "#set_path" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [])
+>       (Stack (V "S") [])
+>   "#load" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+
 >   _ -> Nothing
 
 > editorActionsIO
@@ -246,6 +262,3 @@
 >     (_, st') <- performAction CursorDown st
 >     return (Right ((), rts), st')
 >   _ -> Nothing
-
-
-

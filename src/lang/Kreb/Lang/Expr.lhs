@@ -144,18 +144,12 @@ Term Grammar
 >     BuiltIn_Quote -> "#quote"
 >     BuiltIn_Compose -> "#compose"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+> readStrChr :: String -> Char
+> readStrChr cs = case cs of
+>   [c]    -> c
+>   '\\':[c] -> case c of
+>     'n' -> '\n'
+>     't' -> '\t'
+>     'r' -> '\r'
+>     _   -> c
+>   _ -> error $ "Parsing error: unrecognized StrChr " ++ cs

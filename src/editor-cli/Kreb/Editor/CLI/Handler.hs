@@ -32,7 +32,7 @@ eventMapping mode event = case event of
         FileSave
 
       _ ->
-        SetError $ " eventMapping (Nor): " ++ show event
+        ShowDebug $ " eventMapping (Nor): " ++ show event
 
     InsertMode -> case event of
       V.EvKey (V.KChar c) [] ->
@@ -57,7 +57,7 @@ eventMapping mode event = case event of
         CursorLeft
 
       _ ->
-        SetError $ " eventMapping (Ins): " ++ show event
+        ShowDebug $ " eventMapping (Ins): " ++ show event
 
     CommandMode -> case event of
       V.EvKey (V.KChar c) [] ->
@@ -70,4 +70,4 @@ eventMapping mode event = case event of
         RunCmd
 
       _ ->
-        SetError $ " eventMapping (Cmd): " ++ show event
+        ShowDebug $ " eventMapping (Cmd): " ++ show event

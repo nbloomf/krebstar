@@ -1,12 +1,4 @@
-@define foo
-  :: $ -> $ Int
-  == 2
-@end
 
-@data Bool
-  = True
-  | False
-@end
 
 @data List' a x
   = Nil'

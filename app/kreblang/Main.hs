@@ -33,9 +33,14 @@ main = do
       case optQuery opts of
         Nothing -> loop (Just path) env
         Just qs -> singleQuery qs env
-    Nothing -> case optQuery opts of
-      Nothing -> loop Nothing (initRuntimeState (const Nothing) (const Nothing))
-      Just qs -> singleQuery qs (initRuntimeState (const Nothing) (const Nothing))
+    Nothing -> do
+      env <- if optStream opts
+        then getContents >>= load
+        else return $
+          initRuntimeState (const Nothing) (const Nothing)
+      case optQuery opts of
+        Nothing -> loop Nothing env
+        Just qs -> singleQuery qs env
 
 
 
@@ -135,6 +140,7 @@ data Options = Options
   , optVersion :: Bool
   , optPath :: Maybe FilePath
   , optQuery :: Maybe String
+  , optStream :: Bool
   } deriving (Eq, Show)
 
 defaults :: Options
@@ -143,6 +149,7 @@ defaults = Options
   , optVersion = False
   , optPath = Nothing
   , optQuery = Nothing
+  , optStream = False
   }
 
 
@@ -161,6 +168,12 @@ options =
         "show version information"
 
   , let
+      munge opts = opts { optStream = True }
+    in
+      Option ['s'] ["stream"] (NoArg munge)
+        "read module from stdin"
+
+  , let
       munge p opts = opts { optPath = Just p }
     in
       Option ['p'] ["path"] (ReqArg munge "FILE")
@@ -171,6 +184,8 @@ options =
     in
       Option ['q'] ["query"] (ReqArg munge "STRING")
         "run query in batch mode"
+
+
   ]
 
 showUsage :: IO ()

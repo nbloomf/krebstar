@@ -1,0 +1,10 @@
+lang -s -q 'foo'
+<<<
+@define foo
+  :: $S -> $S Int
+  == 2
+@end
+>>>
+2
+>>>2
+>>>= 0

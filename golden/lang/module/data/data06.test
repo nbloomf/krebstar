@@ -1,0 +1,10 @@
+lang -s -q '2 Just Just'
+<<<
+@data Maybe a
+  = Nothing
+  | Just a
+@end
+>>>
+(Just (Just 2))
+>>>2
+>>>= 0

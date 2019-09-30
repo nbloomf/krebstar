@@ -9,6 +9,11 @@
 >   , alterPanel
 >   , PanelAction(..)
 
+>   , ShellCommand(..)
+
+>   , updateHistory
+>   , showDebugMessage
+
 >   , setPanelDim
 
 >   , getPanelCmdString
@@ -26,6 +31,7 @@
 > import Kreb.Editor.Settings
 > import Kreb.Struct.FingerTree
 > import Kreb.Text
+> import Kreb.Lang
 
 
 
@@ -43,10 +49,34 @@
 >   , histBox       :: TextBox
 >   , histChanged   :: Bool
 
+>   , commandHistory :: [ShellCommand]
+
 >   , statusBox     :: TextBox
 
 >   , renderedPanel :: Maybe RenderedPanel
 >   } deriving (Eq, Show)
+
+> data ShellCommand
+>   = TypeQuery String Scheme
+>   | RunCommand Phrase
+>   deriving (Eq, Show)
+
+> updateHistory
+>   :: ShellCommand -> Panel -> Panel
+> updateHistory cmd panel =
+>   let
+>     append :: String -> [Glyph]
+>     append = map fromChar
+>   in panel
+>     { commandHistory = cmd : commandHistory panel
+>     , histBox = alterTextBox [TextBoxInsertMany $ append $ show cmd] $ histBox panel
+>     }
+
+> showDebugMessage
+>   :: String -> Panel -> Panel
+> showDebugMessage msg panel = panel
+>   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar msg] $ histBox panel
+>   }
 
 
 > initPanel
@@ -69,6 +99,8 @@
 >     , histChanged   = False
 
 >     , statusBox     = initTextBox (width, 1) tab
+
+>     , commandHistory = []
 
 >     , cmdBox        = initTextBox (w2,1) tab
 >     , cmdOffset     = (0,h-1)

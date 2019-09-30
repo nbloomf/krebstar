@@ -17,15 +17,10 @@ module Kreb.Editor.State (
 
   , updateStateCache
 
-  , setLastError
-  , clearLastError
-
   , alterActivePanel
   , queryActivePanel
 
   , setWindowDim
-
-  , StatusBar(..)
 ) where
 
 import Data.List (unlines)
@@ -48,7 +43,6 @@ data AppState (m :: * -> *) = AppState
   , absCursorPos  :: (Int, Int)
   , tabbedBuffers :: Tabs
   , tabWidth      :: Int
-  , statusBar     :: StatusBar
   , runtimeSt     :: RuntimeState (Hook m)
   }
 
@@ -59,7 +53,6 @@ instance Show (AppState m) where
     , "absCursorPos = ", show $ absCursorPos st
     , "bufferRenderSettings = ", show $ bufferRenderSettings st
     , "tabbedBuffers = ", show $ tabbedBuffers st
-    , "statusBar = ", show $ statusBar st
     ]
 
 initAppState :: RuntimeState (Hook m) -> (Int, Int) -> AppState m
@@ -71,8 +64,7 @@ initAppState rts (w,h) = AppState
   , tabbedBuffers = initTabs (w,h) 4
   , glyphRenderSettings = defaultGlyphRenderSettings
   , bufferRenderSettings = defaultBufferRenderSettings
-  , statusBar     = defaultStatusBar
-  , runtimeSt     = rts
+  , runtimeSt     = rts { _rtStack = Cons Empty V_Eff }
   }
 
 newtype Hook m a = Hook
@@ -137,7 +129,6 @@ updateRenderedState st =
   let
     mode = editorMode st
     (w,h) = windowDim st
-    sb = statusBar st
     tab = tabWidth st
     tabs = tabbedBuffers st
     opts = bufferRenderSettings st
@@ -180,25 +171,7 @@ queryActivePanel f st =
   queryActivePanelTabs f tabs
 
 
-setLastError :: String -> AppState m -> AppState m
-setLastError msg st =
-  let sb = statusBar st in
-  st { statusBar = sb { lastError = Just msg } }
 
-clearLastError :: AppState m -> AppState m
-clearLastError st =
-  let sb = statusBar st in
-  st { statusBar = sb { lastError = Nothing } }
-
-
-data StatusBar = StatusBar
-  { lastError         :: Maybe String
-  } deriving (Eq, Show)
-
-defaultStatusBar :: StatusBar
-defaultStatusBar = StatusBar
-  { lastError = Nothing
-  }
 
 
 
@@ -210,7 +183,5 @@ renderDebugMessage st = unlines
   , "editorMode: " ++ show (editorMode st)
   , ""
   , debugShowTabs (tabbedBuffers st)
-  , ""
-  , show (statusBar st)
   , ""
   ]
