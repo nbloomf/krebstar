@@ -1,0 +1,10 @@
+lang -s -q '2 Right Left'
+<<<
+@data Either a b
+  = Left a
+  | Right b
+@end
+>>>
+(Left (Right 2))
+>>>2
+>>>= 0

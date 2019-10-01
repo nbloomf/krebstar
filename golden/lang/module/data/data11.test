@@ -1,0 +1,15 @@
+lang -s -q 'Nothing Right'
+<<<
+@data Maybe a
+  = Nothing
+  | Just a
+@end
+
+@data Either a b
+  = Left a
+  | Right b
+@end
+>>>
+(Right Nothing)
+>>>2
+>>>= 0

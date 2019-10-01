@@ -24,7 +24,8 @@ Term Grammar
 >     map Atom $ prune s
 > 
 > data Word
->   = Only Atom
+>   = Noop
+>   | Only Atom
 >   | Quote Phrase
 >   | BuiltIn BuiltIn
 >   deriving (Eq, Show)
@@ -34,18 +35,21 @@ Term Grammar
 >     k <- askSize
 >     p <- arb
 >     if p || (k <= 0)
->       then pickFrom2
->         ( Only <$> arb
+>       then pickFrom3
+>         ( pure Noop
+>         , Only <$> arb
 >         , BuiltIn <$> arb
 >         )
->       else adjustSize (`div` 2) $ pickFrom3
->         ( Only <$> arb
+>       else adjustSize (`div` 2) $ pickFrom4
+>         ( pure Noop
+>         , Only <$> arb
 >         , Quote <$> arb
 >         , BuiltIn <$> arb
 >         )
 > 
 > instance Prune Word where
 >   prune z = case z of
+>     Noop -> []
 >     Only a -> map Only $ prune a
 >     Quote q -> map Quote $ prune q
 >     BuiltIn b -> map BuiltIn $ prune b
@@ -81,11 +85,15 @@ Term Grammar
 >   | BuiltIn_Int_Plus
 >   | BuiltIn_Int_Times
 > 
+>   | BuiltIn_String_Concat
+> 
 >   | BuiltIn_Id
 >   | BuiltIn_Swap
 >   | BuiltIn_Apply
 >   | BuiltIn_Quote
 >   | BuiltIn_Compose
+> 
+>   | BuiltIn_Repeat
 > 
 >   | BuiltIn_Ext String
 >   deriving (Eq, Ord, Show)
@@ -97,11 +105,13 @@ Term Grammar
 >     , BuiltIn_String <$> arb
 >     , return BuiltIn_Int_Plus
 >     , return BuiltIn_Int_Times
+>     , return BuiltIn_String_Concat
 >     , return BuiltIn_Id
 >     , return BuiltIn_Swap
 >     , return BuiltIn_Apply
 >     , return BuiltIn_Quote
 >     , return BuiltIn_Compose
+>     , return BuiltIn_Repeat
 >     , BuiltIn_Ext <$> arb
 >     ]
 > 
@@ -138,11 +148,15 @@ Term Grammar
 >     BuiltIn_Int_Plus -> "#int_plus"
 >     BuiltIn_Int_Times -> "#int_times"
 > 
+>     BuiltIn_String_Concat -> "#string_concat"
+> 
 >     BuiltIn_Id -> "#id"
 >     BuiltIn_Swap -> "#swap"
 >     BuiltIn_Apply -> "#apply"
 >     BuiltIn_Quote -> "#quote"
 >     BuiltIn_Compose -> "#compose"
+> 
+>     BuiltIn_Repeat -> "#repeat"
 
 > readStrChr :: String -> Char
 > readStrChr cs = case cs of

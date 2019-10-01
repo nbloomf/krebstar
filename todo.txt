@@ -23,6 +23,10 @@
 - regex primitives
 - record actions as macros?
 
+- Rename Int to Nat
+- Get rid of char?
+- rename lang to kreblang
+- start standard library
 
 
 
@@ -56,12 +60,10 @@ lang features needed
 - lang
   - initial algebras and terminal coalgebras
   - case analysis for data
-  - rename data to poly
   - built in standard library
     - Bool, List
     - int arithmetic
     - string operations
-  - char and string words
   - need intrinsic functions for
     - working with primitives
     - doing IO?
@@ -73,11 +75,6 @@ lang features needed
 
 
 
-ISSUES
-======
-1. Implement tiled panels
-3. Command box is messed up
-5. Crop panel components to size
 
 Test lib ideas
 ==============
@@ -85,7 +82,6 @@ Test lib ideas
 
 types:
   - integer: ..., -1, 0, 1, 2, ...
-  - string: "", "a", "foobar"
   - logical address: lNcN
   - "entity" (character, line, word, etc)
   - regular expression
@@ -115,32 +111,18 @@ CLEANUP
 - add finger tree, zip, and buffer tests to use the validate* functions
 - clean up buffer constructor mess
 
-TESTS TO WRITE
-==============
-- cursor up moves the cursor up
-- cursor down moves the cursor down
-- moving cursor over newlines is wonky
 
 
 Features
 ========
 - built in command language
-- configurable keymapping
+- configurable keymapping (?)
 - load command dictionary from a file (and reload)
 - debug mode that dumps repro steps to a log file in a parseable format
 
 
 
-
--- universal algebra, redundant
-cond :: $S a a Bool -> $S a
-
--- get rid of this in favor of terminal coalgebras
-while :: $S ($S -> $R Bool) ($R -> $S) -> $S
-
 ideas:
-- Two kinds of arrows: $S -o $R and a -> b. can we
-  still do type inference?
 - /cond/ is the universal algebra map for bool.
   can we define it using a schema on initial algebras?
 - what about /while/? Can it be thought of as generic to
@@ -358,20 +340,6 @@ Effect:
 - add ana:A to the dictionary
 - add case axioms
 - add ana axioms 
-
-
-
-Theorems
---------
-
-
-
-
-
-
-
-
-
 
 
 

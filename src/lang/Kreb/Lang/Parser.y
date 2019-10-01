@@ -38,8 +38,12 @@ import Kreb.Lang.Expr
   'quote' { TokenBuiltIn ("#quote", $$) }
   'compose' { TokenBuiltIn ("#compose", $$) }
 
+  'repeat' { TokenBuiltIn ("#repeat", $$) }
+
   'int_plus' { TokenBuiltIn ("#int_plus", $$) }
   'int_times' { TokenBuiltIn ("#int_times", $$) }
+
+  'string_concat' { TokenBuiltIn ("#string_concat", $$) }
 
   custom_builtin { TokenBuiltIn $$ }
 
@@ -155,6 +159,7 @@ phrase ::       { Phrase }
 word ::            { Word }
   : atom           { Only (Atom (fst $1)) }
   | builtin        { BuiltIn $1 }
+  | '[' ']'        { Noop }
   | '[' phrase ']' { Quote $2 }
 
 builtin ::         { BuiltIn }
@@ -166,11 +171,15 @@ builtin ::         { BuiltIn }
   | 'int_plus'     { BuiltIn_Int_Plus }
   | 'int_times'    { BuiltIn_Int_Times }
 
+  | 'string_concat'    { BuiltIn_String_Concat }
+
   | 'id'           { BuiltIn_Id }
   | 'swap'         { BuiltIn_Swap }
   | 'apply'        { BuiltIn_Apply }
   | 'quote'        { BuiltIn_Quote }
   | 'compose'      { BuiltIn_Compose }
+
+  | 'repeat'      { BuiltIn_Repeat }
 
   | custom_builtin { BuiltIn_Ext (fst $1) }
 

@@ -23,7 +23,7 @@ $hex = [ 0-9 a-f A-F ]
 
 @esc_simp = [ n t v ' \" \\ ]
 
-@name = [ a-z A-Z \_ ] [ a-z A-Z 0-9 \_ \- ' ]*
+@name = [ a-z A-Z \_ ] [ a-z A-Z 0-9 \_ \- ' : ]*
 @func = [ A-Z ] [ a-z A-Z 0-9 ' ]*
 @tvar = [ a-z ] [ a-z A-Z 0-9 ]*
 @svar = \$ [ A-Z ] [ a-z A-Z 0-9 ]*
@@ -44,6 +44,7 @@ tokens :-
 
 -- Constants
 <0,def>  @int         { _w TokenInt                           KeepCode }
+<0,def>  0            { _w TokenInt                           KeepCode }
 <0,def>  '            { _t (TokenSymbol Lex.SY_SingleQuote)   (EnterCode chr) }
 <0,def>  "            { _t (TokenSymbol Lex.SY_DoubleQuote)   (EnterCode chr) }
 

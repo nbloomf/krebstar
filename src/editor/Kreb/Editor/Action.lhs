@@ -41,6 +41,8 @@
 >   | CharInsert Char
 >   | CharBackspace
 
+>   | StringInsert String
+
 >   -- Load and Save
 >   | FileSaveAs
 >   | FileSave
@@ -113,6 +115,12 @@
 >     let
 >       st' = alterActivePanel (alterPanel
 >         [PanelAlterCmd [TextBoxInsert (fromChar c)]]) st
+>     return (GoOn, st')
+
+>   StringInsert cs -> do
+>     let
+>       st' = alterActivePanel (alterPanel
+>         [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]) st
 >     return (GoOn, st')
 
 >   CharBackspace -> do
@@ -204,7 +212,7 @@
 >   _ -> case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
->       (r, x) <- runHook st $ evalRuntime (doActionFor ph) (runtimeSt st)
+>       (r, x) <- runHook st $ evalRuntime (inferType ph >> doActionFor ph) (runtimeSt st)
 >       case r of
 >         Left err -> return $ Left (Right err)
 >         Right () -> return $ Right $
@@ -220,20 +228,25 @@
 > editorTypes str = case str of
 >   "#cursor_left" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
->       (Stack (V "S") [])
->       (Stack (V "S") [])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
 >   "#cursor_right" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
->       (Stack (V "S") [])
->       (Stack (V "S") [])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
 >   "#cursor_up" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
->       (Stack (V "S") [])
->       (Stack (V "S") [])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
 >   "#cursor_down" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
->       (Stack (V "S") [])
->       (Stack (V "S") [])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+
+>   "#insert" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [TyCon $ C "String", TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
 > 
 >   "#set_path" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
@@ -249,16 +262,24 @@
 > editorActionsIO
 >   :: String -> Maybe (Runtime (Hook IO) ())
 > editorActionsIO str = case str of
->   "#cursor_left" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorLeft st
->     return (Right ((), rts), st')
->   "#cursor_right" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorRight st
->     return (Right ((), rts), st')
->   "#cursor_up" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorUp st
->     return (Right ((), rts), st')
->   "#cursor_down" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorDown st
->     return (Right ((), rts), st')
+>   "#cursor_left" -> Just $ do
+>     doHookActionM (CursorLeft)
+>   "#cursor_right" -> Just $ do
+>     doHookActionM (CursorRight)
+>   "#cursor_up" -> Just $ do
+>     doHookActionM (CursorUp)
+>   "#cursor_down" -> Just $ do
+>     doHookActionM (CursorDown)
+
+>   "#insert" -> Just $ do
+>     str <- popString
+>     doHookActionM (StringInsert str)
 >   _ -> Nothing
+
+> doHookActionM
+>   :: ( Monad m )
+>   => Action -> Runtime (Hook m) ()
+> doHookActionM act = Runtime $ \rts ->
+>   Hook $ \st -> do
+>     (_, st') <- performAction act st
+>     return (Right ((), rts), st')

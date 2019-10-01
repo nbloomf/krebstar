@@ -109,6 +109,46 @@
 >     Empty -> Left $ RTE EmptyStack
 >     Cons stk2 val -> Right (val, st { _rtStack = stk2 })
 
+> pushStack
+>   :: ( Monad m )
+>   => Val -> Runtime m ()
+> pushStack val = Runtime $ \st ->
+>   let stk = _rtStack st in
+>   return $ Right ((), st { _rtStack = Cons stk val })
+
+> popString
+>   :: ( Monad m )
+>   => Runtime m String
+> popString = do
+>   val <- popStack
+>   case val of
+>     V_Prim (Prim_String str) -> return str
+>     _ -> throwErr $ RTE $ TypePanic "String"
+
+> pushString
+>   :: ( Monad m )
+>   => String -> Runtime m ()
+> pushString str =
+>   pushStack (V_Prim (Prim_String str))
+
+> popNat
+>   :: ( Monad m )
+>   => Runtime m Int
+> popNat = do
+>   val <- popStack
+>   case val of
+>     V_Prim (Prim_Int nat) -> return nat
+>     _ -> throwErr $ RTE $ TypePanic "Int"
+
+> popSuspension
+>   :: ( Monad m )
+>   => Runtime m [Sus]
+> popSuspension = do
+>   val <- popStack
+>   case val of
+>     V_Quote sus -> return sus
+>     _ -> throwErr $ RTE $ TypePanic "Suspension"
+
 > mutateActions
 >   :: ( Monad m )
 >   => (Actions m -> Actions m) -> Runtime m ()
@@ -157,6 +197,7 @@
 >   :: ( Monad m )
 >   => Word -> Runtime m (Runtime m ())
 > lookupActionFor word = case word of
+>   Noop -> return (return ())
 >   Quote phrase -> return $ mutateStack $ \stk ->
 >     Right $ Cons stk (V_Quote [Sus_Say phrase])
 >   Only atom -> do
@@ -259,6 +300,11 @@
 >       Cons (Cons stk2 (V_Prim (Prim_Int a))) (V_Prim (Prim_Int b)) ->
 >         Right $ Cons stk2 (V_Prim $ Prim_Int (a*b))
 > 
+>   BuiltIn_String_Concat -> do
+>     str1 <- popString
+>     str2 <- popString
+>     pushString (str1 ++ str2)
+> 
 >   BuiltIn_Id -> return ()
 > 
 >   BuiltIn_Swap -> mutateStack $ \stk ->
@@ -271,6 +317,11 @@
 >     case val of
 >       V_Quote s -> mapM_ applySuspension s
 >       _ -> throwErr $ RTE $ ExpectedQuote
+> 
+>   BuiltIn_Repeat -> do
+>     num <- popNat
+>     sus <- popSuspension
+>     sequence_ $ replicate num (mapM_ applySuspension sus)
 > 
 >   BuiltIn_Quote -> mutateStack $ \stk ->
 >     case stk of
@@ -326,6 +377,12 @@
 >       (Stack (V "S") [TyCon (C "Int"), TyCon (C "Int")])
 >       (Stack (V "S") [TyCon (C "Int")])
 > 
+>   BuiltIn_String_Concat -> Just $
+>     ForAll
+>       (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [TyCon (C "String"), TyCon (C "String")])
+>       (Stack (V "S") [TyCon (C "String")])
+> 
 >   BuiltIn_Id -> Just $
 >     ForAll
 >       (Vars [V "S"] []) $ Arrow
@@ -370,5 +427,15 @@
 >           (Stack (V "T") [])
 >           (Stack (V "V") [])
 >         ])
+> 
+>   BuiltIn_Repeat -> Just $
+>     ForAll
+>       (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S")
+>         [ TyCon $ C "Int"
+>         , TyArr $ Arrow
+>           (Stack (V "S") [])
+>           (Stack (V "S") [])])
+>       (Stack (V "S") [])
 > 
 >   BuiltIn_Ext str -> custom str
