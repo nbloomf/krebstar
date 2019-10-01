@@ -54,6 +54,8 @@
 >   , statusBox     :: TextBox
 
 >   , renderedPanel :: Maybe RenderedPanel
+
+>   , stdLibPath    :: Maybe FilePath
 >   } deriving (Eq, Show)
 
 > data ShellCommand
@@ -80,10 +82,11 @@
 
 
 > initPanel
->   :: (Int, Int) -- (Width, Height)
+>   :: FilePath   -- StdLib
+>   -> (Int, Int) -- (Width, Height)
 >   -> Int        -- Tab
 >   -> Panel
-> initPanel (width, height) tab =
+> initPanel stdLib (width, height) tab =
 >   let
 >     w1 = max 4 $ width `div` 2
 >     w2 = width - w1 - 1
@@ -106,6 +109,7 @@
 >     , cmdOffset     = (0,h-1)
 >     , cmdHeight     = 1
 >     , renderedPanel = Nothing
+>     , stdLibPath    = Just stdLib
 >     }
 
 

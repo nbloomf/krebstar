@@ -81,6 +81,7 @@ library kreb-control
   exposed-modules:
       Kreb.Control
     , Kreb.Control.LocalSt
+    , Kreb.Control.REPL
   build-depends:
       base >=4.7 && <5
 

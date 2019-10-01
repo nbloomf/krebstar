@@ -36,14 +36,15 @@ import Kreb.Editor.Panel
 
 
 data AppState (m :: * -> *) = AppState
-  { windowDim     :: (Int, Int)
-  , editorMode    :: EditorMode
+  { windowDim            :: (Int, Int)
+  , editorMode           :: EditorMode
+  , absCursorPos         :: (Int, Int)
+  , tabbedBuffers        :: Tabs
+  , tabWidth             :: Int
   , bufferRenderSettings :: BufferRenderSettings
-  , glyphRenderSettings :: GlyphRenderSettings
-  , absCursorPos  :: (Int, Int)
-  , tabbedBuffers :: Tabs
-  , tabWidth      :: Int
-  , runtimeSt     :: RuntimeState (Hook m)
+  , glyphRenderSettings  :: GlyphRenderSettings
+
+  , runtimeSt            :: RuntimeState (Hook m)
   }
 
 instance Show (AppState m) where
@@ -55,16 +56,17 @@ instance Show (AppState m) where
     , "tabbedBuffers = ", show $ tabbedBuffers st
     ]
 
-initAppState :: RuntimeState (Hook m) -> (Int, Int) -> AppState m
-initAppState rts (w,h) = AppState
-  { windowDim     = (w,h)
-  , editorMode    = NormalMode
-  , absCursorPos  = (0,0)
-  , tabWidth      = 4
-  , tabbedBuffers = initTabs (w,h) 4
-  , glyphRenderSettings = defaultGlyphRenderSettings
+initAppState :: FilePath -> RuntimeState (Hook m) -> (Int, Int) -> AppState m
+initAppState stdLib rts (w,h) = AppState
+  { windowDim            = (w,h)
+  , editorMode           = NormalMode
+  , absCursorPos         = (0,0)
+  , tabWidth             = 4
+  , tabbedBuffers        = initTabs stdLib (w,h) 4
+  , glyphRenderSettings  = defaultGlyphRenderSettings
   , bufferRenderSettings = defaultBufferRenderSettings
-  , runtimeSt     = rts { _rtStack = Cons Empty V_Eff }
+
+  , runtimeSt            = rts { _rtStack = Cons Empty V_Eff }
   }
 
 newtype Hook m a = Hook

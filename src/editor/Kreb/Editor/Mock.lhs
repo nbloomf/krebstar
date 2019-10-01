@@ -108,5 +108,5 @@
 
 
 > runMockApp :: (Int, Int) -> [Action] -> Either MockInterrupt (Maybe AppError, MockState)
-> runMockApp dim es = runMock es $ runApp mockEnv (initAppState runtimeStateMock dim) primaryEventLoop
+> runMockApp dim es = runMock es $ runApp mockEnv (initAppState "stdlib.txt" runtimeStateMock dim) primaryEventLoop
 

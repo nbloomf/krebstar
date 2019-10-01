@@ -147,7 +147,7 @@
 >   val <- popStack
 >   case val of
 >     V_Quote sus -> return sus
->     _ -> throwErr $ RTE $ TypePanic "Suspension"
+>     _ -> throwErr $ RTE ExpectedQuote
 
 > mutateActions
 >   :: ( Monad m )

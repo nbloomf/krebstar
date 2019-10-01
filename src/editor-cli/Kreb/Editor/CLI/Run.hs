@@ -16,10 +16,10 @@ import Kreb.Editor.CLI.Handler
 
 
 
-consoleIO :: IO ()
-consoleIO = do
+consoleIO :: FilePath -> IO ()
+consoleIO path = do
   (env, dim) <- appEnvIO
-  runApp env (updateStateCache $ initAppState runtimeStateIO dim) primaryEventLoop
+  runApp env (updateStateCache $ initAppState path runtimeStateIO dim) primaryEventLoop
   cleanup env
 
 getTerminalSize :: IO (Int, Int)

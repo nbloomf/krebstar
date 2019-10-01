@@ -45,11 +45,12 @@ setTabsDim dim (Tabs ts) =
 
 
 initTabs
-  :: (Int, Int)
+  :: FilePath
+  -> (Int, Int)
   -> Int
   -> Tabs
-initTabs (w,h) t = Tabs
-  { unTabs = mkTapeFocus [] (initPanel (w,h) t) []
+initTabs stdLib (w,h) t = Tabs
+  { unTabs = mkTapeFocus [] (initPanel stdLib (w,h) t) []
   }
 
 getActiveTab
