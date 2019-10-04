@@ -1,49 +1,54 @@
+SOURCES := \
+  src/control/Kreb/Control/ReplT.lhs
+
+STYLES := \
+  tufte/tufte.css \
+  tufte/pandoc.css \
+  tufte/pandoc-solarized.css
+
 all: test docs install
 
-test: golden generative
+test: generative golden
 
-golden:
+
+
+golden: FORCE
 	@echo 'Running golden tests...'
 	@shelltest --hide-successes --color golden/
 
-generative:
+generative: FORCE
 	@echo 'Running generative tests...'
 	@stack test krebstar:kreb-test
 
-install:
+install: FORCE
 	@echo 'Installing...'
 	@stack install
 
 
 
-docfiles = \
-  docs/src/Ned/Data/FingerTree.html \
-  docs/src/Ned/Data/FingerTreeZip.html \
-  docs/src/Ned/Data/Seq.html \
-  docs/src/Ned/Data/RunLengthEncoding.html \
-  docs/src/Ned/Data/ReflectNat.html \
-  docs/src/Ned/Data/ScreenOffset.html \
-  docs/src/Ned/Data/MeasureText.html \
-  docs/src/Ned/Data/Buffer.html \
-  docs/src/Ned/Data/TextBox.html \
-  docs/test/Ned/Data/FingerTree/Test.html \
-  docs/test/Ned/Data/FingerTreeZip/Test.html \
-  docs/test/Ned/Data/Seq/Test.html \
-  docs/test/Ned/Data/RunLengthEncoding/Test.html \
-  docs/test/Ned/Data/ReflectNat/Test.html \
-  docs/test/Ned/Data/ScreenOffset/Test.html \
-  docs/test/Ned/Data/MeasureText/Test.html \
-  docs/test/Ned/Data/Buffer/Test.html \
-  docs/test/Ned/Data/TextBox/Test.html
-
-docs: $(docfiles) docs/index.html
+docs: docs/index.html $(SOURCES)
 	@echo 'Docs Generated'
 
-docs/index.html: aux/index.md
-	@pandoc --mathjax -s -H aux/style.txt -o $@ $<	
+docs/index.html: FORCE
+	@echo $@
+	@pandoc \
+	  --from markdown+literate_haskell --to html \
+	  --mathjax --section-divs \
+	  --data-dir=aux --template=tufte.html5 \
+	  --css style.css \
+	  --output $@ \
+	  aux/index.md
 
-docs/%.html: %.lhs
-	@echo 'Generating $< ==> $@'
-	@pandoc --mathjax -s -H aux/style.txt -o $@ $<
+$(SOURCES): FORCE
+	@echo $@
+	@pandoc \
+	  --from markdown+literate_haskell --to html \
+	  --mathjax --section-divs \
+	  --data-dir=aux --template=tufte.html5 \
+	  --css ../style.css \
+	  --output docs/html/$(patsubst %.lhs,%.html,$(notdir $@)) \
+	  $@
 
-.PHONY: all test docs install golden generative
+FORCE:
+
+.PHONY: all test docs install golden generative FORCE

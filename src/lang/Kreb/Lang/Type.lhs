@@ -20,6 +20,7 @@
 > import Control.Monad (ap)
 
 > import Kreb.Check
+> import Kreb.Format
 
 > import Kreb.Lang.PrettyPrint
 > import Kreb.Lang.Expr
@@ -29,6 +30,9 @@
 > data Uniq
 >   = Uniq Int
 >   deriving (Eq, Ord, Show)
+> 
+> instance DisplayNeat Uniq where
+>   displayNeat (Uniq k) = show k
 > 
 > instance Arb Uniq where
 >   arb = Uniq <$> arb
@@ -47,6 +51,9 @@ Type Grammar
 >   = ForAll Vars Arrow
 >   deriving (Show)
 > 
+> instance DisplayNeat Scheme where
+>   displayNeat (ForAll _ ar) = displayNeat ar
+> 
 > instance Arb Scheme where
 >   arb = do
 >     xs <- adjustSize (`div` 2) arb
@@ -62,6 +69,10 @@ Type Grammar
 >   = Arrow Stack Stack
 >   deriving (Eq, Show)
 > 
+> instance DisplayNeat Arrow where
+>   displayNeat (Arrow st1 st2) = concat
+>     [ displayNeat st1, " -> ", displayNeat st2 ]
+> 
 > instance Arb Arrow where
 >   arb = Arrow
 >     <$> (adjustSize (`div` 2) arb)
@@ -75,6 +86,12 @@ Type Grammar
 > data Stack
 >   = Stack (V Stack) [Type]
 >   deriving (Eq, Show)
+> 
+> instance DisplayNeat Stack where
+>   displayNeat (Stack x ts) = concat
+>     [ "$", displayNeat x
+>     , concatMap (\t -> ' ' : paren (displayNeat t)) ts ]
+>     where paren str = if elem ' ' str then concat ["(", str, ")"] else str
 > 
 > instance Arb Stack where
 >   arb = do
@@ -94,6 +111,13 @@ Type Grammar
 >   | TyApp Type Type
 >   | TyArr Arrow
 >   deriving (Eq, Show)
+> 
+> instance DisplayNeat Type where
+>   displayNeat x = case x of
+>     TyCon c -> displayNeat c
+>     TyVar z -> displayNeat z
+>     TyApp u v -> displayNeat u ++ " " ++ displayNeat v
+>     TyArr arr -> "(" ++ displayNeat arr ++ ")"
 > 
 > instance Arb Type where
 >   arb = do
@@ -126,6 +150,11 @@ Type Grammar
 >   | Skolem Uniq
 >   deriving (Eq, Ord, Show)
 > 
+> instance DisplayNeat (V u) where
+>   displayNeat z = case z of
+>     V str -> str
+>     Skolem u -> "#SKOL_" ++ displayNeat u
+> 
 > instance Arb (V Stack) where
 >   arb = do
 >     c <- pickFrom3 (pure 'S', pure 'T', pure 'U')
@@ -144,6 +173,9 @@ Type Grammar
 > data C u
 >   = C String
 >   deriving (Eq, Ord, Show)
+> 
+> instance DisplayNeat (C u) where
+>   displayNeat (C str) = str
 > 
 > instance Arb (C Type) where
 >   arb = do
@@ -686,6 +718,13 @@ Infer Monad
 
 >   | CannotCompose Arrow Arrow
 >   deriving (Eq, Show)
+
+> instance DisplayNeat Err where
+>   displayNeat z = case z of
+>     AtomNotDefined a -> concat
+>       [ "atom \'", displayNeat a, "\' is not defined." ]
+>     UnrecognizedBuiltIn x -> concat
+>       [ "builtin \'", displayNeat x, "\' is not recognized." ]
 
 
 

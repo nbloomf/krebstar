@@ -3,6 +3,7 @@
 > import Prelude hiding (Word)
 
 > import Kreb.Check
+> import Kreb.Format
 
 > import Kreb.Lang.PrettyPrint
 
@@ -13,6 +14,9 @@ Term Grammar
 > data Atom
 >   = Atom String
 >   deriving (Eq, Ord, Show)
+> 
+> instance DisplayNeat Atom where
+>   displayNeat (Atom str) = str
 > 
 > instance Arb Atom where
 >   arb = do
@@ -29,6 +33,15 @@ Term Grammar
 >   | Quote Phrase
 >   | BuiltIn BuiltIn
 >   deriving (Eq, Show)
+> 
+> instance DisplayNeat Word where
+>   displayNeat w = case w of
+>     Noop -> "noop"
+>     Only a -> displayNeat a
+>     Quote ph -> case ph of
+>       Silence -> "[]"
+>       _ -> "[" ++ displayNeat ph ++ "]"
+>     BuiltIn b -> displayNeat b
 > 
 > instance Arb Word where
 >   arb = do
@@ -59,6 +72,13 @@ Term Grammar
 >   = Silence
 >   | Then Word Phrase
 >   deriving (Eq, Show)
+> 
+> instance DisplayNeat Phrase where
+>   displayNeat ph = case ph of
+>     Silence -> ""
+>     Then w ph -> case ph of
+>       Silence -> displayNeat w
+>       _ -> displayNeat w ++ " " ++ displayNeat ph
 > 
 > instance Arb Phrase where
 >   arb = do
@@ -97,6 +117,25 @@ Term Grammar
 > 
 >   | BuiltIn_Ext String
 >   deriving (Eq, Ord, Show)
+> 
+> instance DisplayNeat BuiltIn where
+>   displayNeat x = case x of
+>     BuiltIn_Int k -> show k
+>     BuiltIn_Char c -> show c
+>     BuiltIn_String s -> show s
+> 
+>     BuiltIn_Int_Plus -> "#int_plus"
+>     BuiltIn_Int_Times -> "#int_times"
+>     BuiltIn_String_Concat -> "#string_concat"
+> 
+>     BuiltIn_Id -> "#id"
+>     BuiltIn_Swap -> "#swap"
+>     BuiltIn_Apply -> "#apply"
+>     BuiltIn_Quote -> "#quote"
+>     BuiltIn_Compose -> "#compose"
+> 
+>     BuiltIn_Repeat -> "#repeat"
+>     BuiltIn_Ext s -> s
 > 
 > instance Arb BuiltIn where
 >   arb = selectFrom

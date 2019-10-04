@@ -28,6 +28,7 @@
 
 > import Data.List (unlines)
 
+> import Kreb.Format
 > import Kreb.Editor.Settings
 > import Kreb.Struct.FingerTree
 > import Kreb.Text
@@ -55,13 +56,20 @@
 
 >   , renderedPanel :: Maybe RenderedPanel
 
->   , stdLibPath    :: Maybe FilePath
+>   , libPath :: Maybe FilePath
 >   } deriving (Eq, Show)
 
 > data ShellCommand
 >   = TypeQuery String Scheme
 >   | RunCommand Phrase
 >   deriving (Eq, Show)
+
+> instance DisplayNeat ShellCommand where
+>   displayNeat x = case x of
+>     TypeQuery str sch -> concat
+>       [ ":t " ++ str, "\n", displayNeat sch ]
+>     RunCommand ph -> concat
+>       [ displayNeat ph, "\nok." ]
 
 > updateHistory
 >   :: ShellCommand -> Panel -> Panel
@@ -71,22 +79,22 @@
 >     append = map fromChar
 >   in panel
 >     { commandHistory = cmd : commandHistory panel
->     , histBox = alterTextBox [TextBoxInsertMany $ append $ show cmd] $ histBox panel
+>     , histBox = alterTextBox [TextBoxInsertMany $ append ("$> " ++ displayNeat cmd ++ "\n\n")] $ histBox panel
 >     }
 
 > showDebugMessage
 >   :: String -> Panel -> Panel
 > showDebugMessage msg panel = panel
->   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar msg] $ histBox panel
+>   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar ("#>" ++ msg ++ "\n\n")] $ histBox panel
 >   }
 
 
 > initPanel
->   :: FilePath   -- StdLib
+>   :: FilePath   -- Lib
 >   -> (Int, Int) -- (Width, Height)
 >   -> Int        -- Tab
 >   -> Panel
-> initPanel stdLib (width, height) tab =
+> initPanel lib (width, height) tab =
 >   let
 >     w1 = max 4 $ width `div` 2
 >     w2 = width - w1 - 1
@@ -109,7 +117,7 @@
 >     , cmdOffset     = (0,h-1)
 >     , cmdHeight     = 1
 >     , renderedPanel = Nothing
->     , stdLibPath    = Just stdLib
+>     , libPath       = Just lib
 >     }
 
 

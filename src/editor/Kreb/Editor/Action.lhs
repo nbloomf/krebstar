@@ -2,14 +2,19 @@
 >     Action(..)
 >   , Then(..)
 >   , performAction
->   , runtimeStateIO
+>   , runtimeState
 >   , editorTypes
+>   , hookActions
+
+>   , loadStdLib
 > ) where
 
 > import Kreb.Text
 
+> import Kreb.Format
 > import Kreb.Editor.State
-> import Kreb.Editor.Error
+> import Kreb.Editor.Env
+> import Kreb.Editor.Signal
 > import Kreb.Editor.Panel
 > import Kreb.Lang
 
@@ -18,7 +23,7 @@
 > data Then
 >   = GoOn
 >   | Stop
->   | Bail AppError
+>   | Bail AppSignal
 >   deriving (Eq, Show)
 
 
@@ -88,104 +93,93 @@
 
 > performAction
 >   :: ( Monad m )
->   => Action -> AppState m
->   -> m (Then, AppState m)
-> performAction act st = case act of
->   NoOp ->
->     return (GoOn, st)
-
->   ShowDebug msg -> do
->     let st' = alterActivePanel (showDebugMessage msg) st
->     return (GoOn, st')
-
->   Quit ->
->     return (Stop, st)
-
->   SetMode mode -> do
->     let st' = setEditorMode mode st
->     return (GoOn, st')
-
->   CharInsert c -> do
->     let
->       st' = alterActivePanel (alterPanel
+>   => AppEnv m -> AppState m -> Action
+>   -> m (Either AppSignal (AppState m))
+> performAction env st act = case act of
+>   NoOp -> return $
+>     Right st
+> 
+>   ShowDebug msg -> return $
+>     Right $ alterActivePanel (showDebugMessage msg) st
+> 
+>   Quit -> return $
+>     Left ExitNormally
+> 
+>   SetMode mode -> return $
+>     Right $ setEditorMode mode st
+> 
+>   CharInsert c -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxInsert (fromChar c)]]) st
->     return (GoOn, st')
-
->   CharInsertCmd c -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CharInsertCmd c -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterCmd [TextBoxInsert (fromChar c)]]) st
->     return (GoOn, st')
-
->   StringInsert cs -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   StringInsert cs -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]) st
->     return (GoOn, st')
-
->   CharBackspace -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CharBackspace -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxBackspace]]) st
->     return (GoOn, st')
-
->   CharBackspaceCmd -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CharBackspaceCmd -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterCmd [TextBoxBackspace]]) st
->     return (GoOn, st')
-
->   CursorUp -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CursorUp -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxCursorUp]]) st
->     return (GoOn, st')
-
->   CursorDown -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CursorDown -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxCursorDown]]) st
->     return (GoOn, st')
-
->   CursorRight -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CursorRight -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxCursorRight]]) st
->     return (GoOn, st')
-
->   CursorLeft -> do
->     let
->       st' = alterActivePanel (alterPanel
+> 
+>   CursorLeft -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
 >         [PanelAlterText [TextBoxCursorLeft]]) st
->     return (GoOn, st')
-
->   WindowResize (w,h) -> do
->     let
->       st' = setWindowDim (w,h) st
->     return (GoOn, st')
-
+> 
+>   WindowResize (w,h) -> return $
+>     Right $ setWindowDim (w,h) st
+> 
 >   RunCmd -> do
 >     let
 >       cmd = queryActivePanel getPanelCmdString st
 >       st2 = alterActivePanel (alterPanel
 >         [PanelClearCmd]) st
 >     case cmd of
->       Nothing -> do
->         let st3 = alterActivePanel (showDebugMessage "no command") st2
->         return (GoOn, st2)
+>       Nothing -> return $
+>         Right $ alterActivePanel (showDebugMessage "no command") st2
 >       Just str -> do
 >         r <- evalHook str st2
 >         case r of
 >           Left err -> do
->             let st3 = alterActivePanel (showDebugMessage $ show err) st2
->             return (GoOn, st3)
->           Right st' -> return (GoOn, st')
+>             let
+>               msg = case err of
+>                 Left a -> displayNeat a
+>                 Right b -> displayNeat b
+>               st3 = alterActivePanel (showDebugMessage (msg ++ "\n")) st2
+>             return $ Right st3
+>           Right st' -> return $ Right st'
+> 
+>   act -> return $
+>     Right $ alterActivePanel
+>       (showDebugMessage $ " Not implemented: " ++ show act) st
 
->   act -> do
->     let
->       st' = alterActivePanel
->         (showDebugMessage $ " Not implemented: " ++ show act) st
->     return (GoOn, st')
 
 
 
@@ -208,7 +202,7 @@
 >       case r of
 >         Left err -> return $ Left (Right err)
 >         Right tp -> return $ Right $
->           alterActivePanel (updateHistory (TypeQuery str tp)) x
+>           alterActivePanel (updateHistory (TypeQuery rest tp)) x
 >   _ -> case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
@@ -219,9 +213,30 @@
 >           alterActivePanel (updateHistory (RunCommand ph)) x
 
 
-> runtimeStateIO :: RuntimeState (Hook IO)
-> runtimeStateIO =
->   initRuntimeState editorActionsIO editorTypes
+> loadStdLib
+>   :: ( Monad m )
+>   => FilePath -> AppEnv m -> AppState m
+>   -> m (Either AppSignal (RuntimeState (Hook m)))
+> loadStdLib path env st1 = do
+>   readResult <- loadFile env path
+>   case readResult of
+>     Left ioErr -> return $ Left $ StdLibReadError ioErr
+>     Right str -> do
+>       case runParser pModule str of
+>         Left err -> return $ Left $ StdLibParseError err
+>         Right ast -> do
+>           let Module ds = ast
+>           (result, st2) <- runHook st1 $ runRuntime (applyDecls ds) (initRuntimeState (hookActions env) editorTypes)
+>           return $ case result of
+>             Left err -> Left $ StdLibInterpretError err
+>             Right (_, rts) -> Right rts
+
+
+> runtimeState
+>   :: ( Monad m )
+>   => AppEnv m -> RuntimeState (Hook m)
+> runtimeState env =
+>   initRuntimeState (hookActions env) editorTypes
 
 > editorTypes
 >   :: String -> Maybe Scheme
@@ -259,27 +274,30 @@
 
 >   _ -> Nothing
 
-> editorActionsIO
->   :: String -> Maybe (Runtime (Hook IO) ())
-> editorActionsIO str = case str of
+> hookActions
+>   :: ( Monad m )
+>   => AppEnv m -> String -> Maybe (Runtime (Hook m) ())
+> hookActions env str = case str of
 >   "#cursor_left" -> Just $ do
->     doHookActionM (CursorLeft)
+>     doHookActionM env (CursorLeft)
 >   "#cursor_right" -> Just $ do
->     doHookActionM (CursorRight)
+>     doHookActionM env (CursorRight)
 >   "#cursor_up" -> Just $ do
->     doHookActionM (CursorUp)
+>     doHookActionM env (CursorUp)
 >   "#cursor_down" -> Just $ do
->     doHookActionM (CursorDown)
+>     doHookActionM env (CursorDown)
 
 >   "#insert" -> Just $ do
 >     str <- popString
->     doHookActionM (StringInsert str)
+>     doHookActionM env (StringInsert str)
 >   _ -> Nothing
 
 > doHookActionM
 >   :: ( Monad m )
->   => Action -> Runtime (Hook m) ()
-> doHookActionM act = Runtime $ \rts ->
+>   => AppEnv m -> Action -> Runtime (Hook m) ()
+> doHookActionM env act = Runtime $ \rts ->
 >   Hook $ \st -> do
->     (_, st') <- performAction act st
->     return (Right ((), rts), st')
+>     result <- performAction env st act
+>     case result of
+>       Left sig -> return (Right ((), rts), st)
+>       Right st' -> return (Right ((), rts), st')

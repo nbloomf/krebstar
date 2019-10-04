@@ -1,5 +1,11 @@
 0.0.1 Checklist
 ===============
+  - clean up signatures of render etc
+    for passing in to ReplEnv in Run
+- per panel reload of stdlib
+- pretty print interaction log
+  - show result stack
+
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
 - show ghosted cursor on text and cmd panels
@@ -24,10 +30,9 @@
 - record actions as macros?
 
 - Rename Int to Nat
-- Get rid of char?
 - rename lang to kreblang
+- rename krebed to krebedit
 - start standard library
-
 
 
 

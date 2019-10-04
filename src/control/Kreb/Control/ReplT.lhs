@@ -1,9 +1,14 @@
-> {-# LANGUAGE RecordWildCards #-}
+---
+title: "The Read, Eval, Print Loop"
+subtitle: "Kreb.Control.ReplT"
+---
 
-> module Kreb.Control.REPL where
+
+
+> module Kreb.Control.ReplT where
 
 > data ReplEnv act env sig st m = ReplEnv
->   { _Init  :: m ()
+>   { _Init  :: env -> st -> m (Either sig st)
 >   , _Read  :: env -> st -> m act
 >   , _Eval  :: env -> st -> act -> m (Either sig st)
 >   , _Print :: env -> st -> m ()
@@ -16,6 +21,45 @@
 >       -> env -> st
 >       -> m (a, st)
 >   }
+
+> _init
+>   :: ( Monad m )
+>   => ReplT act env sig st m (Maybe sig)
+> _init = ReplT $ \replEnv env st1 -> do
+>   result <- _Init replEnv env st1
+>   case result of
+>     Left sig -> return (Just sig, st1)
+>     Right st2 -> return (Nothing, st2)
+
+> _read
+>   :: ( Monad m )
+>   => ReplT act env sig st m act
+> _read = ReplT $ \replEnv env st -> do
+>   act <- _Read replEnv env st
+>   return (act, st)
+
+> _eval
+>   :: ( Monad m )
+>   => act -> ReplT act env sig st m (Maybe sig)
+> _eval act = ReplT $ \replEnv env st1 -> do
+>   result <- _Eval replEnv env st1 act
+>   return $ case result of
+>     Right st2 -> (Nothing, st2)
+>     Left sig -> (Just sig, st1)
+
+> _print
+>   :: ( Monad m )
+>   => ReplT act env sig st m ()
+> _print = ReplT $ \replEnv env st -> do
+>   _Print replEnv env st
+>   return ((), st)
+
+> _exit
+>   :: ( Monad m )
+>   => sig -> ReplT act env sig st m ()
+> _exit sig = ReplT $ \replEnv _ st -> do
+>   _Exit replEnv sig
+>   return ((), st)
 
 > runReplT
 >   :: ( Monad m )
@@ -64,55 +108,26 @@
 >   a <- x
 >   return (a, st)
 
-> getSt
->   :: ( Monad m )
->   => (st -> a)
->   -> ReplT act env sig st m a
-> getSt f = ReplT $ \_ _ st ->
->   return (f st, st)
-
-> putSt
->   :: ( Monad m )
->   => st -> ReplT act env sig st m ()
-> putSt st = ReplT $ \_ _ _ ->
->   return ((), st)
-
-> askEnv
->   :: ( Monad m )
->   => (env -> a)
->   -> ReplT act env sig st m a
-> askEnv f = ReplT $ \_ env st ->
->   return (f env, st)
-
-> askReplEnv
->   :: ( Monad m )
->   => (ReplEnv act env sig st m -> a)
->   -> ReplT act env sig st m a
-> askReplEnv f = ReplT $ \renv _ st ->
->   return (f renv, st)
 
 
 
-> loopRepl
+
+> loopReplT
 >   :: ( Monad m )
 >   => ReplT act env sig st m ()
-> loopRepl = do
->   askReplEnv _Init
->   (askReplEnv _Print) <*> (askEnv id) <*> (getSt id)
->   loopRepl'
-
-> loopRepl'
->   :: ( Monad m )
->   => ReplT act env sig st m ()
-> loopRepl' = do
->   act <- (askReplEnv _Read) <*> (askEnv id) <*> (getSt id)
->   eval <- (askReplEnv _Eval) <*> (askEnv id) <*> (getSt id)
->   result <- liftReplT (act >>= eval)
+> loopReplT = do
+>   result <- _init
 >   case result of
->     Left sig -> do
->       exit <- askReplEnv _Exit
->       liftReplT $ exit sig
->     Right st2 -> do
->       (askReplEnv _Print) <*> (askEnv id) <*> (pure st2)
->       putSt st2
->       loopRepl'
+>     Nothing -> _print >> _loop
+>     Just sig -> _exit sig
+
+> _loop
+>   :: ( Monad m )
+>   => ReplT act env sig st m ()
+> _loop = do
+>   result <- _read >>= _eval
+>   case result of
+>     Nothing -> _print >> _loop
+>     Just sig -> _exit sig
+
+

@@ -8,6 +8,9 @@
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as T
 
+> class DisplayNeat t where
+>   displayNeat :: t -> String
+
 > data L = L [T.Text]
 >   deriving (Eq, Show)
 

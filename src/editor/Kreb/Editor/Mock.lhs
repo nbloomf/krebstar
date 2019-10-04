@@ -1,9 +1,11 @@
 > module Kreb.Editor.Mock where
 
+> import Kreb.Control
 > import Kreb.Editor.State
 > import Kreb.Editor.Action
 > import Kreb.Editor.Monad
-> import Kreb.Editor.Error
+> import Kreb.Editor.Signal
+> import Kreb.Editor.Env
 > import Kreb.Lang
 
 > data MockInterrupt
@@ -77,36 +79,31 @@
 
 > mockEnv :: AppEnv Mock
 > mockEnv = AppEnv
->   { renderState = mockRenderState
->   , getNextEvent = mockGetNextEvent
->   , cleanup = mockCleanup
->   , logMessage = mockLogMessage
+>   { logMessage = mockLogMessage
+>   }
+
+> mockReplEnv :: KrebEdReplEnv Mock
+> mockReplEnv = ReplEnv
+>   { _Init = \_ st -> return (Right st)
+>   , _Read = \_ st -> do
+>       let mode = editorMode st
+>       mockGetNextEvent mode
+>   , _Eval = \_ st1 act -> do
+>       result <- performAction mockEnv st1 act
+>       case result of
+>         Right st2 -> return (Right st2)
+>         Left sig -> return (Left sig)
+>   , _Print = \_ st -> mockRenderState st
+>   , _Exit = \_ -> return ()
 >   }
 
 > runtimeStateMock :: RuntimeState (Hook Mock)
-> runtimeStateMock = initRuntimeState editorActionsMock editorTypes
-
-> editorActionsMock
->   :: String -> Maybe (Runtime (Hook Mock) ())
-> editorActionsMock str = case str of
->   "#cursor_left" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorLeft st
->     return (Right ((), rts), st')
->   "#cursor_right" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorRight st
->     return (Right ((), rts), st')
->   "#cursor_up" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorUp st
->     return (Right ((), rts), st')
->   "#cursor_down" -> Just $ Runtime $ \rts -> Hook $ \st -> do
->     (_, st') <- performAction CursorDown st
->     return (Right ((), rts), st')
->   _ -> Nothing
+> runtimeStateMock = initRuntimeState (hookActions mockEnv) editorTypes
 
 > runMock :: [Action] -> Mock a -> Either MockInterrupt (a, MockState)
 > runMock es (Mock x) = x $ initMockState es
 
 
-> runMockApp :: (Int, Int) -> [Action] -> Either MockInterrupt (Maybe AppError, MockState)
-> runMockApp dim es = runMock es $ runApp mockEnv (initAppState "stdlib.txt" runtimeStateMock dim) primaryEventLoop
+> runMockApp :: (Int, Int) -> [Action] -> Either MockInterrupt ((), MockState)
+> runMockApp dim es = runMock es $ runKrebEd mockReplEnv mockEnv (initAppState "stdlib.txt" runtimeStateMock dim) loopReplT
 

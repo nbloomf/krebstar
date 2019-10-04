@@ -6,6 +6,7 @@ module Kreb.Editor.State (
   , EditorMode(..)
 
   , Hook(..)
+  , liftHook
 
   , renderDebugMessage
 
@@ -45,6 +46,7 @@ data AppState (m :: * -> *) = AppState
   , glyphRenderSettings  :: GlyphRenderSettings
 
   , runtimeSt            :: RuntimeState (Hook m)
+  , stdLibPath    :: FilePath
   }
 
 instance Show (AppState m) where
@@ -62,16 +64,22 @@ initAppState stdLib rts (w,h) = AppState
   , editorMode           = NormalMode
   , absCursorPos         = (0,0)
   , tabWidth             = 4
-  , tabbedBuffers        = initTabs stdLib (w,h) 4
+  , tabbedBuffers        = initTabs "" (w,h) 4
   , glyphRenderSettings  = defaultGlyphRenderSettings
   , bufferRenderSettings = defaultBufferRenderSettings
 
   , runtimeSt            = rts { _rtStack = Cons Empty V_Eff }
+  , stdLibPath           = stdLib
   }
 
 newtype Hook m a = Hook
   { unHook :: AppState m -> m (a, AppState m)
   }
+
+liftHook :: ( Monad m ) => m a -> Hook m a
+liftHook x = Hook $ \st -> do
+  a <- x
+  return (a, st)
 
 instance
   ( Monad m

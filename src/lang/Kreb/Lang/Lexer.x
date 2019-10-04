@@ -6,6 +6,7 @@ import qualified Data.List as L
 
 import qualified Kreb.Lang.LexicalGrammar as Lex
 import Kreb.Lang.Loc
+import Kreb.Format
 }
 
 %wrapper "monadUserState"
@@ -177,6 +178,11 @@ data Error
   = LexError String
   | ParseError Token
   deriving (Eq, Show)
+
+instance DisplayNeat Error where
+  displayNeat x = case x of
+    LexError str -> str
+    ParseError tok -> show tok
 
 runParser :: Parser a -> String -> Either Error a
 runParser = runParser' 0

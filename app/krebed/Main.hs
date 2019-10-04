@@ -20,7 +20,11 @@ main = do
   () <- when (True == optVersion opts) $
           showVersion >> exitSuccess
 
-  consoleIO "Kreb.CLI -- give a standard argument"
+  path <- return $ case optStdLibPath opts of
+    Nothing -> "/Users/nathan/code/krebstar/stdlib.txt"
+    Just p -> p
+
+  consoleIO path
 
 
 data Options = Options

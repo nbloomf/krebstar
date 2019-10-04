@@ -8,6 +8,7 @@ import qualified System.Console.Terminal.Size as TS
 import System.IO.Error
 import Control.Exception
 
+import Kreb.Control
 import Kreb.Text
 import Kreb.Editor
 
@@ -18,9 +19,9 @@ import Kreb.Editor.CLI.Handler
 
 consoleIO :: FilePath -> IO ()
 consoleIO path = do
-  (env, dim) <- appEnvIO
-  runApp env (updateStateCache $ initAppState path runtimeStateIO dim) primaryEventLoop
-  cleanup env
+  (replEnv, env, dim) <- appEnvIO
+  runKrebEd replEnv env (initAppState path (runtimeState env) dim) loopReplT
+
 
 getTerminalSize :: IO (Int, Int)
 getTerminalSize = do
@@ -29,7 +30,7 @@ getTerminalSize = do
     Nothing -> error "getTerminalSize: could not get size"
     Just w -> return (TS.width w, TS.height w)
 
-appEnvIO :: IO (AppEnv IO, (Int, Int))
+appEnvIO :: IO (KrebEdReplEnv IO, AppEnv IO, (Int, Int))
 appEnvIO = do
   config <- standardIOConfig
   vty <- mkVty $ config
@@ -51,14 +52,29 @@ appEnvIO = do
           (ClearBackground)
       update vty pic
 
-  return 
-    ( AppEnv
-      { renderState = render
-      , getNextEvent = \mode -> do
-          e <- nextEvent vty
-          return $ eventMapping mode e
-      , cleanup = shutdown vty
-      , logMessage = appendFile "/Users/nathan/code/ned/logs.txt"
+  return
+    -- Loop callbacks
+    ( ReplEnv
+      { _Init = \env st -> do
+          result <- loadStdLib (stdLibPath st) env st
+          return $ case result of
+            Left sig -> Left sig
+            Right rts -> Right $ st { runtimeSt = rts }
+      , _Read = \_ st -> do
+          let mode = editorMode st
+          ev <- nextEvent vty
+          return $ eventMapping mode ev
+      , _Eval = performAction
+      , _Print = \_ st -> render $ updateStateCache st
+      , _Exit = \sig -> do
+          shutdown vty
+          case sig of
+            ExitNormally -> return ()
+            _ -> putStrLn $ show sig
+      }
+    -- Effect callbacks
+    , AppEnv
+      { logMessage = appendFile "/Users/nathan/code/ned/logs.txt"
       , loadFile = loadFileIO
       , saveFile = saveFileIO
       }

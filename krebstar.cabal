@@ -81,7 +81,7 @@ library kreb-control
   exposed-modules:
       Kreb.Control
     , Kreb.Control.LocalSt
-    , Kreb.Control.REPL
+    , Kreb.Control.ReplT
   build-depends:
       base >=4.7 && <5
 
@@ -255,6 +255,7 @@ library kreb-lang
     , containers >=0.6.0.1
 
     , kreb-check
+    , kreb-format
 
 test-suite kreb-lang-test
   default-language: Haskell2010
@@ -288,9 +289,10 @@ library kreb-editor
   hs-source-dirs: src/editor
   exposed-modules:
       Kreb.Editor
-    , Kreb.Editor.Error
+    , Kreb.Editor.Signal
     , Kreb.Editor.Action
     , Kreb.Editor.State
+    , Kreb.Editor.Env
     , Kreb.Editor.Monad
     , Kreb.Editor.Panel
     , Kreb.Editor.Settings
@@ -300,6 +302,7 @@ library kreb-editor
       base >=4.7 && <5
     , bytestring >=0.8.10.2
 
+    , kreb-format
     , kreb-reflect
     , kreb-control
     , kreb-struct

@@ -1,401 +1,73 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="generator" content="pandoc" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>The Ned Editor</title>
-  <style type="text/css">
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
-  </style>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>The Kreb Editor</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <link rel="stylesheet" href="style.css">
   <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
   <![endif]-->
-  <style type="text/css">
-  /* Kudos to Pascal Hertleif                  */
-  /* https://gist.github.com/killercup/5917178 */
-  
-  html {
-    font-size: 100%;
-    overflow-y: scroll;
-    -webkit-text-size-adjust: 100%;
-    -ms-text-size-adjust: 100%;
-  }
-  
-  body {
-    color: #444;
-    font-family: Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
-    font-size: 12px;
-    line-height: 1.7;
-    padding: 1em;
-    margin: auto;
-    max-width: 42em;
-    background: #fefefe;
-  }
-  
-  a {
-    color: #0645ad;
-    text-decoration: none;
-  }
-  
-  a:visited {
-    color: #0b0080;
-  }
-  
-  a:hover {
-    color: #06e;
-  }
-  
-  a:active {
-    color: #faa700;
-  }
-  
-  a:focus {
-    outline: thin dotted;
-  }
-  
-  *::-moz-selection {
-    background: rgba(255, 255, 0, 0.3);
-    color: #000;
-  }
-  
-  *::selection {
-    background: rgba(255, 255, 0, 0.3);
-    color: #000;
-  }
-  
-  a::-moz-selection {
-    background: rgba(255, 255, 0, 0.3);
-    color: #0645ad;
-  }
-  
-  a::selection {
-    background: rgba(255, 255, 0, 0.3);
-    color: #0645ad;
-  }
-  
-  p {
-    margin: 1em 0;
-  }
-  
-  img {
-    max-width: 100%;
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-    color: #111;
-    line-height: 125%;
-    margin-top: 2em;
-    font-weight: normal;
-  }
-  
-  h4, h5, h6 {
-    font-weight: bold;
-  }
-  
-  h1 {
-    font-size: 2.5em;
-  }
-  
-  h2 {
-    font-size: 2em;
-  }
-  
-  h3 {
-    font-size: 1.5em;
-  }
-  
-  h4 {
-    font-size: 1.2em;
-  }
-  
-  h5 {
-    font-size: 1em;
-  }
-  
-  h6 {
-    font-size: 0.9em;
-  }
-  
-  blockquote {
-    display: block;
-    color: #666666;
-    margin: 0;
-    padding-left: 3em;
-    border-left: 0.5em #EEE solid;
-  }
-  
-  hr {
-    display: block;
-    height: 2px;
-    border: 0;
-    border-top: 1px solid #aaa;
-    border-bottom: 1px solid #eee;
-    margin: 1em 0;
-    padding: 0;
-  }
-  
-  pre, code, kbd, samp {
-    color: #000;
-    font-family: monospace, monospace;
-    _font-family: 'courier new', monospace;
-    font-size: 0.98em;
-  }
-  
-  pre {
-    white-space: pre;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-  
-  b, strong {
-    font-weight: bold;
-  }
-  
-  dfn {
-    font-style: italic;
-  }
-  
-  ins {
-    background: #ff9;
-    color: #000;
-    text-decoration: none;
-  }
-  
-  mark {
-    background: #ff0;
-    color: #000;
-    font-style: italic;
-    font-weight: bold;
-  }
-  
-  sub, sup {
-    font-size: 75%;
-    line-height: 0;
-    position: relative;
-    vertical-align: baseline;
-  }
-  
-  sup {
-    top: -0.5em;
-  }
-  
-  sub {
-    bottom: -0.25em;
-  }
-  
-  ul, ol {
-    margin: 1em 0;
-    padding: 0 0 0 2em;
-  }
-  
-  li p:last-child {
-    margin-bottom: 0;
-  }
-  
-  ul ul, ol ol {
-    margin: .3em 0;
-  }
-  
-  dl {
-    margin-bottom: 1em;
-  }
-  
-  dt {
-    font-weight: bold;
-    margin-bottom: .8em;
-  }
-  
-  dd {
-    margin: 0 0 .8em 2em;
-  }
-  
-  dd:last-child {
-    margin-bottom: 0;
-  }
-  
-  img {
-    border: 0;
-    -ms-interpolation-mode: bicubic;
-    vertical-align: middle;
-  }
-  
-  figure {
-    display: block;
-    text-align: center;
-    margin: 1em 0;
-  }
-  
-  figure img {
-    border: none;
-    margin: 0 auto;
-  }
-  
-  figcaption {
-    font-size: 0.8em;
-    font-style: italic;
-    margin: 0 0 .8em;
-  }
-  
-  table {
-    margin-bottom: 2em;
-    border-bottom: 1px solid #ddd;
-    border-right: 1px solid #ddd;
-    border-spacing: 0;
-    border-collapse: collapse;
-  }
-  
-  table th {
-    padding: .2em 1em;
-    background-color: #eee;
-    border-top: 1px solid #ddd;
-    border-left: 1px solid #ddd;
-  }
-  
-  table td {
-    padding: .2em 1em;
-    border-top: 1px solid #ddd;
-    border-left: 1px solid #ddd;
-    vertical-align: top;
-  }
-  
-  .author {
-    font-size: 1.2em;
-    text-align: center;
-  }
-  
-  .sourceCode {
-    background-color: #eee;
-  }
-  
-  @media only screen and (min-width: 480px) {
-    body {
-      font-size: 14px;
-    }
-  }
-  @media only screen and (min-width: 768px) {
-    body {
-      font-size: 16px;
-    }
-  }
-  @media print {
-    * {
-      background: transparent !important;
-      color: black !important;
-      filter: none !important;
-      -ms-filter: none !important;
-    }
-  
-    body {
-      font-size: 12pt;
-      max-width: 100%;
-    }
-  
-    a, a:visited {
-      text-decoration: underline;
-    }
-  
-    hr {
-      height: 1px;
-      border: 0;
-      border-bottom: 1px solid black;
-    }
-  
-    a[href]:after {
-      content: " (" attr(href) ")";
-    }
-  
-    abbr[title]:after {
-      content: " (" attr(title) ")";
-    }
-  
-    .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after {
-      content: "";
-    }
-  
-    pre, blockquote {
-      border: 1px solid #999;
-      padding-right: 1em;
-      page-break-inside: avoid;
-    }
-  
-    tr, img {
-      page-break-inside: avoid;
-    }
-  
-    img {
-      max-width: 100% !important;
-    }
-  
-    @page :left {
-      margin: 15mm 20mm 15mm 10mm;
-  }
-  
-    @page :right {
-      margin: 15mm 10mm 15mm 20mm;
-  }
-  
-    p, h2, h3 {
-      orphans: 3;
-      widows: 3;
-    }
-  
-    h2, h3 {
-      page-break-after: avoid;
-    }
-  }
-  </style>
 </head>
 <body>
+<article>
 <header>
-<h1 class="title">The Ned Editor</h1>
+<h1 class="title">The Kreb Editor</h1>
+<p class="byline">nbloomf</p>
 </header>
+<section id="introduction" class="level2">
+<h2>Introduction</h2>
+<p>This text is the user manual, design documentation, and source code of the <code>krebedit</code> text editor. As of this writing the project is very much Not Ready for Prime Time, as it supports exactly zero users. It is under rapid development though, and I hope for it to be “self-hosting” – featureful enough that I can develop krebedit <em>in</em> krebedit – very soon.</p>
+<p>In lieu of practically usable software, and to give a taste of the plans for the project, here is a very rough overview of the components and their goals.</p>
 <ul>
-<li>Preliminary Data Structures
-<ul>
-<li><a href="src/Ned/Data/FingerTree.html">FingerTree</a>
-<ul>
-<li><a href="test/Ned/Data/FingerTree/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/FingerTreeZip.html">FingerTreeZip</a>
-<ul>
-<li><a href="test/Ned/Data/FingerTreeZip/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/Seq.html">Seq</a>
-<ul>
-<li><a href="test/Ned/Data/Seq/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/RunLengthEncoding.html">RunLengthEncoding</a>
-<ul>
-<li><a href="test/Ned/Data/RunLengthEncoding/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/ReflectNat.html">ReflectNat</a>
-<ul>
-<li><a href="test/Ned/Data/ReflectNat/Test.html">Tests</a></li>
-</ul></li>
-</ul></li>
-<li>Text Boxes
-<ul>
-<li><a href="src/Ned/Data/ScreenOffset.html">ScreenOffset</a>
-<ul>
-<li><a href="test/Ned/Data/ScreenOffset/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/MeasureText.html">MeasureText</a>
-<ul>
-<li><a href="test/Ned/Data/MeasureText/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/Buffer.html">Buffer</a>
-<ul>
-<li><a href="test/Ned/Data/Buffer/Test.html">Tests</a></li>
-</ul></li>
-<li><a href="src/Ned/Data/TextBox.html">TextBox</a>
-<ul>
-<li><a href="test/Ned/Data/TextBox/Test.html">Tests</a></li>
-</ul></li>
-</ul></li>
+<li>At the base is a <em>minimal core</em> supporting the essential functions of an editor: modeling and manipulating text buffers. This component is minimally concerned with user input, display, and file IO, and the API it exposes should be as compact and orthogonal as possible.</li>
+<li>Facing the user we have one or more <em>frontends</em> for interacting with the core. A terminal interface is the simplest (and currently only) one of these, but the design is meant to allow, for instance, a native GUI or web-based frontend.</li>
+<li>For extensibility we have a built-in <em>command language</em> that can also drive the core. This language is statically typed and concatenative, and designed as a separate component suitable for inclusion in other projects.</li>
 </ul>
+<p>Even at this early stage the core of each of these pieces is mostly in place. But it turns out that the hard part of building a text editor is not the core components – drawing to the screen, editing buffers – but rather the dozens or hundreds of policy level decisions about API design. It is very important to me that interfaces be thoughtful and, to the extent possible, <em>natural</em>; achieving this is a fun puzzle.</p>
+<p>Of course the main goal of this project is to produce a text editor I can use in my daily work, and I’ll mainly judge my success on this metric. (I write and edit a <em>lot</em> of text.) But I have some auxilliary goals as well.</p>
+<ul>
+<li>To learn more about the design and structure of mid-sized projects</li>
+<li>To</li>
+</ul>
+</section>
+<section id="user-manual" class="level2">
+<h2>User Manual</h2>
+<ol type="1">
+<li>What to Expect</li>
+<li>Getting Started</li>
+<li>Editing</li>
+<li>Navigation</li>
+<li>Scripting</li>
+</ol>
+</section>
+<section id="design-and-implementation" class="level2">
+<h2>Design and Implementation</h2>
+<ol type="1">
+<li>Project Organization</li>
+<li>The Editor Core
+<ol type="1">
+<li><a href="html/ReplT.html">The Read, Eval, Print Loop</a></li>
+<li>Buffers</li>
+<li>Text Boxes</li>
+</ol></li>
+<li>The Language</li>
+</ol>
+</section>
+<section id="appendices" class="level2">
+<h2>Appendices</h2>
+<ol type="1">
+<li>Data Structures
+<ol type="1">
+<li>Finger Trees</li>
+<li>Zippered Finger Trees</li>
+</ol></li>
+<li>Testing Library</li>
+</ol>
+</section>
+</article>
 </body>
 </html>
