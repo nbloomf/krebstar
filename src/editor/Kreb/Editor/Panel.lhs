@@ -9,6 +9,8 @@
 >   , alterPanel
 >   , PanelAction(..)
 
+>   , getTextBox
+
 >   , ShellCommand(..)
 
 >   , updateHistory
@@ -59,17 +61,20 @@
 >   , libPath :: Maybe FilePath
 >   } deriving (Eq, Show)
 
+> getTextBox :: Panel -> TextBox
+> getTextBox = textBox
+
 > data ShellCommand
 >   = TypeQuery String Scheme
->   | RunCommand Phrase
+>   | RunCommand Phrase DataStack
 >   deriving (Eq, Show)
 
 > instance DisplayNeat ShellCommand where
 >   displayNeat x = case x of
 >     TypeQuery str sch -> concat
 >       [ ":t " ++ str, "\n", displayNeat sch ]
->     RunCommand ph -> concat
->       [ displayNeat ph, "\nok." ]
+>     RunCommand ph st -> concat
+>       [ displayNeat ph, "\n", displayNeat st ]
 
 > updateHistory
 >   :: ShellCommand -> Panel -> Panel
@@ -85,7 +90,7 @@
 > showDebugMessage
 >   :: String -> Panel -> Panel
 > showDebugMessage msg panel = panel
->   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar ("#>" ++ msg ++ "\n\n")] $ histBox panel
+>   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar ("#> " ++ msg ++ "\n\n")] $ histBox panel
 >   }
 
 

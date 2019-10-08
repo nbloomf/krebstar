@@ -150,6 +150,18 @@
 >     2 -> a2
 >     _ -> a3
 
+> pickFrom5
+>   :: (Seeded a, Seeded a, Seeded a, Seeded a, Seeded a)
+>   -> Seeded a
+> pickFrom5 (a1, a2, a3, a4, a5) = do
+>   i <- randIn (0 :: Int, 4)
+>   case i of
+>     0 -> a1
+>     1 -> a2
+>     2 -> a3
+>     3 -> a4
+>     _ -> a5
+
 > freq
 >   :: forall a. [(Int, Seeded a)] -> Seeded a
 > freq ws = case ws of

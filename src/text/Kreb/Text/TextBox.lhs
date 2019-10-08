@@ -61,7 +61,6 @@ Introduction
 
 > import Kreb.Check
 > import Kreb.Control
-> import Kreb.Struct
 > import Kreb.Text.MeasureText
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.Buffer
@@ -72,11 +71,13 @@ Introduction
 A @TextBox@ is a rectangular array of cells that acts as a view into a @Buffer@, together with a distinguished cursor position that is used to interact with the buffer.
 
 > data TextBox = TextBox
->   { textboxHeight    :: Int        -- ^ Height in cells
->   , textboxCursor    :: (Int, Int) -- ^ Relative cursor position
->   , textboxOffset    :: Int        -- ^ The top screen line index
->   , textboxBuffer    :: SizedBuffer Glyph
->   , textboxLabelBase :: Int
+>   { textboxHeight     :: Int        -- ^ Height in cells
+>   , textboxCursor     :: (Int, Int) -- ^ Relative cursor position
+>   , textboxOffset     :: Int        -- ^ The top screen line index
+>   , textboxBuffer     :: SizedBuffer Glyph
+>   , textboxLabelBase  :: Int
+>   , textboxSource     :: Maybe FilePath
+>   , textboxHasChanged :: Bool
 >   } deriving (Eq, Show)
 
 
@@ -86,11 +87,13 @@ A @TextBox@ is a rectangular array of cells that acts as a view into a @Buffer@,
 >   -> Int        -- ^ Tab
 >   -> TextBox
 > initTextBox (w,h) t = TextBox
->   { textboxHeight    = h
->   , textboxCursor    = (0,0)
->   , textboxBuffer    = emptySizedBuffer w t
->   , textboxOffset    = 0
->   , textboxLabelBase = 10
+>   { textboxHeight     = h
+>   , textboxCursor     = (0,0)
+>   , textboxBuffer     = emptySizedBuffer w t
+>   , textboxOffset     = 0
+>   , textboxLabelBase  = 10
+>   , textboxSource     = Nothing
+>   , textboxHasChanged = False
 >   }
 
 
@@ -149,6 +152,10 @@ Queries
 > getTextBoxBuffer
 >   :: TextBox -> SizedBuffer Glyph
 > getTextBoxBuffer = textboxBuffer
+
+> getTextBoxHasChanged
+>   :: TextBox -> Bool
+> getTextBoxHasChanged = textboxHasChanged
 
 > getTextBoxFocusLineCol
 >   :: TextBox -> LineCol
@@ -271,6 +278,7 @@ Queries
 >   -- 
 >   | TextBoxResize (Int, Int)
 
+>   | TextBoxLoad FilePath String
 >   | TextBoxClear
 >   deriving (Eq, Show)
 
@@ -341,6 +349,9 @@ Queries
 >   TextBoxResize dim ->
 >     textboxResize dim
 > 
+>   TextBoxLoad path str ->
+>     textboxLoad path str
+> 
 >   TextBoxClear ->
 >     textboxClear
 
@@ -355,9 +366,24 @@ Queries
 > textboxClear
 >   :: TextBox -> TextBox
 > textboxClear box = box
->   { textboxBuffer = emptySizedBuffer (getTextBoxWidth box) (getTextBoxHeight box)
+>   { textboxBuffer = emptySizedBuffer
+>       (getTextBoxWidth box) (getTextBoxHeight box)
 >   , textboxOffset = 0
 >   , textboxCursor = (0,0)
+>   , textboxSource = Nothing
+>   , textboxHasChanged = False
+>   }
+
+
+> textboxLoad
+>   :: FilePath -> String -> TextBox -> TextBox
+> textboxLoad path str box = box
+>   { textboxBuffer = makeSizedBuffer
+>       (getTextBoxWidth box) (getTextBoxHeight box) str
+>   , textboxOffset = 0
+>   , textboxCursor = (0,0)
+>   , textboxSource = Just path
+>   , textboxHasChanged = False
 >   }
 
 
@@ -371,7 +397,7 @@ Queries
 >     h = textboxHeight box
 > 
 >     buf =
->       alterSizedBuffer (headInsertL c) $
+>       alterSizedBuffer (insertPointLeftBuffer c) $
 >       alterSizedBuffer (splitBufferAtScreenCoords (x, y+l)) $
 >       textboxBuffer box
 > 
@@ -386,6 +412,7 @@ Queries
 >     { textboxBuffer = buf
 >     , textboxCursor = (u,v')
 >     , textboxOffset = l'
+>     , textboxHasChanged = True
 >     }
 
 > textBoxInsertMany
@@ -402,7 +429,7 @@ Queries
 >     l = textboxOffset box
 > 
 >     buf =
->       alterSizedBuffer headDeleteL $
+>       alterSizedBuffer deletePointLeftBuffer $
 >       alterSizedBuffer (splitBufferAtScreenCoords (x, y+l)) $
 >       textboxBuffer box
 >     
@@ -421,6 +448,7 @@ Queries
 >       { textboxCursor = (u, v')
 >       , textboxOffset = l'
 >       , textboxBuffer = buf
+>       , textboxHasChanged = True
 >       }
 
 
@@ -486,8 +514,8 @@ Queries
 >     l = textboxOffset box
 > 
 >     buf =
->       alterSizedBuffer headMoveL $
->       textboxBuffer box
+>       alterSizedBuffer (clearMark . movePointLeft) $
+>         textboxBuffer box
 >     
 >     (u,v) =
 >       querySizedBuffer getBufferHeadScreenCoords $
@@ -508,7 +536,7 @@ Queries
 > textboxCursorRight box =
 >   localSt box $ do
 >     editSt $ editTextBoxBuffer $
->       alterSizedBuffer headMoveR
+>       alterSizedBuffer (clearMark . movePointRight)
 > 
 >     (x,y) <- readSt getTextBoxCursor
 > 

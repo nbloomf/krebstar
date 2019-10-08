@@ -1,6 +1,9 @@
 SOURCES := \
   src/control/Kreb/Control/ReplT.lhs
 
+EXTRADOC := \
+  aux/section/Rationale.md
+
 STYLES := \
   tufte/tufte.css \
   tufte/pandoc.css \
@@ -26,7 +29,7 @@ install: FORCE
 
 
 
-docs: docs/index.html $(SOURCES)
+docs: docs/index.html $(SOURCES) $(EXTRADOC)
 	@echo 'Docs Generated'
 
 docs/index.html: FORCE
@@ -38,6 +41,16 @@ docs/index.html: FORCE
 	  --css style.css \
 	  --output $@ \
 	  aux/index.md
+
+$(EXTRADOC): FORCE
+	@echo $@
+	@pandoc \
+	  --from markdown+literate_haskell --to html \
+	  --mathjax --section-divs \
+	  --data-dir=aux --template=tufte.html5 \
+	  --css ../style.css \
+	  --output docs/html/$(patsubst %.md,%.html,$(notdir $@)) \
+	  $@
 
 $(SOURCES): FORCE
 	@echo $@

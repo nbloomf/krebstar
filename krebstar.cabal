@@ -145,6 +145,7 @@ library kreb-struct
       Kreb.Struct
     , Kreb.Struct.FingerTree
     , Kreb.Struct.FingerTreeZip
+    , Kreb.Struct.TwoPointedList
     , Kreb.Struct.Seq
     , Kreb.Struct.RunLengthEncoding
   build-depends:

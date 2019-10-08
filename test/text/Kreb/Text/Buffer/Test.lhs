@@ -38,6 +38,7 @@ Introduction
 > import Kreb.Struct
 > import Kreb.Reflect
 > import Kreb.Text
+> import qualified Kreb.Text.Buffer as Buf
 > 
 > import Kreb.Struct.FingerTreeZip.Test
 > 
@@ -86,7 +87,7 @@ Generates valid input/output pairs for `renderBuffer`.
 >     chunks = take height $ drop top chunkss
 > 
 >     buf :: Buffer w t a
->     buf = mkTape $ concat chunkss
+>     buf = Buf.makeListBuffer $ concat chunkss
 > 
 >   return (top, height, buf, labels, chunks)
 
@@ -335,7 +336,7 @@ Expect:
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a -> Check
 > prop_Buffer_getBufferHeadLineCol_initMove _ _ _ xs =
->   claimEqual mempty (getBufferHeadLineCol (initMove xs))
+>   claimEqual mempty (getBufferHeadLineCol (Buf.movePointToStart xs))
 
 Steps:
 
@@ -351,7 +352,7 @@ Expect:
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> Buffer w t a -> Check
 > prop_Buffer_getBufferHeadLineCol_splitBufferAtLineCol _ _ _ xs =
->   claimEqual xs (splitBufferAtLineCol (getBufferHeadLineCol xs) xs)
+>   claimEqual (Buf.clearMark xs) (splitBufferAtLineCol (getBufferHeadLineCol xs) xs)
 
 Preconditions:
 
@@ -374,15 +375,15 @@ Expect:
 >   -> Check
 > 
 > prop_Buffer_getBufferHeadLineCol_headMoveAfter _ _ _ buf =
->   if (isEmpty buf) || (isAtLast buf)
+>   if (Buf.isEmpty buf) || (Buf.isPointAtEnd buf)
 >     then accept
 >     else
 >       let
->         Just a = headRead buf
+>         Just a = Buf.readPoint buf
 >         m = value a :: MeasureText w t
 >       in
 >         claimEqual
->           (getBufferHeadLineCol (headMoveR buf))
+>           (getBufferHeadLineCol (Buf.movePointRight buf))
 >           ((getBufferHeadLineCol buf) <> (logicalOffset m))
 
 
@@ -455,7 +456,7 @@ Examples for checking our intuition about screen line splitting:
 > 
 >       , ( "Past end (char)"
 >         , ( NonNegative 1
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [] (cell 'a') [eof]
 >           , Nothing
 >           )
@@ -463,25 +464,25 @@ Examples for checking our intuition about screen line splitting:
 > 
 >       , ( "Past end (newline)"
 >         , ( NonNegative 1
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [] (cell '\n') [eof]
->           , Just $ defBufferFocus'' pw pt
+>           , Just $ rawPointOnly pw pt
 >               [cell '\n'] eof []
 >           )
 >         )
 > 
 >       , ( "At end after newline"
 >         , ( NonNegative 1
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [cell 'a'] (cell '\n') [eof]
->           , Just $ defBufferFocus'' pw pt
+>           , Just $ rawPointOnly pw pt
 >               [cell 'a', cell '\n'] (eof) []
 >           )
 >         )
 > 
 >       , ( "Past end (char)"
 >         , ( NonNegative 2
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [] (cell 'a') [eof]
 >           , Nothing
 >           )
@@ -489,7 +490,7 @@ Examples for checking our intuition about screen line splitting:
 > 
 >       , ( "Past end (newline)"
 >         , ( NonNegative 2
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [] (cell '\n') [eof]
 >           , Nothing
 >           )
@@ -497,36 +498,36 @@ Examples for checking our intuition about screen line splitting:
 > 
 >       , ( "Focus off EOF (1)"
 >         , ( NonNegative 1
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [cell '\n'] (cell '\n') [eof]
->           , Just $ defBufferFocus'' pw pt
+>           , Just $ rawPointOnly pw pt
 >               [cell '\n'] (cell '\n') [eof]
 >           )
 >         )
 > 
 >       , ( "Focus on EOF (1)"
 >         , ( NonNegative 1
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [cell '\n', cell '\n'] (eof) []
->           , Just $ defBufferFocus'' pw pt
+>           , Just $ rawPointOnly pw pt
 >               [cell '\n'] (cell '\n') [eof]
 >           )
 >         )
 > 
 >       , ( "Focus off EOF (2)"
 >         , ( NonNegative 2
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [cell '\n', cell '\n'] (cell '\n') [eof]
->           , Just $ defBufferFocus'' pw pt
+>           , Just $ rawPointOnly pw pt
 >               [cell '\n', cell '\n'] (cell '\n') [eof]
 >           )
 >         )
 > 
 >       , ( "Focus on EOF (2)"
 >         , ( NonNegative 2
->           , defBufferFocus'' pw pt
+>           , rawPointOnly pw pt
 >               [cell '\n', cell '\n', cell '\n'] (eof) []
->           , Just $ defBufferFocus'' pw pt
+>           , Just $ rawPointOnly pw pt
 >               [cell '\n', cell '\n'] (cell '\n') [eof]
 >           )
 >         )
@@ -558,7 +559,7 @@ Examples for checking our intuition about screen line splitting:
 >     [ testKreb "#1" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 0)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell 'a' ] (eof) []
 >           )
 >           [ ( cell 'a', True )
@@ -568,7 +569,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#2" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 0)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell '\n' ] (eof) []
 >           )
 >           [ ( cell '\n', True )
@@ -578,7 +579,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#3" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 0)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell 'a', cell '\n' ] (eof) []
 >           )
 >           [ ( cell 'a',  True )
@@ -589,7 +590,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#4" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell 'a' ] (eof) []
 >           )
 >           [ ( cell 'a', False )
@@ -599,7 +600,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#5" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell '\n' ] (eof) []
 >           )
 >           [ ( cell '\n', False )
@@ -609,7 +610,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#6" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell 'a', cell '\n' ] (eof) []
 >           )
 >           [ ( cell 'a',  False )
@@ -620,7 +621,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#7" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell 'a', cell '\n', cell 'a' ] (eof) []
 >           )
 >           [ ( cell 'a',  False )
@@ -632,7 +633,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#8" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell 'a', cell '\n', cell '\n' ] (eof) []
 >           )
 >           [ ( cell 'a',  False )
@@ -644,7 +645,7 @@ Examples for checking our intuition about screen line splitting:
 >     , testKreb "#9" $
 >         prop_Buffer_atScreenLine_examples pw pt pa
 >           (NonNegative 1)
->           ( defBufferFocus'' pw pt
+>           ( rawPointOnly pw pt
 >             [ cell '\n', cell '\n', cell '\n' ] (eof) []
 >           )
 >           [ ( cell '\n', False )
@@ -711,13 +712,13 @@ Examples for checking our intuition about screen coordinate splitting:
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
 >      , Arb a, Prune a, Show a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> Buffer w t a -> a -> Buffer w t a
+>   -> [a] -> a -> [a]
 >   -> Check
 > 
-> prop_Buffer_splitBufferAtLineCol_focus _ _ _ as x bs =
+> prop_Buffer_splitBufferAtLineCol_focus pw pt _ as x bs =
 >   let
->     m = value as <> value x :: MeasureText w t
->     z = mkBufferFocus' as x bs
+>     m = mconcat $ map value (as ++ [x]) :: MeasureText w t
+>     z = makePointOnlyBuffer pw pt as x bs :: Buffer w t a
 >   in
 >     claimEqual z (splitBufferAtLineCol (logicalCoords m) z)
 > 
@@ -739,10 +740,9 @@ Examples for checking our intuition about screen coordinate splitting:
 > 
 > prop_Buffer_splitBufferAtScreenCoords_focus pw pt _ as x bs =
 >   let
->     w = Buffer $ mkTapeFTZ $ map (cell . fromChar . toChar) as :: Buffer w t a
->     m = value w :: MeasureText w t
+>     m = mconcat (map value as) :: MeasureText w t
 >     pos = applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
->     z1 = defBufferFocus pw pt as x bs
+>     z1 = makePointOnlyBuffer pw pt as x bs
 >     z2 = splitBufferAtScreenCoords pos z1
 >   in
 >     if validateBuffer z2
@@ -775,42 +775,42 @@ Examples
 >   testGroup "Validate"
 >     [ testKreb "#1" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "" 'a' "aaaaaaaaaaaaaaaaaa"
 > 
 >     , testKreb "#2" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "a" 'a' "aaaaaaaaaaaaaaaaa"
 > 
 >     , testKreb "#3" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "aa" 'a' "aaaaaaaaaaaaaaaa"
 > 
 >     , testKreb "#4" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "aaa" 'a' "aaaaaaaaaaaaaaa"
 > 
 >     , testKreb "#5" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "aaaa" 'a' "aaaaaaaaaaaaaa"
 > 
 >     , testKreb "#6" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "aaaaa" 'a' "aaaaaaaaaaaaa"
 > 
 >     , testKreb "#7" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "aaaaaa" 'a' "aaaaaaaaaaaa"
 > 
 >     , testKreb "#8" $
 >         prop_Buffer_validateBuffer_examples $
->           defBufferFocus nat3 nat1
+>           makePointOnlyBuffer nat3 nat1
 >             "aaaaaaa" 'a' "aaaaaaaaaaa"
 >     ]
 
@@ -828,7 +828,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (0,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "" 'a' "aaaaaaaaaaaaaaaaaa"
 >           )
 > 
@@ -836,7 +836,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (1,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "a" 'a' "aaaaaaaaaaaaaaaaa"
 >           )
 > 
@@ -844,7 +844,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (2,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "aa" 'a' "aaaaaaaaaaaaaaaa"
 >           )
 > 
@@ -852,7 +852,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (3,0)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "aa" 'a' "aaaaaaaaaaaaaaaa"
 >           )
 > 
@@ -860,7 +860,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (0,1)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "aaa" 'a' "aaaaaaaaaaaaaaa"
 >           )
 > 
@@ -868,7 +868,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (1,1)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "aaaa" 'a' "aaaaaaaaaaaaaa"
 >           )
 > 
@@ -876,7 +876,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (2,1)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "aaaaa" 'a' "aaaaaaaaaaaaa"
 >           )
 > 
@@ -884,7 +884,7 @@ Examples
 >         prop_Buffer_splitAtScreenCoords_examples
 >           ( (0,2)
 >           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , defBufferFocus nat3 nat1
+>           , makePointOnlyBuffer nat3 nat1
 >               "aaaaaa" 'a' "aaaaaaaaaaaa"
 >           )
 >     ]
@@ -1421,7 +1421,7 @@ Test Suite
 > test_Buffer :: TestTree
 > test_Buffer =
 >   testGroup "Buffer properties"
->     [ testGroup "Tape"
+>     [ {- testGroup "Tape"
 >       [ test_Tape pChar (pBuffer nat30 nat8)
 >       , test_Tape pChar (pBuffer nat30 nat4)
 >       , test_Tape pChar (pBuffer nat15 nat2)
@@ -1433,7 +1433,7 @@ Test Suite
 >       , test_Tape pGlyph (pBuffer nat8 nat2)
 >       ]
 > 
->     , testGroup "Buffer"
+>     , -} testGroup "Buffer"
 >       [ test_Buffer_properties nat30 nat8 pChar
 >       , test_Buffer_properties nat23 nat4 pChar
 >       , test_Buffer_properties nat18 nat3 pChar
@@ -1505,7 +1505,7 @@ Test Suite
 >   return
 >     ( concat labelss
 >     , concat liness
->     , mkBuffer $ intercalate [fromChar '\n'] css
+>     , makeListBuffer $ intercalate [fromChar '\n'] css
 >     )
 
 > genRenderWrapFixed1
@@ -1568,7 +1568,7 @@ Test Suite
 >   return
 >     ( concat labelss
 >     , concat liness
->     , mkBuffer $ intercalate [fromChar '\n'] css
+>     , makeListBuffer $ intercalate [fromChar '\n'] css
 >     )
 
 > chunksOf
@@ -1647,22 +1647,6 @@ Test Suite
 
 
 
-
--- Splitting
-
-> prop_splitBufferAtScreenLine_one_line_wrap
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arb a, Prune a, Eq a, Show a, IsChar a )
->   => Proxy w -> Proxy t -> Proxy a
->   -> Positive Int -> Check
-> prop_splitBufferAtScreenLine_one_line_wrap _ _ _ (Positive h) =
->   (h > 1) ==>
->   forAll (genRenderWrapFixed1 (Positive h)) $
->     \(lb, a:as, buf :: Buffer w t a) ->
->       case unBufferFocus (splitBufferAtScreenLine 1 buf) of
->         Nothing -> error "prop_splitBufferAtScreenLine_one_line_wrap"
->         Just (us, x, vs) -> (a, concat as) === (us ++ [x], vs)
 
 > -}
 

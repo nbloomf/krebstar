@@ -1,6 +1,6 @@
 module Kreb.Editor.Monad (
     runKrebEd
-  , KrebEdReplEnv
+  , KrebEdReplParams
 ) where
 
 import System.IO.Error
@@ -18,9 +18,9 @@ type KrebEd m a
 
 runKrebEd
   :: ( Monad m )
-  => KrebEdReplEnv m -> AppEnv m -> AppState m
+  => KrebEdReplParams m -> AppEnv m -> AppState m
   -> KrebEd m a -> m a
 runKrebEd = runReplT
 
-type KrebEdReplEnv m
-  = ReplEnv Action (AppEnv m) AppSignal (AppState m) m
+type KrebEdReplParams m
+  = ReplParams Action (AppEnv m) AppSignal (AppState m) m

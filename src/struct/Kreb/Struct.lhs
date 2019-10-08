@@ -7,5 +7,6 @@
 > 
 > import Kreb.Struct.FingerTree
 > import Kreb.Struct.FingerTreeZip
+> import qualified Kreb.Struct.TwoPointedList as TPL
 > import Kreb.Struct.Seq
 > import Kreb.Struct.RunLengthEncoding

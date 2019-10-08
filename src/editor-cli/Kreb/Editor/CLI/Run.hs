@@ -19,8 +19,8 @@ import Kreb.Editor.CLI.Handler
 
 consoleIO :: FilePath -> IO ()
 consoleIO path = do
-  (replEnv, env, dim) <- appEnvIO
-  runKrebEd replEnv env (initAppState path (runtimeState env) dim) loopReplT
+  (replParams, env, dim) <- appEnvIO
+  runKrebEd replParams env (initAppState path (runtimeState env) dim) loopReplT
 
 
 getTerminalSize :: IO (Int, Int)
@@ -30,7 +30,7 @@ getTerminalSize = do
     Nothing -> error "getTerminalSize: could not get size"
     Just w -> return (TS.width w, TS.height w)
 
-appEnvIO :: IO (KrebEdReplEnv IO, AppEnv IO, (Int, Int))
+appEnvIO :: IO (KrebEdReplParams IO, AppEnv IO, (Int, Int))
 appEnvIO = do
   config <- standardIOConfig
   vty <- mkVty $ config
@@ -54,7 +54,7 @@ appEnvIO = do
 
   return
     -- Loop callbacks
-    ( ReplEnv
+    ( ReplParams
       { _Init = \env st -> do
           result <- loadStdLib (stdLibPath st) env st
           return $ case result of

@@ -1,15 +1,8 @@
-> module Kreb.Demo (
->     module Kreb.Check
->   , module Kreb.Reflect
->   , module Kreb.Struct
->   , module Kreb.Text
->   , module Kreb.Lang
->   , module Kreb.Editor
-> ) where
+> module Kreb.Demo where
 
 > import Kreb.Check
 > import Kreb.Reflect
-> import Kreb.Struct
+> import qualified Kreb.Struct as Struct
 > import Kreb.Text
-> import Kreb.Lang hiding (gets)
+> import qualified Kreb.Lang as Lang
 > import Kreb.Editor

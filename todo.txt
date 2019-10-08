@@ -1,10 +1,22 @@
 0.0.1 Checklist
 ===============
+- FingerTreeZip2
+  - swap point and mark
+  - one/twopointedlist and buffer can export the same names, use
+    qualified imports instead of type classes.
+- Move cell to own module
+- Cell can be used to track several marks
+- signature of performAction should be
+    -> (Maybe Signal, State)
   - clean up signatures of render etc
     for passing in to ReplEnv in Run
 - per panel reload of stdlib
-- pretty print interaction log
-  - show result stack
+- show result stack in interaction log
+
+Refactoring
+- rename. FingerTreeZip -> OnePointedList
+- get rid of Tape class. don't need it.
+  - but need analogous tests in TwoPointedList
 
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
@@ -33,6 +45,13 @@
 - rename lang to kreblang
 - rename krebed to krebedit
 - start standard library
+
+
+options
+- line number colors. all same? divisors of N different colors? rainbow?
+- prompt chars in history
+
+- frontend that makes screenshots
 
 
 

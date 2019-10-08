@@ -1,6 +1,7 @@
 > module Kreb.Lang.Value where
 
-> import Data.List (unwords)
+> import Kreb.Format
+> import Data.List (unwords, intercalate)
 > import Kreb.Lang.Expr
 > import Kreb.Lang.Error
 > import Kreb.Lang.PrettyPrint
@@ -13,16 +14,37 @@
 >   | V_Quote [Sus]
 >   deriving (Eq, Show)
 
+> instance DisplayNeat Val where
+>   displayNeat x = case x of
+>     V_Prim p -> displayNeat p
+>     V_Eff -> "@Eff"
+>     V_Func str vs -> case vs of
+>       [] -> str
+>       _ -> str ++ " " ++ intercalate " " (map (paren . displayNeat) vs)
+>       where paren str = if elem ' ' str then "(" ++ str ++ ")" else str
+>     V_Quote ps -> "[" ++ (intercalate " " $ map displayNeat ps) ++ "]"
+
 > data Sus
 >   = Sus_Put Val
 >   | Sus_Say Phrase
 >   deriving (Eq, Show)
+
+> instance DisplayNeat Sus where
+>   displayNeat x = case x of
+>     Sus_Put z -> displayNeat z
+>     Sus_Say z -> displayNeat z
 
 > data Pri
 >   = Prim_Int Int
 >   | Prim_Char Char
 >   | Prim_String String
 >   deriving (Eq, Show)
+
+> instance DisplayNeat Pri where
+>   displayNeat x = case x of
+>     Prim_Int k -> show k
+>     Prim_Char c -> show c
+>     Prim_String s -> show s
 
 
 
@@ -53,6 +75,18 @@
 >   = Empty
 >   | Cons DataStack Val
 >   deriving (Eq, Show)
+
+> instance DisplayNeat DataStack where
+>   displayNeat x = case x of
+>     Empty -> "ok."
+>     Cons Empty v -> displayNeat v
+>     Cons st v -> concat
+>       [ disp st, " ", displayNeat v ]
+>       where
+>         disp w = case w of
+>           Empty -> ""
+>           Cons Empty k -> displayNeat k
+>           Cons h k -> concat [disp h, " ", displayNeat k]
 
 > instance PrettyPrint DataStack where
 >   pretty x = case x of

@@ -90,7 +90,7 @@ Type Grammar
 > instance DisplayNeat Stack where
 >   displayNeat (Stack x ts) = concat
 >     [ "$", displayNeat x
->     , concatMap (\t -> ' ' : paren (displayNeat t)) ts ]
+>     , concatMap (\t -> ' ' : paren (displayNeat t)) (reverse ts) ]
 >     where paren str = if elem ' ' str then concat ["(", str, ")"] else str
 > 
 > instance Arb Stack where
@@ -725,6 +725,12 @@ Infer Monad
 >       [ "atom \'", displayNeat a, "\' is not defined." ]
 >     UnrecognizedBuiltIn x -> concat
 >       [ "builtin \'", displayNeat x, "\' is not recognized." ]
+>     BuiltInNotDefined x -> concat
+>       [ "builtin \'", displayNeat x, "\' is not defined." ]
+>     CannotUnifySkolem x t -> concat
+>       [ "cannot unify skolem variable \'", displayNeat x
+>       , "\' with type\n", displayNeat t ]
+>     _ -> show z
 
 
 

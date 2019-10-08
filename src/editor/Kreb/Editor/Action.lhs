@@ -56,6 +56,8 @@
 
 
 
+
+
 >   | CursorLineStart
 >   | CursorLineEnd
 
@@ -156,6 +158,20 @@
 >   WindowResize (w,h) -> return $
 >     Right $ setWindowDim (w,h) st
 > 
+>   FileLoad path -> do
+>     let x = queryActivePanel (textboxHasChanged . getTextBox) st
+>     case x of
+>       Nothing -> return $ Right st
+>       Just True -> return $
+>         Right $ alterActivePanel (showDebugMessage "Unsaved changes") st
+>       Just False -> do
+>         read <- loadFile env path
+>         case read of
+>           Left err -> return $
+>             Right $ alterActivePanel (showDebugMessage $ show err) st
+>           Right contents -> return $
+>             Right $ alterActivePanel (alterPanel [PanelAlterText [TextBoxLoad path contents]]) st
+> 
 >   RunCmd -> do
 >     let
 >       cmd = queryActivePanel getPanelCmdString st
@@ -178,7 +194,7 @@
 > 
 >   act -> return $
 >     Right $ alterActivePanel
->       (showDebugMessage $ " Not implemented: " ++ show act) st
+>       (showDebugMessage $ "Not implemented: " ++ show act) st
 
 
 
@@ -206,11 +222,13 @@
 >   _ -> case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
->       (r, x) <- runHook st $ evalRuntime (inferType ph >> doActionFor ph) (runtimeSt st)
+>       (r, x) <- runHook st $ runRuntime (inferType ph >> doActionFor ph) (runtimeSt st)
 >       case r of
 >         Left err -> return $ Left (Right err)
->         Right () -> return $ Right $
->           alterActivePanel (updateHistory (RunCommand ph)) x
+>         Right ((), rts) -> do
+>           let dst = _rtStack rts
+>           return $ Right $
+>             alterActivePanel (updateHistory (RunCommand ph dst)) x
 
 
 > loadStdLib
@@ -257,8 +275,13 @@
 >     ForAll (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [TyCon $ C "@Eff"])
 >       (Stack (V "S") [TyCon $ C "@Eff"])
-
+> 
 >   "#insert" -> Just $
+>     ForAll (Vars [V "S"] []) $ Arrow
+>       (Stack (V "S") [TyCon $ C "String", TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
+> 
+>   "#load_file" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [TyCon $ C "String", TyCon $ C "@Eff"])
 >       (Stack (V "S") [TyCon $ C "@Eff"])
@@ -267,11 +290,7 @@
 >     ForAll (Vars [V "S"] []) $ Arrow
 >       (Stack (V "S") [])
 >       (Stack (V "S") [])
->   "#load" -> Just $
->     ForAll (Vars [V "S"] []) $ Arrow
->       (Stack (V "S") [TyCon $ C "@Eff"])
->       (Stack (V "S") [TyCon $ C "@Eff"])
-
+> 
 >   _ -> Nothing
 
 > hookActions
@@ -286,10 +305,13 @@
 >     doHookActionM env (CursorUp)
 >   "#cursor_down" -> Just $ do
 >     doHookActionM env (CursorDown)
-
+> 
 >   "#insert" -> Just $ do
 >     str <- popString
 >     doHookActionM env (StringInsert str)
+>   "#load_file" -> Just $ do
+>     path <- popString
+>     doHookActionM env (FileLoad path)
 >   _ -> Nothing
 
 > doHookActionM

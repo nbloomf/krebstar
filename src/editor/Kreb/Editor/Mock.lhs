@@ -82,8 +82,8 @@
 >   { logMessage = mockLogMessage
 >   }
 
-> mockReplEnv :: KrebEdReplEnv Mock
-> mockReplEnv = ReplEnv
+> mockReplParams :: KrebEdReplParams Mock
+> mockReplParams = ReplParams
 >   { _Init = \_ st -> return (Right st)
 >   , _Read = \_ st -> do
 >       let mode = editorMode st
@@ -105,5 +105,5 @@
 
 
 > runMockApp :: (Int, Int) -> [Action] -> Either MockInterrupt ((), MockState)
-> runMockApp dim es = runMock es $ runKrebEd mockReplEnv mockEnv (initAppState "stdlib.txt" runtimeStateMock dim) loopReplT
+> runMockApp dim es = runMock es $ runKrebEd mockReplParams mockEnv (initAppState "stdlib.txt" runtimeStateMock dim) loopReplT
 
