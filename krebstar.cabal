@@ -144,7 +144,7 @@ library kreb-struct
   exposed-modules:
       Kreb.Struct
     , Kreb.Struct.FingerTree
-    , Kreb.Struct.FingerTreeZip
+    , Kreb.Struct.OnePointedList
     , Kreb.Struct.TwoPointedList
     , Kreb.Struct.Seq
     , Kreb.Struct.RunLengthEncoding
@@ -161,7 +161,7 @@ test-suite kreb-struct-test
   other-modules:
       Kreb.Struct.Test.Suite
     , Kreb.Struct.FingerTree.Test
-    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.OnePointedList.Test
     , Kreb.Struct.Seq.Test
     , Kreb.Struct.RunLengthEncoding.Test
   ghc-options:
@@ -187,6 +187,7 @@ library kreb-text
     , Kreb.Text.ScreenOffset
     , Kreb.Text.MeasureText
     , Kreb.Text.Glyph
+    , Kreb.Text.Cell
     , Kreb.Text.Buffer
     , Kreb.Text.TextBox
   build-depends:
@@ -212,7 +213,7 @@ test-suite kreb-text-test
     , Kreb.Text.TextBox.Test
 
     , Kreb.Struct.FingerTree.Test
-    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.OnePointedList.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -445,7 +446,7 @@ test-suite kreb-test
     , Kreb.Lang.Type.Test
     , Kreb.Reflect.Nat.Test
     , Kreb.Struct.FingerTree.Test
-    , Kreb.Struct.FingerTreeZip.Test
+    , Kreb.Struct.OnePointedList.Test
     , Kreb.Struct.RunLengthEncoding.Test
     , Kreb.Struct.Seq.Test
     , Kreb.Text.Buffer.Test

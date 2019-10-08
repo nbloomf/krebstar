@@ -1,5 +1,5 @@
 ---
-title: Kreb.Struct.FingerTreeZip.Test
+title: Kreb.Struct.OnePointedList.Test
 ---
 
 
@@ -39,7 +39,7 @@ This test module is a little different. The `FingerTreeZip` module exports some 
 >   , DeriveGeneric
 > #-}
 > 
-> module Kreb.Struct.FingerTreeZip.Test (
+> module Kreb.Struct.OnePointedList.Test (
 >     test_FingerTreeZip
 >   , test_Tape
 > ) where

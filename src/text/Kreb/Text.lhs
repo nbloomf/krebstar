@@ -11,3 +11,4 @@
 > import Kreb.Text.Glyph
 > import Kreb.Text.Buffer
 > import Kreb.Text.TextBox
+> import Kreb.Text.Cell

@@ -24,8 +24,7 @@ import Kreb.Text.Buffer
 import Kreb.Text.Glyph
 import Kreb.Editor.Panel
 import Kreb.Struct.FingerTree
-import Kreb.Struct.FingerTreeZip
-import Kreb.Struct.Seq
+import qualified Kreb.Struct.Seq as Seq
 
 
 
@@ -33,13 +32,13 @@ instance Valued Count Panel where
   value _ = Count 1
 
 data Tabs = Tabs
-  { unTabs :: Seq Panel
+  { unTabs :: Seq.Seq Panel
   } deriving (Eq, Show)
 
 setTabsDim
   :: (Int, Int) -> Tabs -> Tabs
 setTabsDim dim (Tabs ts) =
-  Tabs $ fmapSeq (setPanelDim dim) ts
+  Tabs $ Seq.fmapSeq (setPanelDim dim) ts
 
 
 
@@ -50,24 +49,24 @@ initTabs
   -> Int
   -> Tabs
 initTabs stdLib (w,h) t = Tabs
-  { unTabs = mkTapeFocus [] (initPanel stdLib (w,h) t) []
+  { unTabs = Seq.singleton (initPanel stdLib (w,h) t)
   }
 
 getActiveTab
   :: Tabs -> Maybe Panel
 getActiveTab (Tabs xs) =
-  headRead xs
+  Seq.readPoint xs
 
 updateRenderedTabs
   :: BufferRenderSettings -> GlyphRenderSettings -> EditorMode -> (Int, Int) -> Int -> Tabs -> Tabs
 updateRenderedTabs opts settings mode dim tab =
-  Tabs . headAlter (updateRenderedPanel opts settings mode dim tab) . unTabs
+  Tabs . Seq.alterPoint (updateRenderedPanel opts settings mode dim tab) . unTabs
 
 
 getAbsCursorPosTabs
   :: (Int, Int) -> EditorMode -> Tabs -> (Int, Int)
 getAbsCursorPosTabs dim mode tabs =
-  case headRead $ unTabs tabs of
+  case Seq.readPoint $ unTabs tabs of
     Nothing -> (0,0)
     Just ts -> getAbsCursorPosPanel dim mode ts
 
@@ -76,14 +75,14 @@ getAbsCursorPosTabs dim mode tabs =
 alterActivePanelTabs
   :: (Panel -> Panel) -> Tabs -> Tabs
 alterActivePanelTabs f =
-  Tabs . headAlter f . unTabs
+  Tabs . Seq.alterPoint f . unTabs
 
 queryActivePanelTabs
   :: (Panel -> a) -> Tabs -> Maybe a
 queryActivePanelTabs f =
-  fmap f . headRead . unTabs
+  fmap f . Seq.readPoint . unTabs
 
 
 
 debugShowTabs :: Tabs -> String
-debugShowTabs (Tabs ts) = debugShowSeq debugShowPanel ts
+debugShowTabs (Tabs ts) = Seq.debugShowSeq debugShowPanel ts

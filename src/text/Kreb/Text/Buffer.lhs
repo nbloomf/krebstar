@@ -48,7 +48,7 @@ Exposed API
 >   , unCells
 > 
 >   -- * Constructors
->   , makeEmptyBuffer
+>   , empty
 >   , makeListBuffer
 
 >   , defBuffer
@@ -140,85 +140,10 @@ Exposed API
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.MeasureText
 > import Kreb.Text.Glyph
+> import Kreb.Text.Cell
 
 
 
-
-
-Cell
-====
-
-> data Cell a
->   = Cell a
->   | EOF
->   deriving Eq
-> 
-> instance Functor Cell where
->   fmap f x = case x of
->     Cell c -> Cell (f c)
->     EOF -> EOF
-> 
-> instance
->   ( Arb a, IsChar a
->   ) => Arb (Cell a)
->   where
->     arb = cell <$> arb
-> 
-> instance Prune (Cell a) where
->   prune _ = []
-> 
-> instance
->   ( IsChar a
->   ) => Show (Cell a)
->   where
->     show x = case x of
->       Cell c -> concat
->         [ "(fromChar ", show (toChar c), ")" ]
->       EOF -> "eof"
-> 
-> cell :: (IsChar a) => Char -> Cell a
-> cell = Cell . fromChar
-> 
-> eof :: Cell a
-> eof = EOF
-> 
-> unCell :: Cell a -> Maybe a
-> unCell x = case x of
->   Cell c -> Just c
->   EOF -> Nothing
-> 
-> unCells :: [Cell a] -> [a]
-> unCells xs = case xs of
->   [] -> []
->   c:cs -> case c of
->     Cell a -> a : unCells cs
->     EOF -> unCells cs
-> 
-> instance
->   ( IsChar a
->   ) => IsChar (Cell a)
->   where
->     toChar x = case x of
->       Cell c -> toChar c
->       EOF -> '@'
->     fromChar = Cell . fromChar
-> 
-> instance
->   ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->   ) => Valued (MeasureText w t) (Cell a)
->   where
->     value x = case x of
->       Cell a -> value a
->       EOF -> MeasureText
->         { charCount          = 0
->         , byteCount          = 0
->         , logicalOffset      = LineCol 0 1
->         , logicalCoords      = LineCol 0 0
->         , screenOffset       = mkNoNewlines [(1, Fixed1)]
->         , screenCoords       = mkNoNewlines []
->         , hasEOF             = True
->         , hasTrailingNewline = False
->         }
 
 
 
@@ -253,53 +178,16 @@ A _buffer_ is just a zipped finger tree with value monoid `MeasureText w t` for 
 >   where
 >     prune (Buffer x) = Buffer <$> prune x
 
-Immediately we can give `Buffer` a `Tape` instance:
+> empty
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a
+> empty = Buffer $
+>   TPL.singleton (eof :: Cell a)
 
-> liftBuffer
->   :: (    TPL.TwoPointedList (MeasureText w t) (Cell a)
->        -> TPL.TwoPointedList (MeasureText w t) (Cell a)
->      )
->   -> Buffer w t a -> Buffer w t a
-> liftBuffer f = Buffer . f . unBuffer
-> 
 
-> {- 
-> instance
->   ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a
->   ) => Tape (Buffer w t) a
->   where
->     isEmpty :: Buffer w t a -> Bool
->     isEmpty = TPL.isEmptyTwoPointedList . unBuffer
-> 
->     mkTape :: [a] -> Buffer w t a
->     mkTape as =
->       Buffer $ mkTapeFTZ $ (map Cell as) ++ [eof]
-> 
->     mkTapeFocus
->       :: [a] -> a -> [a]
->       -> Buffer w t a
->     mkTapeFocus as x bs =
->       Buffer $ mkTapeFocusFTZ
->         (map Cell as) (Cell x) ((map Cell bs) ++ [eof])
-> 
->     unTape :: Buffer w t a -> [a]
->     unTape = unCells . unTapeFTZ . unBuffer
-> 
->     isAtInit :: Buffer w t a -> Bool
->     isAtInit = isAtInitFTZ . unBuffer
-> 
->     isAtLast :: Buffer w t a -> Bool
->     isAtLast = isAtLastFTZ . unBuffer
-> 
->     initRead :: Buffer w t a -> Maybe a
->     initRead = join . fmap unCell . initReadFTZ . unBuffer
-> 
->     lastRead :: Buffer w t a -> Maybe a
->     lastRead = join . fmap unCell . lastReadFTZ . unBuffer
-> 
->     headRead :: Buffer w t a -> Maybe a
->     headRead = join . fmap unCell . headReadFTZ . unBuffer
-> -}
+
+
 
 > isPointAtEnd
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
@@ -367,12 +255,7 @@ Constructors and destructors
 
 Our buffer constructors come in two flavors: constructors prefixed with `def` take the type parameters as inputs, while those prefixed with `mk` do not.
 
-> makeEmptyBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a
-> makeEmptyBuffer = Buffer $
->   TPL.singleton (eof :: Cell a)
+
 
 > makeListBuffer
 >   :: forall w t a
@@ -686,7 +569,7 @@ Note that the type variables `w` and `t` are bound on the right hand side of the
 > emptySizedBuffer width tab =
 >   withWidth width $ \(_ :: Proxy w) ->
 >     withTab tab $ \(_ :: Proxy t) ->
->       SizedBuffer (makeEmptyBuffer :: Buffer w t Glyph)
+>       SizedBuffer (empty :: Buffer w t Glyph)
 > 
 > makeSizedBuffer
 >   :: Int -> Int -> String -> SizedBuffer Glyph

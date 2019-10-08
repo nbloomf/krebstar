@@ -3,7 +3,7 @@
 > import Test.Tasty
 
 > import Kreb.Struct.FingerTree.Test
-> import Kreb.Struct.FingerTreeZip.Test
+> import Kreb.Struct.OnePointedList.Test
 > import Kreb.Struct.Seq.Test
 > import Kreb.Struct.RunLengthEncoding.Test
 

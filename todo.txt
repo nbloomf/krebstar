@@ -4,7 +4,6 @@
   - swap point and mark
   - one/twopointedlist and buffer can export the same names, use
     qualified imports instead of type classes.
-- Move cell to own module
 - Cell can be used to track several marks
 - signature of performAction should be
     -> (Maybe Signal, State)
@@ -15,8 +14,8 @@
 
 Refactoring
 - rename. FingerTreeZip -> OnePointedList
-- get rid of Tape class. don't need it.
-  - but need analogous tests in TwoPointedList
+- rewrite Tape tests for OnePointedList/TwoPointedList/Seq
+- Move sizedbuffer to own module
 
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
