@@ -40,7 +40,7 @@ Introduction
 > import Kreb.Text
 > import qualified Kreb.Text.Buffer as Buf
 > 
-> import Kreb.Struct.FingerTreeZip.Test
+> --import Kreb.Struct.FingerTreeZip.Test
 > 
 > import Kreb.Text.ScreenOffset.Test
 > import Kreb.Text.MeasureText.Test

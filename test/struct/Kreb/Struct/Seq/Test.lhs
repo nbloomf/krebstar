@@ -34,7 +34,7 @@ There's not much to say about `Seq`.
 > import Kreb.Struct
 > 
 > import Kreb.Struct.FingerTree.Test
-> import Kreb.Struct.FingerTreeZip.Test
+> --import Kreb.Struct.FingerTreeZip.Test
 
 
 
@@ -57,6 +57,6 @@ We get all our `Seq` tests for free.
 > test_Seq :: TestTree
 > test_Seq =
 >   testGroup "Seq"
->     [ testGroup "Char"
->       [ test_Tape pChar pSeq ]
+>     [ -- testGroup "Char"
+>      -- [ test_Tape pChar pSeq ]
 >     ]

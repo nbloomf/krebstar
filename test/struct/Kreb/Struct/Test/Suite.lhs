@@ -11,7 +11,7 @@
 > kreb_struct_test_suite =
 >   testGroup "All Tests"
 >     [ test_FingerTree
->     , test_FingerTreeZip
+>     , test_OnePointedList
 >     , test_Seq
 >     , test_RunLengthEncoding
 >     ]

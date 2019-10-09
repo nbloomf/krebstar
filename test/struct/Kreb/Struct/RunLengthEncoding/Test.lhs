@@ -44,7 +44,7 @@ Introduction
 > import Kreb.Struct
 > 
 > import Kreb.Struct.FingerTree.Test
-> import Kreb.Struct.FingerTreeZip.Test
+> --import Kreb.Struct.FingerTreeZip.Test
 
 
 
