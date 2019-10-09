@@ -97,25 +97,29 @@ List with two distinguished positions, the _point_ and the _mark_.
 
 > makePointOnly
 >   :: ( Valued m a )
->   => [a] -> a -> [a] -> TwoPointedList m a
+>   => [a] -> a -> [a]
+>   -> TwoPointedList m a
 > makePointOnly as x bs =
 >   PointOnly (fromListFT as, x, fromListFT bs)
 
 > makeCoincide
 >   :: ( Valued m a )
->   => [a] -> a -> [a] -> TwoPointedList m a
+>   => [a] -> a -> [a]
+>   -> TwoPointedList m a
 > makeCoincide as x bs =
 >   Coincide (fromListFT as, x, fromListFT bs)
 
 > makePointMark
 >   :: ( Valued m a )
->   => [a] -> a -> [a] -> a -> [a] -> TwoPointedList m a
+>   => [a] -> a -> [a] -> a -> [a]
+>   -> TwoPointedList m a
 > makePointMark as x bs y cs = PointMark
 >   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
 
 > makeMarkPoint
 >   :: ( Valued m a )
->   => [a] -> a -> [a] -> a -> [a] -> TwoPointedList m a
+>   => [a] -> a -> [a] -> a -> [a]
+>   -> TwoPointedList m a
 > makeMarkPoint as x bs y cs = PointMark
 >   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
 

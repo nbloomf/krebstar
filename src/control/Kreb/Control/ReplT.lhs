@@ -46,11 +46,11 @@ We can wrap these 5 functions in a data type for convenience.
 > -- * @m@   : effect monad
 > 
 > data ReplParams act env sig st m = ReplParams
->   { _Init  :: env -> st -> m (Either sig st)        -- | Startup
->   , _Read  :: env -> st -> m act                    -- | Get input
->   , _Eval  :: env -> st -> act -> m (Either sig st) -- | Update state
->   , _Print :: env -> st -> m ()                     -- | Send output
->   , _Exit  :: sig -> m ()                           -- | Cleanup
+>   { _Init  :: env -> st -> m (Either sig st)        --  | Startup
+>   , _Read  :: env -> st -> m act                    --  | Get input
+>   , _Eval  :: env -> st -> act -> m (Either sig st) --  | Update state
+>   , _Print :: env -> st -> m ()                     --  | Send output
+>   , _Exit  :: sig -> m ()                           --  | Cleanup
 >   }
 
 Note that our REPL functions collectively use several type parameters which the application will have to specify. These include the type of _actions_ understood by the Read phase and accepted by the Eval phase, as well as a type of _signals_ for communicating out-of-band status such as exceptions. We also have read-only and mutable state to be used in the underlying monad, `m`.

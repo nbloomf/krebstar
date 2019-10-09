@@ -13,9 +13,9 @@
 - show result stack in interaction log
 
 Refactoring
-- rename. FingerTreeZip -> OnePointedList
 - rewrite Tape tests for OnePointedList/TwoPointedList/Seq
 - Move sizedbuffer to own module
+- move count to Seq(?)
 
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
@@ -44,6 +44,11 @@ Refactoring
 - rename lang to kreblang
 - rename krebed to krebedit
 - start standard library
+
+list dependencies
+- pandoc
+- pandoc-sidenote
+- shelltestrunner
 
 
 options

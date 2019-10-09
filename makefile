@@ -1,5 +1,7 @@
 SOURCES := \
-  src/control/Kreb/Control/ReplT.lhs
+  src/control/Kreb/Control/ReplT.lhs \
+  src/struct/Kreb/Struct/FingerTree.lhs \
+  src/struct/Kreb/Struct/OnePointedList.lhs
 
 EXTRADOC := \
   aux/section/Rationale.md
@@ -47,6 +49,7 @@ $(EXTRADOC): FORCE
 	@pandoc \
 	  --from markdown+literate_haskell --to html \
 	  --mathjax --section-divs \
+	  --filter pandoc-sidenote \
 	  --data-dir=aux --template=tufte.html5 \
 	  --css ../style.css \
 	  --output docs/html/$(patsubst %.md,%.html,$(notdir $@)) \
@@ -57,6 +60,7 @@ $(SOURCES): FORCE
 	@pandoc \
 	  --from markdown+literate_haskell --to html \
 	  --mathjax --section-divs \
+	  --filter pandoc-sidenote \
 	  --data-dir=aux --template=tufte.html5 \
 	  --css ../style.css \
 	  --output docs/html/$(patsubst %.lhs,%.html,$(notdir $@)) \

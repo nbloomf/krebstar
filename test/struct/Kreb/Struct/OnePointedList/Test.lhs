@@ -96,7 +96,7 @@ Testing functions which convert between zipped finger trees and lists:
 >   -> Check
 > check_OnePointedList_unTape_mkTape _ _ xs =
 >   check $
->     let z = mkTapeFTZ xs :: OnePointedList m a
+>     let z = makeFromList xs :: OnePointedList m a
 >     in xs == unTapeFTZ z
 > 
 > test_OnePointedList_unTape_mkTape :: TestTree
@@ -119,7 +119,7 @@ Testing functions which convert between zipped finger trees and lists:
 > check_OnePointedList_mkTape_unTape _ _ xs =
 >   check $
 >     (moveToInit xs)
->       == mkTapeFTZ (unTapeFTZ xs)
+>       == makeFromList (unTapeFTZ xs)
 > 
 > test_OnePointedList_mkTape_unTape :: TestTree
 > test_OnePointedList_mkTape_unTape =
@@ -161,7 +161,7 @@ For nonempty zipped finger trees, the `isAtInit` predicate is true if and only i
 >   -> [a] -> a -> [a]
 >   -> Check
 > check_OnePointedList_isAtInit_mkTapeFocus _ _ as x bs =
->   let w = mkTapeFocusFTZ as x bs :: OnePointedList m a in
+>   let w = makePoint as x bs :: OnePointedList m a in
 >   check $
 >     (as == []) == (isAtInit w)
 > 
@@ -242,22 +242,22 @@ We also check some concrete input/output pairs for `initAlter`.
 >       (uncurry3 $ check_OnePointedList_initAlter_examples pChar pCount)
 >       [ ( "nonempty prefix"
 >         , ( \c -> if c == 'a' then 'z' else c
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ ['z', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint ['z', 'b'] 'c' ['d']
 >           )
 >         )
 > 
 >       , ( "empty prefix"
 >         , ( \c -> if c == 'a' then 'z' else c
->           , mkTapeFocusFTZ [] 'a' ['b', 'c', 'd']
->           , mkTapeFocusFTZ [] 'z' ['b', 'c', 'd']
+>           , makePoint [] 'a' ['b', 'c', 'd']
+>           , makePoint [] 'z' ['b', 'c', 'd']
 >           )
 >         )
 > 
 >       , ( "map fixes head"
 >         , ( \c -> if c == 'b' then 'z' else c
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b'] 'c' ['d']
 >           )
 >         )
 > 
@@ -323,13 +323,13 @@ Some concrete examples for `initRead`:
 >         )
 > 
 >       , ( "not empty, not at head"
->         , ( mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
+>         , ( makePoint ['a'] 'b' ['c', 'd']
 >           , Just 'a'
 >           )
 >         )
 > 
 >       , ( "not empty, at head"
->         , ( mkTapeFocusFTZ [] 'a' ['b', 'c', 'd']
+>         , ( makePoint [] 'a' ['b', 'c', 'd']
 >           , Just 'a'
 >           )
 >         )
@@ -381,25 +381,25 @@ And some examples for `initDelete`:
 >         )
 > 
 >       , ( "not empty, not at init (1)"
->         , ( mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
->           , mkTapeFocusFTZ [] 'b' ['c', 'd']
+>         , ( makePoint ['a'] 'b' ['c', 'd']
+>           , makePoint [] 'b' ['c', 'd']
 >           )
 >         )
 > 
 >       , ( "not empty, not at init (2)"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d', 'e']
->           , mkTapeFocusFTZ ['b'] 'c' ['d', 'e']
+>         , ( makePoint ['a', 'b'] 'c' ['d', 'e']
+>           , makePoint ['b'] 'c' ['d', 'e']
 >           )
 >         )
 > 
 >       , ( "not empty, at init"
->         , ( mkTapeFocusFTZ [] 'a' ['b', 'c', 'd', 'e']
->           , mkTapeFocusFTZ [] 'b' ['c', 'd', 'e']
+>         , ( makePoint [] 'a' ['b', 'c', 'd', 'e']
+>           , makePoint [] 'b' ['c', 'd', 'e']
 >           )
 >         )
 > 
 >       , ( "singleton"
->         , ( mkTapeFocusFTZ [] 'a' []
+>         , ( makePoint [] 'a' []
 >           , empty
 >           )
 >         )
@@ -446,20 +446,20 @@ We can also test `initMove` on some specific cases.
 >     [ testKrebCases "Count/Char"
 >       (uncurry $ check_OnePointedList_initMove_examples pChar pCount)
 >       [ ( "empty"
->         , ( mkTapeFTZ []
->           , mkTapeFTZ []
+>         , ( makeFromList []
+>           , makeFromList []
 >           )
 >         )
 > 
 >       , ( "not empty, not at front"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ [] 'a' ['b', 'c', 'd']
+>         , ( makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint [] 'a' ['b', 'c', 'd']
 >           )
 >         )
 > 
 >       , ( "not empty, at front"
->         , ( mkTapeFocusFTZ [] 'a' ['b', 'c', 'd']
->           , mkTapeFocusFTZ [] 'a' ['b', 'c', 'd']
+>         , ( makePoint [] 'a' ['b', 'c', 'd']
+>           , makePoint [] 'a' ['b', 'c', 'd']
 >           )
 >         )
 >       ]
@@ -561,22 +561,22 @@ We also check some concrete input/output pairs for `lastAlter`.
 >       (uncurry3 $ check_OnePointedList_lastAlter_examples pChar pCount)
 >       [ ( "nonempty prefix"
 >         , ( \c -> if c == 'd' then 'z' else c
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['z']
+>           , makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b'] 'c' ['z']
 >           )
 >         )
 > 
 >       , ( "empty prefix"
 >         , ( \c -> if c == 'd' then 'z' else c
->           , mkTapeFocusFTZ [] 'a' ['b', 'c', 'd']
->           , mkTapeFocusFTZ [] 'a' ['b', 'c', 'z']
+>           , makePoint [] 'a' ['b', 'c', 'd']
+>           , makePoint [] 'a' ['b', 'c', 'z']
 >           )
 >         )
 > 
 >       , ( "map fixes last"
 >         , ( \c -> if c == 'b' then 'z' else c
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b'] 'c' ['d']
 >           )
 >         )
 > 
@@ -642,13 +642,13 @@ Some concrete examples for `lastRead`:
 >         )
 > 
 >       , ( "not empty, not at end"
->         , ( mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
+>         , ( makePoint ['a'] 'b' ['c', 'd']
 >           , Just 'd'
 >           )
 >         )
 > 
 >       , ( "not empty, at end"
->         , ( mkTapeFocusFTZ ['a', 'b', 'c'] 'd' []
+>         , ( makePoint ['a', 'b', 'c'] 'd' []
 >           , Just 'd'
 >           )
 >         )
@@ -700,25 +700,25 @@ And some examples for `lastDelete`:
 >         )
 > 
 >       , ( "not empty, not at last (1)"
->         , ( mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
->           , mkTapeFocusFTZ ['a'] 'b' ['c']
+>         , ( makePoint ['a'] 'b' ['c', 'd']
+>           , makePoint ['a'] 'b' ['c']
 >           )
 >         )
 > 
 >       , ( "not empty, not at last (2)"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d', 'e']
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
+>         , ( makePoint ['a', 'b'] 'c' ['d', 'e']
+>           , makePoint ['a', 'b'] 'c' ['d']
 >           )
 >         )
 > 
 >       , ( "not empty, at last"
->         , ( mkTapeFocusFTZ ['a', 'b', 'c'] 'd' []
->           , mkTapeFocusFTZ ['a', 'b'] 'c' []
+>         , ( makePoint ['a', 'b', 'c'] 'd' []
+>           , makePoint ['a', 'b'] 'c' []
 >           )
 >         )
 > 
 >       , ( "singleton"
->         , ( mkTapeFocusFTZ [] 'a' []
+>         , ( makePoint [] 'a' []
 >           , empty
 >           )
 >         )
@@ -765,20 +765,20 @@ We can also test `lastMove` on some specific cases.
 >     [ testKrebCases "Count/Char"
 >       (uncurry $ check_OnePointedList_lastMove_examples pChar pCount)
 >       [ ( "empty"
->         , ( mkTapeFTZ []
->           , mkTapeFTZ []
+>         , ( makeFromList []
+>           , makeFromList []
 >           )
 >         )
 > 
 >       , ( "not empty, not at front"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ ['a', 'b', 'c'] 'd' []
+>         , ( makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint ['a', 'b', 'c'] 'd' []
 >           )
 >         )
 > 
 >       , ( "not empty, at end"
->         , ( mkTapeFocusFTZ ['a', 'b', 'c'] 'd' []
->           , mkTapeFocusFTZ ['a', 'b', 'c'] 'd' []
+>         , ( makePoint ['a', 'b', 'c'] 'd' []
+>           , makePoint ['a', 'b', 'c'] 'd' []
 >           )
 >         )
 >       ]
@@ -893,14 +893,14 @@ Now test for functions which manipulate the read head.
 >     [ testKrebCases "Count/Char"
 >       (uncurry $ check_OnePointedList_headMoveR_examples pChar pCount)
 >       [ ( "in middle"
->         , ( mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
+>         , ( makePoint ['a'] 'b' ['c', 'd']
+>           , makePoint ['a', 'b'] 'c' ['d']
 >           )
 >         )
 > 
 >       , ( "at last"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' []
->           , mkTapeFocusFTZ ['a', 'b'] 'c' []
+>         , ( makePoint ['a', 'b'] 'c' []
+>           , makePoint ['a', 'b'] 'c' []
 >           )
 >         )
 >       ]
@@ -925,14 +925,14 @@ Now test for functions which manipulate the read head.
 >     [ testKrebCases "Count/Char"
 >       (uncurry $ check_OnePointedList_headMoveL_examples pChar pCount)
 >       [ ( "in middle"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d']
->           , mkTapeFocusFTZ ['a'] 'b' ['c', 'd']
+>         , ( makePoint ['a', 'b'] 'c' ['d']
+>           , makePoint ['a'] 'b' ['c', 'd']
 >           )
 >         )
 > 
 >       , ( "at last"
->         , ( mkTapeFocusFTZ [] 'a' ['b', 'c']
->           , mkTapeFocusFTZ [] 'a' ['b', 'c']
+>         , ( makePoint [] 'a' ['b', 'c']
+>           , makePoint [] 'a' ['b', 'c']
 >           )
 >         )
 >       ]
@@ -999,14 +999,14 @@ Examples of `headDeleteL`:
 >     [ testKrebCases "Count/Char"
 >       (uncurry $ check_OnePointedList_headDeleteL_examples pChar pCount)
 >       [ ( "inner"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d', 'e']
->           , mkTapeFocusFTZ ['a'] 'c' ['d', 'e']
+>         , ( makePoint ['a', 'b'] 'c' ['d', 'e']
+>           , makePoint ['a'] 'c' ['d', 'e']
 >           )
 >         )
 > 
 >       , ( "at init"
->         , ( mkTapeFocusFTZ [] 'a' ['b', 'c', 'd', 'e']
->           , mkTapeFocusFTZ [] 'b' ['c', 'd', 'e']
+>         , ( makePoint [] 'a' ['b', 'c', 'd', 'e']
+>           , makePoint [] 'b' ['c', 'd', 'e']
 >           )
 >         )
 >       ]
@@ -1031,14 +1031,14 @@ Examples of `headDeleteR`:
 >     [ testKrebCases "Count/Char"
 >       (uncurry $ check_OnePointedList_headDeleteR_examples pChar pCount)
 >       [ ( "inner"
->         , ( mkTapeFocusFTZ ['a', 'b'] 'c' ['d', 'e']
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['e']
+>         , ( makePoint ['a', 'b'] 'c' ['d', 'e']
+>           , makePoint ['a', 'b'] 'c' ['e']
 >           )
 >         )
 > 
 >       , ( "at last"
->         , ( mkTapeFocusFTZ ['a', 'b', 'c', 'd'] 'e' []
->           , mkTapeFocusFTZ ['a', 'b', 'c'] 'd' []
+>         , ( makePoint ['a', 'b', 'c', 'd'] 'e' []
+>           , makePoint ['a', 'b', 'c'] 'd' []
 >           )
 >         )
 >       ]
@@ -1064,22 +1064,22 @@ Examples of `headInsertL`:
 >       (uncurry3 $ check_OnePointedList_headInsertL_examples pChar pCount)
 >       [ ( "middle"
 >         , ( 'z'
->           , mkTapeFocusFTZ ['a'] 'b' ['c']
->           , mkTapeFocusFTZ ['a', 'z'] 'b' ['c']
+>           , makePoint ['a'] 'b' ['c']
+>           , makePoint ['a', 'z'] 'b' ['c']
 >           )
 >         )
 > 
 >       , ( "init"
 >         , ( 'z'
->           , mkTapeFocusFTZ [] 'a' ['b', 'c']
->           , mkTapeFocusFTZ ['z'] 'a' ['b', 'c']
+>           , makePoint [] 'a' ['b', 'c']
+>           , makePoint ['z'] 'a' ['b', 'c']
 >           )
 >         )
 > 
 >       , ( "last"
 >         , ( 'z'
->           , mkTapeFocusFTZ ['a', 'b'] 'c' []
->           , mkTapeFocusFTZ ['a', 'b', 'z'] 'c' []
+>           , makePoint ['a', 'b'] 'c' []
+>           , makePoint ['a', 'b', 'z'] 'c' []
 >           )
 >         )
 >       ]
@@ -1105,22 +1105,22 @@ Examples of `headInsertR`:
 >       (uncurry3 $ check_OnePointedList_headInsertR_examples pChar pCount)
 >       [ ( "middle"
 >         , ( 'z'
->           , mkTapeFocusFTZ ['a'] 'b' ['c']
->           , mkTapeFocusFTZ ['a'] 'b' ['z', 'c']
+>           , makePoint ['a'] 'b' ['c']
+>           , makePoint ['a'] 'b' ['z', 'c']
 >           )
 >         )
 > 
 >       , ( "init"
 >         , ( 'z'
->           , mkTapeFocusFTZ [] 'a' ['b', 'c']
->           , mkTapeFocusFTZ [] 'a' ['z', 'b', 'c']
+>           , makePoint [] 'a' ['b', 'c']
+>           , makePoint [] 'a' ['z', 'b', 'c']
 >           )
 >         )
 > 
 >       , ( "last"
 >         , ( 'z'
->           , mkTapeFocusFTZ ['a', 'b'] 'c' []
->           , mkTapeFocusFTZ ['a', 'b'] 'c' ['z']
+>           , makePoint ['a', 'b'] 'c' []
+>           , makePoint ['a', 'b'] 'c' ['z']
 >           )
 >         )
 >       ]
@@ -1199,7 +1199,7 @@ Split and integrate
 >   -> Check
 > check_OnePointedList_split_integrate _ _ p xs =
 >   check $ if (apFun p mempty == False) && (apFun p (value xs) == True)
->     then xs == integrateFTZ (splitFTZ (apFun p) xs)
+>     then xs == integrate (splitFTZ (apFun p) xs)
 >     else True
 > 
 > test_OnePointedList_split_integrate :: TestTree

@@ -252,37 +252,37 @@ These constructors are not exposed outside this module since they are only used 
 Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clarity):
 
 > instance Foldable (Some m) where
->  toList
->    :: Some m a -> [a]
->  toList w = case w of
->    Only1 _ a1 -> [a1]
->    Only2 _ a1 a2 -> [a1, a2]
->    Only3 _ a1 a2 a3 -> [a1, a2, a3]
->    Only4 _ a1 a2 a3 a4 -> [a1, a2, a3, a4]
+>   toList
+>     :: Some m a -> [a]
+>   toList w = case w of
+>     Only1 _ a1 -> [a1]
+>     Only2 _ a1 a2 -> [a1, a2]
+>     Only3 _ a1 a2 a3 -> [a1, a2, a3]
+>     Only4 _ a1 a2 a3 a4 -> [a1, a2, a3, a4]
 > 
->  foldr
->    :: (a -> b -> b) -> b -> Some m a -> b
->  foldr f b w = case w of
->    Only1 _ a1 ->
->      f a1 b
->    Only2 _ a1 a2 ->
->      f a1 (f a2 b)
->    Only3 _ a1 a2 a3 ->
->      f a1 (f a2 (f a3 b))
->    Only4 _ a1 a2 a3 a4 ->
->      f a1 (f a2 (f a3 (f a4 b)))
+>   foldr
+>     :: (a -> b -> b) -> b -> Some m a -> b
+>   foldr f b w = case w of
+>     Only1 _ a1 ->
+>       f a1 b
+>     Only2 _ a1 a2 ->
+>       f a1 (f a2 b)
+>     Only3 _ a1 a2 a3 ->
+>       f a1 (f a2 (f a3 b))
+>     Only4 _ a1 a2 a3 a4 ->
+>       f a1 (f a2 (f a3 (f a4 b)))
 > 
->  foldl
->    :: (b -> a -> b) -> b -> Some m a -> b
->  foldl f b w = case w of
->    Only1 _ a1 ->
->      f b a1
->    Only2 _ a1 a2 ->
->      f (f b a1) a2
->    Only3 _ a1 a2 a3 ->
->      f (f (f b a1) a2) a3
->    Only4 _ a1 a2 a3 a4 ->
->      f (f (f (f b a1) a2) a3) a4
+>   foldl
+>     :: (b -> a -> b) -> b -> Some m a -> b
+>   foldl f b w = case w of
+>     Only1 _ a1 ->
+>       f b a1
+>     Only2 _ a1 a2 ->
+>       f (f b a1) a2
+>     Only3 _ a1 a2 a3 ->
+>       f (f (f b a1) a2) a3
+>     Only4 _ a1 a2 a3 a4 ->
+>       f (f (f (f b a1) a2) a3) a4
 
 This instance is mainly used as a helper for defining the instance for `FingerTree`.
 

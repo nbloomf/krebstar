@@ -420,6 +420,45 @@ executable lang
 
 
 
+test-suite doctests
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  build-tools: alex, happy
+  ghc-options:
+    -threaded
+  main-is: Test.lhs
+  other-modules:
+      Kreb.Lang.Lexer
+    , Kreb.Lang.Parser
+    , Kreb.Lang.Error
+    , Kreb.Lang.Expr
+    , Kreb.Lang.LexicalGrammar
+    , Kreb.Lang.Loc 
+    , Kreb.Lang.Module
+    , Kreb.Lang.PrettyPrint
+    , Kreb.Lang.Runtime
+    , Kreb.Lang.Type
+    , Kreb.Lang.Value
+  build-depends:
+      base >4 && <5
+    , kreb-check
+    , kreb-reflect
+    , kreb-struct
+    , kreb-text
+    , kreb-format
+    , kreb-lang
+    , kreb-editor
+    , doctest
+    , doctest-discover
+    , containers >=0.6.0.1
+    , text >=1.2.3.1
+    , array >=0.5.3.0
+  hs-source-dirs:
+      test/doctest
+    , src/lang
+
+
+
 test-suite kreb-test
   default-language: Haskell2010
   type: exitcode-stdio-1.0
