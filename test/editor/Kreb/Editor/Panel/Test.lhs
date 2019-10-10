@@ -34,7 +34,7 @@
 >     Just x = renderedPanel $ updateRenderedPanel
 >       defaultBufferRenderSettings defaultGlyphRenderSettings NormalMode dim tab $
 >       alterPanel acts (initPanel "fakestdlib" dim tab)
->   in checkAll
+>   in claimAll
 >     [ claimEqualNamed "lineLabels: "
 >         (lineLabels render) (lineLabels x)
 >     , claimEqualNamed "labelSep: "

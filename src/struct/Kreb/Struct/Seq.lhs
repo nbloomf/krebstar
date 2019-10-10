@@ -125,7 +125,7 @@ And now the heavy lifting can be offloaded to `OnePointedList`. Note that, since
 >       Seq $ mkTapeFocusFTZ as x bs
 > 
 >     unTape :: Seq a -> [a]
->     unTape = unTapeFTZ . unSeq
+>     unTape = toList . unSeq
 > 
 >     isAtInit :: Seq a -> Bool
 >     isAtInit = isAtInitFTZ . unSeq

@@ -111,6 +111,20 @@ Outcome of a single test case
 > reject :: Reason -> Check
 > reject msg = check $ Reject msg []
 
+> claimTrue
+>   :: Bool -> Check
+> claimTrue p =
+>   if p
+>     then accept
+>     else reject "expected True but got False"
+> 
+> claimFalse
+>   :: Bool -> Check
+> claimFalse p =
+>   if p
+>     then reject "expected False but got True"
+>     else accept
+
 > claimEqual
 >   :: ( Eq a, Show a )
 >   => a -> a -> Check
@@ -169,10 +183,10 @@ Outcome of a single test case
 >       Accept -> y
 >       _ -> x
 > 
-> checkAll
+> claimAll
 >   :: (Checkable check)
 >   => [check] -> Check
-> checkAll = foldr (.&&.) accept
+> claimAll = foldr (.&&.) accept
 > 
 > (.||.) :: Check -> Check -> Check
 > (Check x) .||. (Check y) = Check $ do
@@ -181,8 +195,8 @@ Outcome of a single test case
 >     Accept -> x
 >     _ -> y
 > 
-> checkAny :: [Check] -> Check
-> checkAny = foldr (.||.) accept
+> claimAny :: [Check] -> Check
+> claimAny = foldr (.||.) accept
 
 
 

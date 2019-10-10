@@ -13,6 +13,7 @@
 - show result stack in interaction log
 
 Refactoring
+- move Valued to own module
 - rewrite Tape tests for OnePointedList/TwoPointedList/Seq
 - Move sizedbuffer to own module
 - move count to Seq(?)

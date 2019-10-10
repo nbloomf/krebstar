@@ -173,6 +173,9 @@ Now lets define a concrete monoid and `Valued` instance for testing. Note that w
 > instance Valued Count Char where
 >   value _ = Count 1
 > 
+> instance Valued Count Bool where
+>   value _ = Count 1
+> 
 > instance
 >   ( Valued Count a
 >   ) => Valued Count (a,b)

@@ -50,7 +50,7 @@
 >   let Id actual = runRuntime (interpretAll cs) (initRuntimeState (const Nothing) (const Nothing)) in
 >   case (result, actual) of
 >     (Left err1, Left err2) -> claimEqual err1 err2
->     (Right st1, Right (st2, env2)) -> checkAll
+>     (Right st1, Right (st2, env2)) -> claimAll
 >       [ claimEqual st1 (_rtStack env2) ]
 
 

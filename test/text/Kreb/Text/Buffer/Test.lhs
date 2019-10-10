@@ -1201,7 +1201,7 @@ Take Line
 >     f zs = fromListFT $ map (fmap fromChar) zs
 > 
 >     (css, ds) = takeLines h (f xs)
->   in checkAll
+>   in claimAll
 >     [ check (length css <= h)
 >     , claimEqual css (map f uss)
 >     , claimEqual ds (f vs)

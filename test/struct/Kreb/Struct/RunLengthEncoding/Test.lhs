@@ -52,9 +52,6 @@ Introduction
 Test Helpers
 ------------
 
-> instance Valued Count Bool where
->   value _ = Count 1
-
 > instance Semigroup Int where
 >   (<>) = (+)
 > 

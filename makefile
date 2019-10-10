@@ -13,7 +13,7 @@ STYLES := \
 
 all: test docs install
 
-test: generative golden
+test: generative golden doctests
 
 
 
@@ -24,6 +24,10 @@ golden: FORCE
 generative: FORCE
 	@echo 'Running generative tests...'
 	@stack test krebstar:kreb-test
+
+doctests: FORCE
+	@echo 'Running doctests...'
+	@stack test krebstar:doctests
 
 install: FORCE
 	@echo 'Installing...'

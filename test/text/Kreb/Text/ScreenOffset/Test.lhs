@@ -534,7 +534,7 @@ The widths of the taken chunks are bounded above.
 >     , ("width >= 2", width >= 2)
 >     ] $
 >   let (as,_) = takeChunks width tab xs in
->     checkAll $ map checkBound as
+>     claimAll $ map checkBound as
 >   where
 >     checkBound zs =
 >       let w = spanWidth tab zs in
@@ -562,7 +562,7 @@ The widths of the taken chunks are bounded below.
 >     , ("width >= 2", width >= 2)
 >     ] $
 >   let (as,_) = takeChunks width tab xs in
->     checkAll $ map checkBound as
+>     claimAll $ map checkBound as
 >   where
 >     checkBound zs =
 >       let w = spanWidth tab zs in

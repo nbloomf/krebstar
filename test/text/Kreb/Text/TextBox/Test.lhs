@@ -235,7 +235,7 @@ Test Helpers
 >     h = getTextBoxHeight box
 >     (u,v) = getTextBoxCursor box
 >     (x,y) = getTextBoxFocusScreenCoords box
->   in checkAll
+>   in claimAll
 >     [ if x == u
 >         then accept
 >         else reject $ concat
@@ -275,7 +275,7 @@ Cursor
 >   -> Check
 > prop_TextBox_cursor box_ =
 >   let box = mk box_ in
->   checkAll
+>   claimAll
 >     [ hasCoherentCursor box
 >     , cursorInBounds box
 >     , cursorOnCell box
@@ -315,7 +315,7 @@ Insert One Character
 >       make_TextBox_insert_one_char dim tab x
 >     padC = padQuad (w,h) (mkGlyph ' ')
 >     padL xs = take h $ xs ++ repeat Nothing
->   in checkAll
+>   in claimAll
 >     [ claimEqual labels $
 >         padL $ case (h, toChar c) of
 >           (1, '\n') -> [Just 1]
@@ -375,7 +375,7 @@ Insert many 'a's
 >       make_TextBox_insert_many_as dim tab k
 >     padC = padQuad (w,h) (mkGlyph ' ')
 >     padL xs = take h $ xs ++ repeat Nothing
->   in checkAll
+>   in claimAll
 >     [ heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box
@@ -420,7 +420,7 @@ Insert only newlines
 >       make_TextBox_insert_some_newlines dim tab k
 >     padC = padQuad (w,h) (mkGlyph ' ')
 >     padL xs = take h $ xs ++ repeat Nothing
->   in checkAll
+>   in claimAll
 >     [ claimEqual labels $ padL
 >         (map Just [(max (u-h+z) 0)..u])
 >     , claimEqual (map (map fst) lines) $ padC
@@ -463,7 +463,7 @@ Insert some, then left
 >       make_TextBox_insert_some_then_left dim tab k
 >     padC = padQuad (w,h) (mkGlyph ' ')
 >     padL xs = take h $ xs ++ repeat Nothing
->   in checkAll
+>   in claimAll
 >     [ claimEqual labels $ padL (take h
 >         (Just 0 : (replicate q Nothing)))
 >     , claimEqual (map (map fst) lines) $ padC (take h
@@ -507,7 +507,7 @@ Insert some, then backspace
 >       make_TextBox_insert_some_then_backspace dim tab k b
 >     padC = padQuad (w,h) (mkGlyph ' ')
 >     padL xs = take h $ xs ++ repeat Nothing
->   in checkAll
+>   in claimAll
 >     [ claimEqual labels $ padL [Just 0]
 >     , claimEqual (map (map fst) lines) $ padC [[]]
 >     , heightIs box h
@@ -549,7 +549,7 @@ Insert no characters
 >       make_TextBox_insert_no_chars act dim tab
 >     padC = padQuad (w,h) (mkGlyph ' ')
 >     padL xs = take h $ xs ++ repeat Nothing
->   in checkAll
+>   in claimAll
 >     [ claimEqual labels $ padL [Just 0]
 >     , claimEqual (map (map fst) lines) $ padC [[]]
 >     , hasCoherentCursor box
@@ -582,7 +582,7 @@ Resize
 >     box1 = mk box
 >     (Width_ u, Positive v) = dim
 >     box2 = alterTextBox [TextBoxResize (u,v)] box1
->   in checkAll
+>   in claimAll
 >     [ heightIs box2 v
 >     , widthIs box2 u
 >     , claimEqual
@@ -610,7 +610,7 @@ Action examples
 >   let
 >     DebugTextBox labels lines box =
 >       debugTextBox $ mkTextBox dim tab acts
->   in checkAll
+>   in claimAll
 >     [ claimEqual labels labels'
 >     , claimEqual (map (map fst) lines) (map (map fromChar) lines')
 >     , claimEqual (textboxCursor box) cursor
