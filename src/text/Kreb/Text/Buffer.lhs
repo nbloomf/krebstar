@@ -261,7 +261,7 @@ Our buffer constructors come in two flavors: constructors prefixed with `def` ta
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => [a] -> Buffer w t a
-> makeListBuffer xs = Buffer $ TPL.makeTwoPointedList $ concat
+> makeListBuffer xs = Buffer $ TPL.makeFromList $ concat
 >   [ map Cell xs, [ eof :: Cell a ] ]
 
 Constructing buffers with a specific structure for testing.

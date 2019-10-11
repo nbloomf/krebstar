@@ -62,8 +62,7 @@ OnePointedList Test Suite
 >         "isEmpty (singleton a) == False" $
 >         \(a :: a) ->
 >           let as = singleton a :: OnePointedList m a
->           in claimFalse
->             (isEmpty as)
+>           in claimFalse (isEmpty as)
 > 
 >     , testKreb
 >         "readInit (insertInit a as) === Just a" $

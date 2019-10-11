@@ -1,20 +1,46 @@
+---
+title: Two-Pointed Lists
+---
+
+::: contents
+* [Higher Derivatives](#higher-derivatives): A type of two-hole contexts
+* [Constructors](#constructors): Building examples
+* [Class Instances](#class-instances): Code for free
+* [Queries](#queries): Extracting value from a two-pointed list
+:::
+
+
+
+::: frontmatter
+
 > {-# LANGUAGE
 >     MultiParamTypeClasses
->   , FlexibleInstances
 >   , ScopedTypeVariables
+>   , FlexibleInstances
 > #-}
 
-List with two distinguished positions, the _point_ and the _mark_.
-
 > module Kreb.Struct.TwoPointedList where
-
-
+> 
 > import qualified Data.Foldable as Fold
 > import Data.List (unwords)
 > 
-> import Kreb.Check ( Arb(..), Prune(..), CoArb(..), pickFrom5 )
+> import Kreb.Check
 > import Kreb.Struct.FingerTree
 
+:::
+
+
+
+Higher Derivatives
+------------------
+
+In `OnePointedList`, we saw how a certain concept of _derivative_ lets us systematically construct a type of one-hole contexts over some other type. Specifically, we defined a data type that behaved sort of like a list, but with a movable read head we could use to access items in the list. It's not terribly surprising that this process can be repeated, and higher derivatives give us contexts with more than one hole; more than one read head. This is useful for us because text buffers naturally have _two_ important positions: the location of the cursor, called the _point_, and a second location, called the _mark_, which is used for (say) highlighting text or delimiting the effects of an operation.
+
+In this module we'll develop a type of two-pointed lists. This code is analogous to that for one-pointed lists, and many of the functions have the same names. It's expected that we'll import this module qualified when we use it later.
+
+Calling this type the second derivative of the list functor is a little too simplistic. In a text buffer, we always want to have a point, but we may not care to have a mark. However the point and the mark (if present) should be independently mobile, so it may happen that the point and the mark are at the same position.
+
+With `OnePointedList`, we used a triple to model a distinguished list item with its left and right contexts. For `TwoHoleContexts` things are a little more complicated; if both the point and the mark are present, we need to keep track of which is "on the left" in the list (or if they are distinct at all). If the mark is not present then our type degenerates to `OnePointedList`. We can model this with the following definition.
 
 > data TwoPointedList m a
 >   = Vacant
@@ -27,6 +53,70 @@ List with two distinguished positions, the _point_ and the _mark_.
 >   | MarkPoint
 >       (FingerTree m a, a, FingerTree m a, a, FingerTree m a)
 >   deriving (Eq, Show)
+
+This is a little hairy! But consumers of this code should not have to worry about the details of how this type is implemented. The goal is to allow client code to treat a `TwoPointedList` like, well, a list of items with one and maybe a second read head.
+
+
+
+Constructors
+------------
+
+We have the usual `empty` and `singleton` constructors for list-like types.
+
+> empty
+>   ::TwoPointedList m a
+> empty = Vacant
+> 
+> singleton
+>   :: ( Valued m a )
+>   => a -> TwoPointedList m a
+> singleton a =
+>   PointOnly (mempty, a, mempty)
+
+We can also convert a list into a two-pointed list. This is analogous to `makeFromList` on one-pointed lists; the head of the input list becomes the point, and the tail the right context.
+
+> makeFromList
+>   :: ( Valued m a )
+>   => [a] -> TwoPointedList m a
+> makeFromList xs =
+>   case uncons $ fromListFT xs of
+>     Nothing -> Vacant
+>     Just (a, as) -> PointOnly (mempty, a, as)
+
+For testing purposes it will be handy to have constructors which allow precise placement of the point and the mark. In principle these should not be used in real code, although there's no harm in it.
+
+> makePointOnly
+>   :: ( Valued m a )
+>   => [a] -> a -> [a]
+>   -> TwoPointedList m a
+> makePointOnly as x bs =
+>   PointOnly (fromListFT as, x, fromListFT bs)
+> 
+> makeCoincide
+>   :: ( Valued m a )
+>   => [a] -> a -> [a]
+>   -> TwoPointedList m a
+> makeCoincide as x bs =
+>   Coincide (fromListFT as, x, fromListFT bs)
+> 
+> makePointMark
+>   :: ( Valued m a )
+>   => [a] -> a -> [a] -> a -> [a]
+>   -> TwoPointedList m a
+> makePointMark as x bs y cs = PointMark
+>   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
+> 
+> makeMarkPoint
+>   :: ( Valued m a )
+>   => [a] -> a -> [a] -> a -> [a]
+>   -> TwoPointedList m a
+> makeMarkPoint as x bs y cs = PointMark
+>   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
+
+
+
+Class Instances
+---------------
 
 > toList
 >   :: ( Valued m a )
@@ -41,87 +131,6 @@ List with two distinguished positions, the _point_ and the _mark_.
 >     [ Fold.toList as, [x], Fold.toList bs, [y], Fold.toList cs ]
 >   MarkPoint (as, x, bs, y, cs) -> concat
 >     [ Fold.toList as, [x], Fold.toList bs, [y], Fold.toList cs ]
-
-> instance
->   ( Arb a, Valued m a
->   ) => Arb (TwoPointedList m a)
->   where
->     arb = pickFrom5
->       ( pure Vacant
->       , PointOnly <$> arb
->       , Coincide <$> arb
->       , PointMark <$> arb
->       , MarkPoint <$> arb
->       )
-> 
-> instance
->   ( Prune a, Valued m a
->   ) => Prune (TwoPointedList m a)
->   where
->     prune w = case w of
->       Vacant -> []
->       PointOnly z -> concat
->         [ [ Vacant ]
->         , PointOnly <$> prune z
->         ]
->       Coincide z -> concat
->         [ [ Vacant, PointOnly z ]
->         , Coincide <$> prune z
->         ]
->       PointMark (as, x, bs, y, cs) -> concat
->         [ [ Vacant, Coincide (as, x, bs), Coincide (bs, y, cs) ]
->         , PointMark <$> prune (as, x, bs, y, cs)
->         ]
->       MarkPoint (as, x, bs, y, cs) -> concat
->         [ [ Vacant, Coincide (as, x, bs), Coincide (bs, y, cs) ]
->         , MarkPoint <$> prune (as, x, bs, y, cs)
->         ]
-
-> empty
->   ::TwoPointedList m a
-> empty = Vacant
-
-> singleton
->   :: ( Valued m a )
->   => a -> TwoPointedList m a
-> singleton a =
->   PointOnly (mempty, a, mempty)
-
-> makeTwoPointedList
->   :: ( Valued m a )
->   => [a] -> TwoPointedList m a
-> makeTwoPointedList xs =
->   case uncons $ fromListFT xs of
->     Nothing -> Vacant
->     Just (a, as) -> PointOnly (mempty, a, as)
-
-> makePointOnly
->   :: ( Valued m a )
->   => [a] -> a -> [a]
->   -> TwoPointedList m a
-> makePointOnly as x bs =
->   PointOnly (fromListFT as, x, fromListFT bs)
-
-> makeCoincide
->   :: ( Valued m a )
->   => [a] -> a -> [a]
->   -> TwoPointedList m a
-> makeCoincide as x bs =
->   Coincide (fromListFT as, x, fromListFT bs)
-
-> makePointMark
->   :: ( Valued m a )
->   => [a] -> a -> [a] -> a -> [a]
->   -> TwoPointedList m a
-> makePointMark as x bs y cs = PointMark
->   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
-
-> makeMarkPoint
->   :: ( Valued m a )
->   => [a] -> a -> [a] -> a -> [a]
->   -> TwoPointedList m a
-> makeMarkPoint as x bs y cs = PointMark
->   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
 
 > fmapList
 >   :: forall m1 m2 a1 a2
@@ -152,6 +161,171 @@ List with two distinguished positions, the _point_ and the _mark_.
 >     PointMark (as, f x, fmapFT f bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->
 >     MarkPoint (as, f x, fmapFT f bs, y, cs)
+
+
+
+Queries
+-------
+
+> isEmpty
+>   :: TwoPointedList m a -> Bool
+> isEmpty w = case w of
+>   Vacant -> True
+>   _ -> False
+
+> isPointAtStart
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Bool
+> isPointAtStart w = case w of
+>   Vacant -> False
+>   PointOnly (as, _, _) -> case uncons as of
+>     Nothing -> True
+>     _ -> False
+>   Coincide (as, _, _) -> case uncons as of
+>     Nothing -> True
+>     _ -> False
+>   PointMark (as, _, _, _, _) -> case uncons as of
+>     Nothing -> True
+>     _ -> False
+>   MarkPoint _ -> False
+
+> isPointAtEnd
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Bool
+> isPointAtEnd w = case w of
+>   Vacant -> False
+>   PointOnly (_, _, bs) -> case unsnoc bs of
+>     Nothing -> True
+>     _ -> False
+>   Coincide (_, _, bs) -> case unsnoc bs of
+>     Nothing -> True
+>     _ -> False
+>   PointMark _ -> False
+>   MarkPoint (_, _, _, _, cs) -> case unsnoc cs of
+>     Nothing -> True
+>     _ -> False
+
+> readPoint
+>   :: TwoPointedList m a -> Maybe a
+> readPoint w = case w of
+>   Vacant -> Nothing
+>   PointOnly (_, x, _) -> Just x
+>   Coincide (_, x, _) -> Just x
+>   PointMark (_, x, _, _, _) -> Just x
+>   MarkPoint (_, _, _, x, _) -> Just x
+
+
+
+Navigation
+----------
+
+> movePointToEnd
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> TwoPointedList m a
+> movePointToEnd w = case w of
+>   Vacant -> Vacant
+>   PointOnly (as, x, bs) -> case unsnoc bs of
+>     Nothing -> PointOnly (as, x, mempty)
+>     Just (b, bs') -> PointOnly (snoc x as <> bs', b, mempty)
+>   Coincide (as, x, bs) -> case unsnoc bs of
+>     Nothing -> Coincide (as, x, mempty)
+>     Just (b, bs') -> MarkPoint (as, x, bs', b, mempty)
+>   PointMark (as, x, bs, y, cs) -> case unsnoc cs of
+>     Nothing -> Coincide (snoc x as <> bs, y, mempty)
+>     Just (c, cs') -> MarkPoint (snoc x as <> bs, y, cs', c, mempty)
+>   MarkPoint (as, x, bs, y, cs) -> case unsnoc cs of
+>     Nothing -> MarkPoint (as, x, bs, y, mempty)
+>     Just (c, cs') -> MarkPoint (as, x, bs <> cons y cs', c, mempty)
+
+> movePointToStart
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> TwoPointedList m a
+> movePointToStart w = case w of
+>   Vacant -> Vacant
+>   PointOnly (as, x, bs) -> case uncons as of
+>     Nothing -> PointOnly (mempty, x, bs)
+>     Just (a, as') -> PointOnly (mempty, a, snoc x as' <> bs)
+>   Coincide (as, x, bs) -> case uncons as of
+>     Nothing -> Coincide (mempty, x, bs)
+>     Just (a, as') -> PointMark (mempty, a, as', x, bs)
+>   PointMark (as, x, bs, y, cs) -> case uncons as of
+>     Nothing -> PointMark (mempty, x, bs, y, cs)
+>     Just (a, as') -> PointMark (mempty, a, snoc x as' <> bs, y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case uncons as of
+>     Nothing -> Coincide (mempty, x, bs <> cons y cs)
+>     Just (a, as') -> PointMark (mempty, a, as', x, snoc y bs <> cs)
+
+> movePointLeft
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> TwoPointedList m a
+> movePointLeft w = case w of
+>   Vacant -> Vacant
+>   PointOnly (as, x, bs) -> case unsnoc as of
+>     Nothing -> PointOnly (mempty, x, bs)
+>     Just (a, as') -> PointOnly (as', a, cons x bs)
+>   Coincide (as, x, bs) -> case unsnoc as of
+>     Nothing -> Coincide (mempty, x, bs)
+>     Just (a, as') -> PointMark (as', a, mempty, x, bs)
+>   PointMark (as, x, bs, y, cs) -> case unsnoc as of
+>     Nothing -> PointMark (mempty, x, bs, y, cs)
+>     Just (a, as') -> PointMark (as', a, cons x bs, y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case unsnoc bs of
+>     Nothing -> Coincide (as, x, cons y cs)
+>     Just (b, bs') -> MarkPoint (as, x, bs', b, cons y cs)
+
+> movePointRight
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> TwoPointedList m a
+> movePointRight w = case w of
+>   Vacant -> Vacant
+>   PointOnly (as, x, bs) -> case uncons bs of
+>     Nothing -> PointOnly (as, x, mempty)
+>     Just (b, bs') -> PointOnly (snoc x as, b, bs')
+>   Coincide (as, x, bs) -> case uncons bs of
+>     Nothing -> Coincide (as, x, mempty)
+>     Just (b, bs') -> MarkPoint (as, x, mempty, b, bs')
+>   PointMark (as, x, bs, y, cs) -> case uncons bs of
+>     Nothing -> Coincide (snoc x as, y, cs)
+>     Just (b, bs') -> PointMark (snoc x as, b, bs', y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case uncons cs of
+>     Nothing -> MarkPoint (as, x, bs, y, mempty)
+>     Just (c, cs') -> MarkPoint (as, x, snoc y bs, c, cs')
+
+> moveMarkLeft
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> TwoPointedList m a
+> moveMarkLeft w = case w of
+>   Vacant -> Vacant
+>   PointOnly z -> PointOnly z
+>   Coincide (as, x, bs) -> case unsnoc as of
+>     Nothing -> Coincide (mempty, x, bs)
+>     Just (a, as') -> MarkPoint (as', a, mempty, x, bs)
+>   PointMark (as, x, bs, y, cs) -> case unsnoc bs of
+>     Nothing -> Coincide (as, x, cons y cs)
+>     Just (b, bs') -> PointMark (as, x, bs', b, cons y cs)
+>   MarkPoint (as, x, bs, y, cs) -> case unsnoc as of
+>     Nothing -> MarkPoint (mempty, x, bs, y, cs)
+>     Just (a, as') -> MarkPoint (as', a, cons x bs, y, cs)
+
+> moveMarkRight
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> TwoPointedList m a
+> moveMarkRight w = case w of
+>   Vacant -> Vacant
+>   PointOnly z -> PointOnly z
+>   Coincide (as, x, bs) -> case uncons bs of
+>     Nothing -> Coincide (as, x, mempty)
+>     Just (b, bs') -> PointMark (as, x, mempty, b, bs')
+>   PointMark (as, x, bs, y, cs) -> case uncons cs of
+>     Nothing -> PointMark (as, x, bs, y, mempty)
+>     Just (c, cs') -> PointMark (as, x, snoc y bs, c, cs')
+>   MarkPoint (as, x, bs, y, cs) -> case uncons bs of
+>     Nothing -> Coincide (snoc x as, y, cs)
+>     Just (b, bs') -> MarkPoint (snoc x as, b, bs', y, cs)
+
+
+
+
 
 > integrate
 >   :: ( Valued m a )
@@ -257,73 +431,7 @@ List with two distinguished positions, the _point_ and the _mark_.
 >   MarkPoint (as, x, bs, y, cs) ->
 >     Coincide (as <> (cons x bs), y, cs)
 
-> movePointLeft
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
-> movePointLeft w = case w of
->   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case unsnoc as of
->     Nothing -> PointOnly (mempty, x, bs)
->     Just (a, as') -> PointOnly (as', a, cons x bs)
->   Coincide (as, x, bs) -> case unsnoc as of
->     Nothing -> Coincide (mempty, x, bs)
->     Just (a, as') -> PointMark (as', a, mempty, x, bs)
->   PointMark (as, x, bs, y, cs) -> case unsnoc as of
->     Nothing -> PointMark (mempty, x, bs, y, cs)
->     Just (a, as') -> PointMark (as', a, cons x bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc bs of
->     Nothing -> Coincide (as, x, cons y cs)
->     Just (b, bs') -> MarkPoint (as, x, bs', b, cons y cs)
 
-> movePointRight
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
-> movePointRight w = case w of
->   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case uncons bs of
->     Nothing -> PointOnly (as, x, mempty)
->     Just (b, bs') -> PointOnly (snoc x as, b, bs')
->   Coincide (as, x, bs) -> case uncons bs of
->     Nothing -> Coincide (as, x, mempty)
->     Just (b, bs') -> MarkPoint (as, x, mempty, b, bs')
->   PointMark (as, x, bs, y, cs) -> case uncons bs of
->     Nothing -> Coincide (snoc x as, y, cs)
->     Just (b, bs') -> PointMark (snoc x as, b, bs', y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons cs of
->     Nothing -> MarkPoint (as, x, bs, y, mempty)
->     Just (c, cs') -> MarkPoint (as, x, snoc y bs, c, cs')
-
-> moveMarkLeft
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
-> moveMarkLeft w = case w of
->   Vacant -> Vacant
->   PointOnly z -> PointOnly z
->   Coincide (as, x, bs) -> case unsnoc as of
->     Nothing -> Coincide (mempty, x, bs)
->     Just (a, as') -> MarkPoint (as', a, mempty, x, bs)
->   PointMark (as, x, bs, y, cs) -> case unsnoc bs of
->     Nothing -> Coincide (as, x, cons y cs)
->     Just (b, bs') -> PointMark (as, x, bs', b, cons y cs)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc as of
->     Nothing -> MarkPoint (mempty, x, bs, y, cs)
->     Just (a, as') -> MarkPoint (as', a, cons x bs, y, cs)
-
-> moveMarkRight
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
-> moveMarkRight w = case w of
->   Vacant -> Vacant
->   PointOnly z -> PointOnly z
->   Coincide (as, x, bs) -> case uncons bs of
->     Nothing -> Coincide (as, x, mempty)
->     Just (b, bs') -> PointMark (as, x, mempty, b, bs')
->   PointMark (as, x, bs, y, cs) -> case uncons cs of
->     Nothing -> PointMark (as, x, bs, y, mempty)
->     Just (c, cs') -> PointMark (as, x, snoc y bs, c, cs')
->   MarkPoint (as, x, bs, y, cs) -> case uncons bs of
->     Nothing -> Coincide (snoc x as, y, cs)
->     Just (b, bs') -> MarkPoint (snoc x as, b, bs', y, cs)
 
 > showInternal
 >   :: ( Show m, Show a, Valued m a )
@@ -391,27 +499,7 @@ List with two distinguished positions, the _point_ and the _mark_.
 >   MarkPoint (as, x, bs, y, cs) ->
 >     toListDebugFT (as <> (cons x bs) <> (cons y cs))
 
-> isEmpty
->   :: TwoPointedList m a -> Bool
-> isEmpty w = case w of
->   Vacant -> True
->   _ -> False
 
-> isPointAtEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> Bool
-> isPointAtEnd w = case w of
->   Vacant -> False
->   PointOnly (_, _, bs) -> case unsnoc bs of
->     Nothing -> True
->     _ -> False
->   Coincide (_, _, bs) -> case unsnoc bs of
->     Nothing -> True
->     _ -> False
->   PointMark _ -> False
->   MarkPoint (_, _, _, _, cs) -> case unsnoc cs of
->     Nothing -> True
->     _ -> False
 
 > split
 >   :: ( Valued m a )
@@ -432,50 +520,9 @@ List with two distinguished positions, the _point_ and the _mark_.
 >             PointMark (as, x, us, y, vs)
 >           Nothing -> PointOnly (as, x, bs)
 
-> readPoint
->   :: TwoPointedList m a -> Maybe a
-> readPoint w = case w of
->   Vacant -> Nothing
->   PointOnly (_, x, _) -> Just x
->   Coincide (_, x, _) -> Just x
->   PointMark (_, x, _, _, _) -> Just x
->   MarkPoint (_, _, _, x, _) -> Just x
 
-> movePointToEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
-> movePointToEnd w = case w of
->   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case unsnoc bs of
->     Nothing -> PointOnly (as, x, mempty)
->     Just (b, bs') -> PointOnly (snoc x as <> bs', b, mempty)
->   Coincide (as, x, bs) -> case unsnoc bs of
->     Nothing -> Coincide (as, x, mempty)
->     Just (b, bs') -> MarkPoint (as, x, bs', b, mempty)
->   PointMark (as, x, bs, y, cs) -> case unsnoc cs of
->     Nothing -> Coincide (snoc x as <> bs, y, mempty)
->     Just (c, cs') -> MarkPoint (snoc x as <> bs, y, cs', c, mempty)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc cs of
->     Nothing -> MarkPoint (as, x, bs, y, mempty)
->     Just (c, cs') -> MarkPoint (as, x, bs <> cons y cs', c, mempty)
 
-> movePointToStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
-> movePointToStart w = case w of
->   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case uncons as of
->     Nothing -> PointOnly (mempty, x, bs)
->     Just (a, as') -> PointOnly (mempty, a, snoc x as' <> bs)
->   Coincide (as, x, bs) -> case uncons as of
->     Nothing -> Coincide (mempty, x, bs)
->     Just (a, as') -> PointMark (mempty, a, as', x, bs)
->   PointMark (as, x, bs, y, cs) -> case uncons as of
->     Nothing -> PointMark (mempty, x, bs, y, cs)
->     Just (a, as') -> PointMark (mempty, a, snoc x as' <> bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons as of
->     Nothing -> Coincide (mempty, x, bs <> cons y cs)
->     Just (a, as') -> PointMark (mempty, a, as', x, snoc y bs <> cs)
+
 
 > insertPointLeft
 >   :: ( Valued m a )
@@ -511,7 +558,40 @@ List with two distinguished positions, the _point_ and the _mark_.
 >     Nothing -> Coincide (as, y, cs)
 >     Just (b, bs') -> MarkPoint (as, x, bs', y, cs)
 
-
+> instance
+>   ( Arb a, Valued m a
+>   ) => Arb (TwoPointedList m a)
+>   where
+>     arb = pickFrom5
+>       ( pure Vacant
+>       , PointOnly <$> arb
+>       , Coincide <$> arb
+>       , PointMark <$> arb
+>       , MarkPoint <$> arb
+>       )
+> 
+> instance
+>   ( Prune a, Valued m a
+>   ) => Prune (TwoPointedList m a)
+>   where
+>     prune w = case w of
+>       Vacant -> []
+>       PointOnly z -> concat
+>         [ [ Vacant ]
+>         , PointOnly <$> prune z
+>         ]
+>       Coincide z -> concat
+>         [ [ Vacant, PointOnly z ]
+>         , Coincide <$> prune z
+>         ]
+>       PointMark (as, x, bs, y, cs) -> concat
+>         [ [ Vacant, Coincide (as, x, bs), Coincide (bs, y, cs) ]
+>         , PointMark <$> prune (as, x, bs, y, cs)
+>         ]
+>       MarkPoint (as, x, bs, y, cs) -> concat
+>         [ [ Vacant, Coincide (as, x, bs), Coincide (bs, y, cs) ]
+>         , MarkPoint <$> prune (as, x, bs, y, cs)
+>         ]
 
 
 

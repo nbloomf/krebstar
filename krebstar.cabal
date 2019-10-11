@@ -162,6 +162,7 @@ test-suite kreb-struct-test
       Kreb.Struct.Test.Suite
     , Kreb.Struct.FingerTree.Test
     , Kreb.Struct.OnePointedList.Test
+    , Kreb.Struct.TwoPointedList.Test
     , Kreb.Struct.Seq.Test
     , Kreb.Struct.RunLengthEncoding.Test
   ghc-options:
@@ -486,6 +487,7 @@ test-suite kreb-test
     , Kreb.Reflect.Nat.Test
     , Kreb.Struct.FingerTree.Test
     , Kreb.Struct.OnePointedList.Test
+    , Kreb.Struct.TwoPointedList.Test
     , Kreb.Struct.RunLengthEncoding.Test
     , Kreb.Struct.Seq.Test
     , Kreb.Text.Buffer.Test

@@ -49,7 +49,7 @@ Appendices
     1. [Finger Trees](html/FingerTree.html)
     1. [One-Pointed Lists](html/OnePointedList.html)
     1. Seq
-    1. Two-Pointed Lists
+    1. [Two-Pointed Lists](html/TwoPointedList.html)
 1. Testing Library
 1. Bibliography
 1. Colophon

@@ -1,7 +1,8 @@
 SOURCES := \
   src/control/Kreb/Control/ReplT.lhs \
   src/struct/Kreb/Struct/FingerTree.lhs \
-  src/struct/Kreb/Struct/OnePointedList.lhs
+  src/struct/Kreb/Struct/OnePointedList.lhs \
+  src/struct/Kreb/Struct/TwoPointedList.lhs
 
 EXTRADOC := \
   aux/section/Rationale.md

@@ -13,10 +13,9 @@
 - show result stack in interaction log
 
 Refactoring
-- move Valued to own module
-- rewrite Tape tests for OnePointedList/TwoPointedList/Seq
+- move Valued and Count to own module
+- rewrite Tape tests for TwoPointedList/Seq
 - Move sizedbuffer to own module
-- move count to Seq(?)
 
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
