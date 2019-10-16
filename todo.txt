@@ -1,23 +1,32 @@
 0.0.1 Checklist
 ===============
-- in textboxCursorUp/Down: need splitBufferAtScreenCoords to preserve the mark
-- move 'window handling' to editor-cli
-- FingerTreeZip2
-  - swap point and mark
-  - one/twopointedlist and buffer can export the same names, use
-    qualified imports instead of type classes.
-- Cell can be used to track several marks
+- replace 'normal mode' with 'debug mode'
+  - record input events to interaction log
+- store document history.
+  - can we get more complex than linear history?
+- Cut/Copy/Paste primitives
+- CLI
+  - add "input mode" (kbd or mouse) to state
+  - need to nail down mouse mode state
+    - keep first and most recent mouse down event
+    - leave mouse mode on mouse up or focus lost
+- TwoPointedList:
+  - version of insert that replaces the region.
+  - version of delete point left that deletes the region
+- NOTE: macos terminal swallows modifiers in Shift+UP and Shift+DOWN
+- Cell can be used to track several marks maybe
 - signature of performAction should be
     -> (Maybe Signal, State)
   - clean up signatures of render etc
     for passing in to ReplEnv in Run
 - per panel reload of stdlib
-- show result stack in interaction log
+- interaction log: in output stack, where did @Eff go?
 
 Refactoring
 - get rid of showInternal
 - move Valued and Count to own module
 - rewrite Tape tests for TwoPointedList/Seq
+- make TextBox and Editor tests active again
 - Move sizedbuffer to own module
 
 - Arrow up and down should 'remember' x coordinate

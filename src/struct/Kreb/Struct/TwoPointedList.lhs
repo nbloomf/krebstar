@@ -112,7 +112,7 @@ For testing purposes it will be handy to have constructors which allow precise p
 >   :: ( Valued m a )
 >   => [a] -> a -> [a] -> a -> [a]
 >   -> TwoPointedList m a
-> makeMarkPoint as x bs y cs = PointMark
+> makeMarkPoint as x bs y cs = MarkPoint
 >   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
 
 
@@ -782,6 +782,66 @@ Conversely, we can use split on finger trees to manipulate the point and mark of
 >           Just (us, y, vs) ->
 >             PointMark (as, x, us, y, vs)
 >           Nothing -> PointOnly (as, x, bs)
+
+We also provide a splitting function that preserves the mark.
+
+> splitPoint
+>   :: ( Valued m a )
+>   => (m -> Bool) -- point predicate
+>   -> TwoPointedList m a -> Maybe (TwoPointedList m a)
+> splitPoint pointP w = case w of
+>   Vacant -> Nothing
+>   PointOnly (as, x, bs) ->
+>     let xs = as <> cons x bs
+>     in case splitFT pointP xs of
+>       Nothing -> Nothing
+>       Just (us, y, vs) ->
+>         Just $ PointOnly (us, y, vs)
+>   Coincide (as, x, bs) ->
+>     case splitFT pointP as of
+>       Just (us, y, vs) -> Just $ PointMark (us, y, vs, x, bs)
+>       Nothing -> case splitTree pointP (value as <> value x) bs of
+>         Just (us, y, vs) -> Just $ MarkPoint (as, x, us, y, vs)
+>         Nothing -> Nothing
+>   PointMark (as, x, bs, y, cs) ->
+>     let ds = as <> cons x bs
+>     in case splitFT pointP ds of
+>       Just (us, z, vs) -> Just $ PointMark (us, z, vs, y, cs)
+>       Nothing -> case splitTree pointP (value ds <> value y) cs of
+>         Just (us, z, vs) -> Just $ MarkPoint (ds, y, us, z, vs )
+>         Nothing -> Nothing
+>   MarkPoint (as, x, bs, y, cs) ->
+>     let ds = bs <> cons y cs
+>     in case splitFT pointP as of
+>       Just (us, z, vs) -> Just $ PointMark (us, z, vs, x, ds)
+>       Nothing -> case splitTree pointP (value as <> value x) ds of
+>         Just (us, z, vs) -> Just $ MarkPoint (as, x, us, z, vs)
+>         Nothing -> Nothing
+
+Some examples:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y :: TwoPointedList Count Char
+> --   x = makePointMark ['a'] 'b' ['c','d'] 'e' ['f']
+> --   y = makePointMark ['a','b'] 'c' ['d'] 'e' ['f']
+> -- in (Just y) == (splitPoint (\k -> k == Count 3) x)
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x, y :: TwoPointedList Count Char
+> --   x = makePointMark ['a'] 'b' ['c','d'] 'e' ['f']
+> --   y = makeMarkPoint ['a','b','c','d'] 'e' [] 'f' []
+> -- in (Just y) == (splitPoint (\k -> k == Count 6) x)
+> -- :}
+> -- True
+
+:::
 
 
 

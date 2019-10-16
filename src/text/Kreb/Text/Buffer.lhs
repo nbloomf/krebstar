@@ -632,10 +632,9 @@ Splitting
 > splitBuffer
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => (MeasureText w t -> Bool)
->   -> Maybe (MeasureText w t -> Bool)
 >   -> Buffer w t a -> Maybe (Buffer w t a)
-> splitBuffer pointP q (Buffer w) =
->   Buffer <$> TPL.split pointP q w
+> splitBuffer pointP (Buffer w) =
+>   Buffer <$> TPL.splitPoint pointP w
 
 
 
@@ -643,8 +642,8 @@ Splitting
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => LineCol -> Buffer w t a -> Buffer w t a
 > splitBufferAtLineCol lc buf =
->   case splitBuffer (atLineCol lc) Nothing buf of
->     Nothing -> clearMark $ movePointToEnd buf
+>   case splitBuffer (atLineCol lc) buf of
+>     Nothing -> movePointToEnd buf
 >     Just xs -> xs
 > 
 > atLineCol
@@ -658,8 +657,8 @@ Splitting
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => (Int, Int) -> Buffer w t a -> Buffer w t a
 > splitBufferAtScreenCoords pos buf =
->   case splitBuffer (atScreenCoords pos) Nothing buf of
->     Nothing -> clearMark $ movePointToEnd buf
+>   case splitBuffer (atScreenCoords pos) buf of
+>     Nothing -> movePointToEnd buf
 >     Just xs ->
 >       let
 >         offset = screenCoords $ getBufferHeadPosition xs
@@ -687,8 +686,8 @@ Splitting
 >   => Int -> Buffer w t a -> Maybe (Buffer w t a)
 > splitBufferAtScreenLine k buf =
 >   if k == 0
->     then Just $ clearMark $ movePointToStart buf
->     else splitBuffer (atScreenLine k) Nothing buf
+>     then Just $ movePointToStart buf
+>     else splitBuffer (atScreenLine k) buf
 > 
 > atScreenLine
 >   :: forall w t
@@ -794,9 +793,18 @@ Rendering
 >       in case w of
 >         TPL.Vacant ->
 >           (mempty, [], mempty)
->         TPL.PointOnly (as,x,bs) ->
+>         TPL.PointOnly (as, x, bs) ->
 >           let (us, vs) = takeLines h (cons x bs)
 >           in (as, us, vs)
+>         TPL.Coincide (as, x, bs) ->
+>           let (us, vs) = takeLines h (cons x bs)
+>           in (as, us, vs)
+>         TPL.PointMark (as, x, bs, y, cs) ->
+>           let (us, vs) = takeLines h (cons x bs <> cons y cs)
+>           in (as, us, vs)
+>         TPL.MarkPoint (as, x, bs, y, cs) ->
+>           let (us, vs) = takeLines h (cons y cs)
+>           in (as <> cons x bs, us, vs)
 
 > getLineNumbers
 >   :: forall w t a
