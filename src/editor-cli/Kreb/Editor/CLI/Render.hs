@@ -10,20 +10,18 @@ import Kreb.Editor
 
 
 imageAppState
-  :: ( Monad m ) => AppState m -> Image
+  :: ( Monad m ) => AppState m -> Picture
 imageAppState st =
-  let
-    (w,_) = windowDim st
-  in case getActiveTab $ tabbedBuffers st of
-    Nothing -> char defAttr ' '
-    Just t -> imageTiles w t
+  case getActiveTab $ tabbedBuffers st of
+    Nothing -> Picture (Cursor 0 0) [char defAttr ' '] (ClearBackground)
+    Just t -> imageTiles (editorMode st) t
 
 imageTiles
-  :: Int -> Panel -> Image
-imageTiles w panel =
+  :: EditorMode -> Panel -> Picture
+imageTiles mode panel =
   case renderedPanel panel of
-    Nothing -> char defAttr ' '
-    Just rp -> imageRenderedPanel w rp
+    Nothing -> Picture (Cursor 0 0) [char defAttr ' '] (ClearBackground)
+    Just rp -> imageRenderedPanel mode rp
 
 drawCell :: Rune -> Image
 drawCell (Rune c fore back) =
@@ -49,30 +47,55 @@ getColor (RuneColor hue brightness) = case (hue, brightness) of
   (HueWhite,   BrightnessVivid) -> brightWhite
 
 imageRenderedPanel
-  :: Int -> RenderedPanel -> Image
-imageRenderedPanel w rp =
+  :: EditorMode -> RenderedPanel -> Picture
+imageRenderedPanel mode rp =
   let
-    labels = case lineLabels rp of
-      [] -> string defAttr "  "
-      x:xs -> vertCat $ (l' x) : (map l xs)
-        where
-          l' x = case x of
-            Just k -> string defAttr $ show k ++ " "
-            Nothing -> string defAttr "  "
-          l x = case x of
-            Just k -> string defAttr $ show k
-            Nothing -> char defAttr ' '
-    vsep = vertCat $ map (horizCat . map drawCell) $ labelSep rp
-    ssep = vertCat $ map (horizCat . map drawCell) $ histSep rp
-    hsep = horizCat $ map drawCell $ cmdSep rp
-    tsep = horizCat $ map drawCell $ statusSep rp
+    (labelPaneLines, (labW, _)) = lineLabels rp
+    (textPaneLines, (textW, textH), (tcX, tcY)) = textLines rp
+    (histPaneLines, (histW, histH)) = histLines rp
+    (cmdPaneLines, (cmdW, cmdH), (ccX, ccY)) = cmdLines rp
+    (statPaneLine, (statW, statH)) = statusLine rp
 
-    text = vertCat $ map (horizCat . map drawCell) (textLines rp)
-    cmd  = vertCat $ map (horizCat . map drawCell) (cmdLines rp)
-    hist = vertCat $ map (horizCat . map drawCell) (histLines rp)
-    stat = vertCat $ map (horizCat . map drawCell) (statusLine rp)
-  in
-    vertCat
+    labelSep = replicate textH [dimRune '│']
+    histSep = concat
+      [ replicate histH [dimRune '│']
+      , [[dimRune '├']]
+      , replicate cmdH [dimRune '│']
+      ]
+    statusSep  = concat
+      [ replicate labW (dimRune '═')
+      , [dimRune '╧']
+      , replicate textW (dimRune '═')
+      , [dimRune '╧']
+      , replicate histW (dimRune '═')
+      ]
+    cmdSep = replicate histW (dimRune '─')
+
+    vsep = vertCat $ map (horizCat . map drawCell) $ labelSep
+    ssep = vertCat $ map (horizCat . map drawCell) $ histSep
+    hsep = horizCat $ map drawCell $ cmdSep
+    tsep = horizCat $ map drawCell $ statusSep
+
+    labels = vertCat $ map (horizCat . map drawCell) labelPaneLines
+    text = vertCat $ map (horizCat . map drawCell) textPaneLines
+    cmd  = vertCat $ map (horizCat . map drawCell) cmdPaneLines
+    hist = vertCat $ map (horizCat . map drawCell) histPaneLines
+    stat = vertCat $ map (horizCat . map drawCell) statPaneLine
+
+    mainPane = vertCat
       [ horizCat [ labels, vsep, text, ssep, vertCat [ hist, hsep, cmd ] ]
       , tsep, stat
       ]
+
+    cursorPane = horizCat
+      [ pad 5 5 5 5 (drawCell phantomCursorRune)
+      ]
+
+    cursor = case mode of
+      CommandMode -> Cursor (labW + 1 + textW + 1 + ccX) (histH + 1)
+      InsertMode -> Cursor (labW + 1 + tcX) (tcY)
+      NormalMode -> NoCursor
+  in Picture
+    cursor
+    [mainPane]
+    (ClearBackground)

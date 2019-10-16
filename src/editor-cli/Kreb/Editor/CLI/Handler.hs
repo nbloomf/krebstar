@@ -9,65 +9,70 @@ import Kreb.Editor
 
 
 
-eventMapping :: EditorMode -> V.Event -> Action
+eventMapping :: EditorMode -> V.Event -> [Action]
 eventMapping mode event = case event of
   V.EvResize w h ->
-    WindowResize (w,h)
+    [ WindowResize (w,h) ]
 
   V.EvKey V.KEsc [] ->
-    SetMode NormalMode
+    [ SetMode NormalMode ]
 
   _ -> case mode of
     NormalMode -> case event of
       V.EvKey (V.KChar 'i') [] ->
-        SetMode InsertMode
+        [ SetMode InsertMode ]
 
       V.EvKey (V.KChar 'c') [] ->
-        SetMode CommandMode
+        [ SetMode CommandMode ]
 
       V.EvKey (V.KChar 'q') [] ->
-        Quit
+        [ Quit ]
 
       V.EvKey (V.KChar 's') [V.MCtrl] ->
-        FileSave
+        [ FileSave ]
 
       _ ->
-        ShowDebug $ " eventMapping (Nor): " ++ show event
+        [ ShowDebug $ " eventMapping (Nor): " ++ show event ]
 
     InsertMode -> case event of
       V.EvKey (V.KChar c) [] ->
-        CharInsert c
-
+        [ CharInsert c ]
       V.EvKey V.KEnter [] ->
-        CharInsert '\n'
+        [ CharInsert '\n' ]
 
       V.EvKey V.KBS [] ->
-        CharBackspace
+        [ CharBackspace ]
 
       V.EvKey V.KDown [] ->
-        CursorDown
-
+        [ ClearMark, CursorDown ]
       V.EvKey V.KUp [] ->
-        CursorUp
-
+        [ ClearMark, CursorUp ]
       V.EvKey V.KRight [] ->
-        CursorRight
-
+        [ ClearMark, CursorRight ]
       V.EvKey V.KLeft [] ->
-        CursorLeft
+        [ ClearMark, CursorLeft ]
+
+      V.EvKey V.KDown [V.MShift] ->
+        [ LeaveMark, CursorDown ]
+      V.EvKey V.KUp [V.MShift] ->
+        [ LeaveMark, CursorUp ]
+      V.EvKey V.KRight [V.MShift] ->
+        [ LeaveMark, CursorRight ]
+      V.EvKey V.KLeft [V.MShift] ->
+        [ LeaveMark, CursorLeft ]
 
       _ ->
-        ShowDebug $ " eventMapping (Ins): " ++ show event
+        [ ShowDebug $ " eventMapping (Ins): " ++ show event ]
 
     CommandMode -> case event of
       V.EvKey (V.KChar c) [] ->
-        CharInsertCmd c
+        [ CharInsertCmd c ]
 
       V.EvKey V.KBS [] ->
-        CharBackspaceCmd
+        [ CharBackspaceCmd ]
 
       V.EvKey V.KEnter [] ->
-        RunCmd
+        [ RunCmd ]
 
       _ ->
-        ShowDebug $ " eventMapping (Cmd): " ++ show event
+        [ ShowDebug $ " eventMapping (Cmd): " ++ show event ]

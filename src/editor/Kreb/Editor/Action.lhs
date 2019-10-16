@@ -5,7 +5,7 @@
 >   , runtimeState
 >   , editorTypes
 >   , hookActions
-
+>   , performActions
 >   , loadStdLib
 > ) where
 
@@ -53,6 +53,9 @@
 >   | FileSave
 >   | FileLoad FilePath
 
+>   | LeaveMark
+>   | ClearMark
+
 
 
 
@@ -91,6 +94,18 @@
 >   | WindowResize (Int, Int)
 >   deriving (Eq, Show)
 
+
+> performActions
+>   :: ( Monad m )
+>   => AppEnv m -> AppState m -> [Action]
+>   -> m (Either AppSignal (AppState m))
+> performActions env st acts = case acts of
+>   [] -> return (Right st)
+>   a:as -> do
+>     result <- performAction env st a
+>     case result of
+>       Left sig -> return $ Left sig
+>       Right st2 -> performActions env st2 as
 
 
 > performAction
@@ -154,6 +169,16 @@
 >     Right $ alterActivePanel
 >       (alterPanel
 >         [PanelAlterText [TextBoxCursorLeft]]) st
+> 
+>   LeaveMark -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
+>         [PanelAlterText [TextBoxLeaveMark]]) st
+> 
+>   ClearMark -> return $
+>     Right $ alterActivePanel
+>       (alterPanel
+>         [PanelAlterText [TextBoxClearMark]]) st
 > 
 >   WindowResize (w,h) -> return $
 >     Right $ setWindowDim (w,h) st

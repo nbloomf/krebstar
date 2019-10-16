@@ -57,6 +57,7 @@ Exposed API
 >   , charBufferFocus
 
 >   , clearMark
+>   , leaveMarkBuffer
 >   , readPoint
 >   , movePointLeft
 >   , movePointRight
@@ -219,11 +220,23 @@ A _buffer_ is just a zipped finger tree with value monoid `MeasureText w t` for 
 > movePointToEnd (Buffer w) =
 >   Buffer $ TPL.movePointToEnd w
 
+> fmapRegionL
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => (Cell a -> Cell a) -> Buffer w t a -> Buffer w t a
+> fmapRegionL f =
+>   Buffer . TPL.fmapRegionL f . unBuffer
+
 > clearMark
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Buffer w t a
 > clearMark (Buffer w) =
 >   Buffer $ TPL.clearMark w
+
+> leaveMarkBuffer
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> leaveMarkBuffer =
+>   Buffer . TPL.leaveMark . unBuffer
 
 > readPoint
 >   :: Buffer w t a -> Maybe (Cell a)
@@ -472,7 +485,7 @@ Functions for getting the basic parameters of a buffer:
 >   :: ( IsWidth w, IsTab t, Eq a, IsChar a, Valued (MeasureText w t) a )
 >   => Buffer w t a -> String
 > getBufferString (Buffer w) =
->   map toChar $ unCells $ TPL.toList w
+>   map toChar $ unCells $ toList w
 
 
 
@@ -821,12 +834,13 @@ Rendering
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
 >      , IsChar a, Eq a )
 >   => BufferRenderSettings
+>   -> (Cell a -> Cell a)
 >   -> Int -- top screen line
 >   -> Int -- view height
 >   -> Buffer w t a
 >   -> ([Maybe Int], [[(a, Int)]])
-> renderBuffer _ t h buf =
->   let (as, xs, _) = splitLines t h buf
+> renderBuffer _ f t h buf =
+>   let (as, xs, _) = splitLines t h $ fmapRegionL f buf
 >   in
 >     unzip $
 >       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ toListDebugFT z)) $

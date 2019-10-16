@@ -18,9 +18,25 @@ import Kreb.Editor.CLI.Handler
 
 
 consoleIO :: FilePath -> IO ()
-consoleIO path = do
+consoleIO stdLibPath = do
   (replParams, env, dim) <- appEnvIO
-  runKrebEd replParams env (initAppState path (runtimeState env) dim) loopReplT
+  let panelDim = initPanelDim dim
+  runKrebEd replParams env (initAppState stdLibPath panelDim (runtimeState env) dim) loopReplT
+
+initPanelDim
+  :: (Int, Int) -> PanelDim
+initPanelDim (width, height) =
+  let
+    w1 = max 4 $ width `div` 2
+    w2 = width - w1 - 1
+    h = height
+  in PanelDim
+    { _textLabelDim = (2, h-2)
+    , _textDim = (w1-3, h-2)
+    , _historyDim = (w2, h-4)
+    , _commandDim = (w2, 1)
+    , _statusDim = (width, 1)
+    }
 
 
 getTerminalSize :: IO (Int, Int)
@@ -43,14 +59,8 @@ appEnvIO = do
   (w0, h0) <- getTerminalSize
 
   let
-    render st = do
-      let
-        (x,y) = getAbsCursorPos st
-        pic = Picture
-          (Cursor x y)
-          [imageAppState st]
-          (ClearBackground)
-      update vty pic
+    render st =
+      update vty (imageAppState st)
 
   return
     -- Loop callbacks
@@ -64,7 +74,7 @@ appEnvIO = do
           let mode = editorMode st
           ev <- nextEvent vty
           return $ eventMapping mode ev
-      , _Eval = performAction
+      , _Eval = performActions
       , _Print = \_ st -> render $ updateStateCache st
       , _Exit = \sig -> do
           shutdown vty

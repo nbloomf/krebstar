@@ -46,10 +46,11 @@ setTabsDim dim (Tabs ts) =
 initTabs
   :: FilePath
   -> (Int, Int)
+  -> PanelDim
   -> Int
   -> Tabs
-initTabs stdLib (w,h) t = Tabs
-  { unTabs = Seq.singleton (initPanel stdLib (w,h) t)
+initTabs stdLib (w,h) dim t = Tabs
+  { unTabs = Seq.singleton (initPanel stdLib (w,h) dim t)
   }
 
 getActiveTab
@@ -58,9 +59,9 @@ getActiveTab (Tabs xs) =
   Seq.readPoint xs
 
 updateRenderedTabs
-  :: BufferRenderSettings -> GlyphRenderSettings -> EditorMode -> (Int, Int) -> Int -> Tabs -> Tabs
-updateRenderedTabs opts settings mode dim tab =
-  Tabs . Seq.alterPoint (updateRenderedPanel opts settings mode dim tab) . unTabs
+  :: BufferRenderSettings -> GlyphRenderSettings -> EditorMode -> Int -> Tabs -> Tabs
+updateRenderedTabs opts settings mode tab =
+  Tabs . Seq.alterPoint (updateRenderedPanel opts settings mode tab) . unTabs
 
 
 getAbsCursorPosTabs

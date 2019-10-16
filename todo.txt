@@ -1,5 +1,7 @@
 0.0.1 Checklist
 ===============
+- in textboxCursorUp/Down: need splitBufferAtScreenCoords to preserve the mark
+- move 'window handling' to editor-cli
 - FingerTreeZip2
   - swap point and mark
   - one/twopointedlist and buffer can export the same names, use
@@ -13,13 +15,13 @@
 - show result stack in interaction log
 
 Refactoring
+- get rid of showInternal
 - move Valued and Count to own module
 - rewrite Tape tests for TwoPointedList/Seq
 - Move sizedbuffer to own module
 
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
-- show ghosted cursor on text and cmd panels
 - start the manual
 - File load and save (primitives and key bindings)
 - File close (warn if not saved)

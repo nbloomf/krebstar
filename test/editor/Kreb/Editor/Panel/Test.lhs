@@ -25,6 +25,15 @@
 > line :: [Char] -> [Rune]
 > line = map dimRune
 
+> initPanelDim :: PanelDim
+> initPanelDim = PanelDim
+>   { _textLabelDim = (1,1)
+>   , _textDim      = (1,1)
+>   , _historyDim   = (1,1)
+>   , _commandDim   = (1,1)
+>   , _statusDim    = (1,1)
+>   }
+
 > prop_Panel_render_examples
 >   :: ( (Int, Int), Int, [PanelAction] )
 >   -> RenderedPanel
@@ -32,25 +41,17 @@
 > prop_Panel_render_examples (dim, tab, acts) render =
 >   let
 >     Just x = renderedPanel $ updateRenderedPanel
->       defaultBufferRenderSettings defaultGlyphRenderSettings NormalMode dim tab $
->       alterPanel acts (initPanel "fakestdlib" dim tab)
+>       defaultBufferRenderSettings defaultGlyphRenderSettings NormalMode tab $
+>       alterPanel acts (initPanel "fakestdlib" dim initPanelDim tab)
 >   in claimAll
 >     [ claimEqualNamed "lineLabels: "
 >         (lineLabels render) (lineLabels x)
->     , claimEqualNamed "labelSep: "
->         (labelSep render) (labelSep x)
 >     , claimEqualNamed "textLines: "
 >         (textLines render) (textLines x)
->     , claimEqualNamed "histSep: "
->         (histSep render) (histSep x)
 >     , claimEqualNamed "histLines: "
 >         (histLines render) (histLines x)
->     , claimEqualNamed "cmdSep: "
->         (cmdSep render) (cmdSep x)
 >     , claimEqualNamed "cmdLines: "
 >         (cmdLines render) (cmdLines x)
->     , claimEqualNamed "statusSep: "
->         (statusSep render) (statusSep x)
 >     , claimEqualNamed "statusLine: "
 >         (statusLine render) (statusLine x)
 >     ]
@@ -65,15 +66,11 @@
 >         , []
 >         ) $
 >         RenderedPanel
->           { lineLabels = [Just 0, Nothing, Nothing]
->           , labelSep = dimGrid ["│", "│", "│"]
->           , textLines = grid [" "," "," "]
->           , histSep = dimGrid ["│", "├", "│"]
->           , histLines = grid [ " " ]
->           , cmdSep = line ['─']
->           , cmdLines = grid [ " " ]
->           , statusSep = line "══╧═╧═"
->           , statusLine = grid [ "NOR   " ]
+>           { lineLabels = (grid ["0 ", "  ", "  "], (2,3))
+>           , textLines = (grid [" "," "," "], (1,3), (1,1))
+>           , histLines = (grid [ " " ], (1,1))
+>           , cmdLines = (grid [ " " ], (1,1), (1,1))
+>           , statusLine = (grid [ "NOR   " ], (6,1))
 >           }
 > 
 >     , testKreb "#2" $
@@ -82,15 +79,11 @@
 >         , [ PanelAlterText [TextBoxInsert (mkGlyph 'a')] ]
 >         ) $
 >         RenderedPanel
->           { lineLabels = [Just 0, Nothing, Nothing]
->           , labelSep = dimGrid ["│", "│", "│"]
->           , textLines = grid ["a"," "," "]
->           , histSep = dimGrid ["│", "├", "│"]
->           , histLines = grid [ " " ]
->           , cmdSep = line ['─']
->           , cmdLines = grid [ " " ]
->           , statusSep = line "══╧═╧═"
->           , statusLine = grid [ "NOR   " ]
+>           { lineLabels = (grid ["0 ", "  ", "  "], (2,3))
+>           , textLines = (grid ["a"," "," "], (1,3), (1,1))
+>           , histLines = (grid [ " " ], (1,1))
+>           , cmdLines = (grid [ " " ], (1,1), (1,1))
+>           , statusLine = (grid [ "NOR   " ], (6,1))
 >           }
 > 
 >     , testKreb "#3" $
@@ -99,17 +92,13 @@
 >         , [ PanelAlterCmd [TextBoxInsert (mkGlyph 'a')] ]
 >         ) $
 >         RenderedPanel
->           { lineLabels = [Just 0, Nothing, Nothing]
->           , labelSep = dimGrid ["│", "│", "│"]
->           , textLines = grid
->               [ " ", " ", " " ]
->           , histSep = dimGrid ["│", "├", "│"]
->           , histLines = grid
->               [ " " ]
->           , cmdSep = line ['─']
->           , cmdLines = grid [ " " ]
->           , statusSep = line "══╧═╧═"
->           , statusLine = grid [ "NOR   " ]
+>           { lineLabels = (grid ["0 ", "  ", "  "], (2,3))
+>           , textLines = (grid
+>               [ " ", " ", " " ], (1,3), (1,1))
+>           , histLines = (grid
+>               [ " " ], (1,1))
+>           , cmdLines = (grid [ " " ], (1,1), (1,1))
+>           , statusLine = (grid [ "NOR   " ], (6,1))
 >           }
 > 
 >     , testKreb "#4" $
@@ -124,19 +113,15 @@
 >             ]
 >         ) $
 >         RenderedPanel
->           { lineLabels = [Just 0, Nothing, Nothing]
->           , labelSep = dimGrid ["│", "│", "│"]
->           , textLines = grid
+>           { lineLabels = (grid ["0 ", "  ", "  "], (2,3))
+>           , textLines = (grid
 >               [ "a   b"
 >               , "     "
 >               , "     "
->               ]
->           , histSep = dimGrid ["│", "├", "│"]
->           , histLines = grid
->               [ "       " ]
->           , cmdSep = line "───────"
->           , cmdLines = grid [ "       " ]
->           , statusSep = line "══╧═════╧═══════"
->           , statusLine = grid [ "NOR             " ]
+>               ], (5,3), (1,1))
+>           , histLines = (grid
+>               [ "       " ], (7,1))
+>           , cmdLines = (grid [ "       " ], (7,1), (1,1))
+>           , statusLine = (grid [ "NOR             " ], (16,1))
 >           }
 >     ]

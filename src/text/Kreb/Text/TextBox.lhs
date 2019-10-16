@@ -65,6 +65,7 @@ Introduction
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.Buffer
 > import Kreb.Text.Glyph
+> import Kreb.Text.Cell
 
 
 
@@ -195,24 +196,47 @@ Queries
 >   box { textboxCursor = pos }
 
 
-
+> highlightRegion
+>   :: Cell Glyph -> Cell Glyph
+> highlightRegion z = case z of
+>   EOF -> Cell (Glyph ' ' (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessVivid))
+>   Cell (Glyph c f _) -> Cell (Glyph c (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessVivid))
 
 
 > renderTextBox
 >   :: BufferRenderSettings
 >   -> TextBox
->   -> ([Maybe Int], [[(Glyph, Int)]])
+>   -> ([[(Glyph, Int)]], Int, [[(Glyph, Int)]], (Int, Int), (Int, Int))
 > renderTextBox opts box@TextBox{..} =
 >   let
 >     w = getTextBoxWidth box
 >     (labels', lines') =
 >       querySizedBuffer
->         (renderBuffer defaultBufferRenderSettings textboxOffset textboxHeight) $
+>         (renderBuffer defaultBufferRenderSettings highlightRegion textboxOffset textboxHeight) $
 >       textboxBuffer
+> 
+>     firstMaybe :: [Maybe a] -> Maybe a
+>     firstMaybe xs = case xs of
+>       [] -> Nothing
+>       Nothing : ys -> firstMaybe ys
+>       Just a : _ -> Just a
+> 
+>     labelW :: Int
+>     labelW = case firstMaybe labels' of
+>       Nothing -> 1
+>       Just k -> 1 + length (show k)
+> 
+>     showLabel :: Maybe Int -> [(Glyph, Int)]
+>     showLabel z = case z of
+>       Nothing -> [(fromChar ' ', 0)]
+>       Just k -> zip ((map fromChar (show k)) ++ [fromChar ' ']) [0..]
 >   in
->     ( take textboxHeight $ labels' ++ repeat Nothing
+>     ( take textboxHeight $ (map showLabel labels') ++ repeat []
+>     , labelW
 >     , map (\ln -> take w $ ln ++ repeat (fromChar ' ', 1)) $
 >         take textboxHeight $ lines' ++ repeat []
+>     , (w, textboxHeight)
+>     , textboxCursor
 >     )
 
 > -- | Width in character cells of the line labels for
@@ -275,6 +299,9 @@ Queries
 >   | TextBoxToTop
 >   | TextBoxToBottom
 > 
+>   | TextBoxLeaveMark
+>   | TextBoxClearMark
+> 
 >   -- 
 >   | TextBoxResize (Int, Int)
 
@@ -291,6 +318,8 @@ Queries
 >     , return TextBoxCursorUp
 >     , return TextBoxCursorRight
 >     , return TextBoxCursorLeft
+>     , return TextBoxLeaveMark
+>     , return TextBoxClearMark
 >     , do
 >         Positive w <- arb
 >         Positive h <- arb
@@ -352,6 +381,12 @@ Queries
 >   TextBoxLoad path str ->
 >     textboxLoad path str
 > 
+>   TextBoxLeaveMark ->
+>     textboxLeaveMark
+> 
+>   TextBoxClearMark ->
+>     textboxClearMark
+> 
 >   TextBoxClear ->
 >     textboxClear
 
@@ -385,6 +420,29 @@ Queries
 >   , textboxSource = Just path
 >   , textboxHasChanged = False
 >   }
+
+
+> textboxLeaveMark
+>   :: TextBox -> TextBox
+> textboxLeaveMark box =
+>   let
+>     buf =
+>       alterSizedBuffer (leaveMarkBuffer) $
+>       textboxBuffer box
+>   in box
+>     { textboxBuffer = buf
+>     }
+
+> textboxClearMark
+>   :: TextBox -> TextBox
+> textboxClearMark box =
+>   let
+>     buf =
+>       alterSizedBuffer (clearMark) $
+>       textboxBuffer box
+>   in box
+>     { textboxBuffer = buf
+>     }
 
 
 > textBoxInsert
@@ -514,7 +572,7 @@ Queries
 >     l = textboxOffset box
 > 
 >     buf =
->       alterSizedBuffer (clearMark . movePointLeft) $
+>       alterSizedBuffer (movePointLeft) $
 >         textboxBuffer box
 >     
 >     (u,v) =
@@ -536,7 +594,7 @@ Queries
 > textboxCursorRight box =
 >   localSt box $ do
 >     editSt $ editTextBoxBuffer $
->       alterSizedBuffer (clearMark . movePointRight)
+>       alterSizedBuffer (movePointRight)
 > 
 >     (x,y) <- readSt getTextBoxCursor
 > 
@@ -597,7 +655,7 @@ Resizing should not change the logical coordinates of the focus.
 
 
 > data DebugTextBox = DebugTextBox
->   { _labels :: [Maybe Int]
+>   { _labels :: [[(Glyph, Int)]]
 >   , _lines  :: [[(Glyph, Int)]]
 >   , _box    :: TextBox
 >   }
@@ -624,7 +682,7 @@ Resizing should not change the logical coordinates of the focus.
 >   :: TextBox
 >   -> DebugTextBox
 > debugTextBox box =
->   let (lb,ln) = renderTextBox defaultBufferRenderSettings box
+>   let (lb,_, ln, _, _) = renderTextBox defaultBufferRenderSettings box
 >   in DebugTextBox lb ln box
 
 > debugTextBoxActions

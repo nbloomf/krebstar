@@ -7,14 +7,11 @@ SOURCES := \
 EXTRADOC := \
   aux/section/Rationale.md
 
-STYLES := \
-  tufte/tufte.css \
-  tufte/pandoc.css \
-  tufte/pandoc-solarized.css
+
 
 all: test docs install
 
-test: generative golden doctests
+test: generative golden
 
 
 
@@ -25,10 +22,6 @@ golden: FORCE
 generative: FORCE
 	@echo 'Running generative tests...'
 	@stack test krebstar:kreb-test
-
-doctests: FORCE
-	@echo 'Running doctests...'
-	@stack test krebstar:doctests
 
 install: FORCE
 	@echo 'Installing...'

@@ -16,16 +16,11 @@
 > 
 >   , uncurry3
 >   , uncurry4
->   , testCases
 > ) where
 
 > import Control.Monad (ap)
 > import System.Random
 > import Data.List
-
-> import Test.QuickCheck
-> import Test.Tasty
-> import Test.Tasty.QuickCheck
 
 > import Kreb.Check.Seeded
 > import Kreb.Check.Arb
@@ -41,17 +36,7 @@
 A note on strategy
 ------------------
 
-QuickCheck shines at random testing. But at the same time, there's value in having fixed test cases. For one thing, when QuickCheck finds a legitimately buggy example, we can keep it around as a regression test for extra goodness. To help with this we'll define a helper function, `testCases`, that just runs a given testable property against a list of named examples.
 
-> testCases
->   :: ( Testable prop )
->   => (a -> prop) -> [(String, a)] -> TestTree
-> testCases property cs =
->   let
->     caseNum (l,c) =
->       testProperty l (property c)
->   in testGroup "Fixed Test Cases" $
->     map caseNum cs
 
 It appears that `testCases` can only work with properties that take a single argument. But with some extensions to the standard `uncurry` function this is not really a restriction.
 

@@ -49,9 +49,7 @@ library kreb-check
   build-depends:
       base >=4.7 && <5
     , containers >=0.6.0.1
-    , QuickCheck >=2.12.6.1
     , tasty >=1.2
-    , tasty-quickcheck >=0.10.1
     , random >=1.1
 
 test-suite kreb-check-test
@@ -81,7 +79,10 @@ library kreb-control
   exposed-modules:
       Kreb.Control
     , Kreb.Control.LocalSt
+    , Kreb.Control.StateT
+    , Kreb.Control.EnvT
     , Kreb.Control.ReplT
+    , Kreb.Control.Trans
   build-depends:
       base >=4.7 && <5
 
@@ -346,6 +347,7 @@ library kreb-editor-cli
     , Kreb.Editor.CLI.Run
     , Kreb.Editor.CLI.Render
     , Kreb.Editor.CLI.Handler
+    , Kreb.Editor.CLI.Monad
   build-depends:
       base >=4.7 && <5
     , vty >=5.25.1
@@ -427,9 +429,10 @@ test-suite doctests
   build-tools: alex, happy
   ghc-options:
     -threaded
-  main-is: Test.lhs
+  main-is: Kreb/DocTest/Test.lhs
   other-modules:
-      Kreb.Lang.Lexer
+      Kreb.DocTest.Test.Suite
+    , Kreb.Lang.Lexer
     , Kreb.Lang.Parser
     , Kreb.Lang.Error
     , Kreb.Lang.Expr
@@ -449,8 +452,7 @@ test-suite doctests
     , kreb-format
     , kreb-lang
     , kreb-editor
-    , doctest
-    , doctest-discover
+    , doctest >=0.16.0.1
     , containers >=0.6.0.1
     , text >=1.2.3.1
     , array >=0.5.3.0
@@ -471,6 +473,7 @@ test-suite kreb-test
     , test/text
     , test/lang
     , test/editor
+    , test/doctest
   main-is: Test.lhs
   other-modules:
       Kreb.Check.Test.Suite
@@ -479,6 +482,7 @@ test-suite kreb-test
     , Kreb.Text.Test.Suite
     , Kreb.Lang.Test.Suite
     , Kreb.Editor.Test.Suite
+    , Kreb.DocTest.Test.Suite
 
     , Kreb.Lang.Interpreter.Test
     , Kreb.Lang.Module.Test
@@ -502,6 +506,7 @@ test-suite kreb-test
       base >=4.7 && <5
     , containers >=0.6.0.1
     , tasty >=1.2
+    , doctest >=0.16.0.1
 
     , kreb-check
     , kreb-reflect

@@ -124,10 +124,10 @@ OnePointedList Test Suite
 >             ]
 > 
 >     , testKreb
->         "(isAtLast as) || (as == movePointRight (movePointLeft as))" $
+>         "(isAtInit as) || (as == movePointRight (movePointLeft as))" $
 >         \(as :: OnePointedList m a) ->
 >           claimAny
->             [ claimTrue (isAtLast as)
+>             [ claimTrue (isAtInit as)
 >             , claimEqual
 >                 (as)
 >                 (movePointRight (movePointLeft as))

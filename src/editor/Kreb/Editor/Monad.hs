@@ -14,7 +14,7 @@ import Kreb.Editor.Env
 
 
 type KrebEd m a
-  = ReplT Action (AppEnv m) AppSignal (AppState m) m a
+  = ReplT [Action] (AppEnv m) AppSignal (AppState m) m a
 
 runKrebEd
   :: ( Monad m )
@@ -23,4 +23,4 @@ runKrebEd
 runKrebEd = runReplT
 
 type KrebEdReplParams m
-  = ReplParams Action (AppEnv m) AppSignal (AppState m) m
+  = ReplParams [Action] (AppEnv m) AppSignal (AppState m) m

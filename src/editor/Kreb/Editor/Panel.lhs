@@ -9,6 +9,8 @@
 >   , alterPanel
 >   , PanelAction(..)
 
+>   , PanelDim(..)
+
 >   , getTextBox
 
 >   , ShellCommand(..)
@@ -93,32 +95,41 @@
 >   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar ("#> " ++ msg ++ "\n\n")] $ histBox panel
 >   }
 
+> data PanelDim = PanelDim
+>   { _textLabelDim :: (Int, Int)
+>   , _textDim      :: (Int, Int)
+>   , _historyDim   :: (Int, Int)
+>   , _commandDim   :: (Int, Int)
+>   , _statusDim    :: (Int, Int)
+>   } deriving (Eq, Show)
+
 
 > initPanel
 >   :: FilePath   -- Lib
 >   -> (Int, Int) -- (Width, Height)
+>   -> PanelDim   -- Component sizes
 >   -> Int        -- Tab
 >   -> Panel
-> initPanel lib (width, height) tab =
+> initPanel lib (width, height) dim tab =
 >   let
 >     w1 = max 4 $ width `div` 2
 >     w2 = width - w1 - 1
 >     h = height
 >   in Panel
->     { textBox       = initTextBox (w1-3, h-2) tab
+>     { textBox       = initTextBox (_textDim dim) tab
 >     , textOffset    = (3,0)
 >     , textChanged   = False
 >     , textOrigin    = Nothing
 >     , textWidth     = w1-3
 
->     , histBox       = initTextBox (w2, h-2) tab
+>     , histBox       = initTextBox (_historyDim dim) tab
 >     , histChanged   = False
 
->     , statusBox     = initTextBox (width, 1) tab
+>     , statusBox     = initTextBox (_statusDim dim) tab
 
 >     , commandHistory = []
 
->     , cmdBox        = initTextBox (w2,1) tab
+>     , cmdBox        = initTextBox (_commandDim dim) tab
 >     , cmdOffset     = (0,h-1)
 >     , cmdHeight     = 1
 >     , renderedPanel = Nothing
@@ -196,51 +207,34 @@
 >     }
 
 > data RenderedPanel = RenderedPanel
->   { lineLabels :: [Maybe Int]
->   , labelSep   :: [[Rune]]
->   , textLines  :: [[Rune]]
-
->   , histSep    :: [[Rune]]
->   , histLines  :: [[Rune]]
-
->   , cmdSep     :: [Rune]
->   , cmdLines   :: [[Rune]]
-
->   , statusSep  :: [Rune]
->   , statusLine :: [[Rune]]
+>   { lineLabels :: ([[Rune]], (Int, Int))
+>   , textLines  :: ([[Rune]], (Int, Int), (Int, Int))
+>   , histLines  :: ([[Rune]], (Int, Int))
+>   , cmdLines   :: ([[Rune]], (Int, Int), (Int, Int))
+>   , statusLine :: ([[Rune]], (Int, Int))
 >   } deriving (Eq, Show)
 
 > updateRenderedPanel
 >   :: BufferRenderSettings
 >   -> GlyphRenderSettings
 >   -> EditorMode
->   -> (Int, Int)
 >   -> Int
 >   -> Panel
 >   -> Panel
-> updateRenderedPanel opts settings mode (panelW, panelH) tab panel =
+> updateRenderedPanel opts settings mode tab panel =
 >   let
->     ComponentSizes{..} =
->       computeComponentSizes (panelW, panelH) panel
-> 
->     (labW, labH) = _textLabelSize
->     (textW, textH) = _textSize
->     (cmdW, cmdH) = _commandSize
->     (histW, histH) = _historySize
->     (statW, statH) = _statusSize
-
 >     textL = textboxOffset $ textBox panel
 
->     (labels, text) =
+>     (labels, labW, text, tDim, tCursor) =
 >       renderTextBox opts (textBox panel)
 
->     (_, cmd) =
+>     (_, _, cmd, cDim, cCursor) =
 >       renderTextBox opts (cmdBox panel)
 
->     (_, hist) =
+>     (_, _, hist, hDim, _) =
 >       renderTextBox opts (histBox panel)
 > 
->     (_, stat) =
+>     (_, _, stat, sDim, _) =
 >       renderTextBox opts (statusBox panel)
 > 
 >     m = case mode of
@@ -254,30 +248,16 @@
 >         map (take w . concatMap (renderGlyph settings tab)) gss
 > 
 >     rp = RenderedPanel
->       { lineLabels = labels
->       , labelSep   = replicate (panelH - 2) [dimRune '│']
->       , textLines  = cropAndRender (textW, textH) text
->       , histSep    = concat
->           [ replicate histH [dimRune '│']
->           , [[dimRune '├']]
->           , replicate cmdH [dimRune '│']
->           ]
->       , histLines  = cropAndRender (histW, histH) hist
->       , statusSep  = concat
->           [ replicate labW (dimRune '═')
->           , [dimRune '╧']
->           , replicate textW (dimRune '═')
->           , [dimRune '╧']
->           , replicate histW (dimRune '═')
->           ]
->       , statusLine = fmap (m ++) $ cropAndRender (statW, statH) stat
->       , cmdSep     = replicate histW (dimRune '─')
->       , cmdLines   = cropAndRender (cmdW, cmdH) cmd
+>       { lineLabels = (cropAndRender (labW, snd tDim) labels, (labW, snd tDim))
+>       , textLines  = (cropAndRender tDim text, tDim, tCursor)
+>       , histLines  = (cropAndRender hDim hist, hDim)
+>       , statusLine = (fmap (m ++) $ cropAndRender sDim stat, sDim)
+>       , cmdLines   = (cropAndRender cDim cmd, cDim, cCursor)
 >       }
 >   in panel
->       { textOffset = (labW + 1, 0)
->       , cmdOffset = (labW + 1 + textW + 1, histH + 1)
->       , renderedPanel = Just rp
+>       { -- textOffset = (labW + 1, 0)
+>    --   , cmdOffset = (labW + 1 + textW + 1, histH + 1)
+>        renderedPanel = Just rp
 >       }
 
 > getAbsCursorPosPanel

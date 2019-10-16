@@ -227,6 +227,9 @@ Test Helpers
 >         [] -> replicate k c
 >         w:ws -> w : pad (k-1) c ws
 
+> annotateCol :: [[Char]] -> [[(Glyph, Int)]]
+> annotateCol css = map (\cs -> zip (map fromChar cs) [0..]) css
+
 > hasCoherentCursor
 >   :: TextBox -> Check
 > hasCoherentCursor box =
@@ -314,15 +317,15 @@ Insert One Character
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_one_char dim tab x
 >     padC = padQuad (w,h) (mkGlyph ' ')
->     padL xs = take h $ xs ++ repeat Nothing
+>     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
->     [ claimEqual labels $
+>     [ claimEqual labels $ annotateCol $
 >         padL $ case (h, toChar c) of
->           (1, '\n') -> [Just 1]
->           (_, '\n') -> [Just 0, Just 1]
->           (1, '\t') -> if t >= w then [Nothing] else [Just 0]
->           (_, '\t') -> [Just 0]
->           _ -> [Just 0]
+>           (1, '\n') -> ["1 "]
+>           (_, '\n') -> ["0 ", "1 "]
+>           (1, '\t') -> if t >= w then ["  "] else ["0 "]
+>           (_, '\t') -> ["0 "]
+>           _ -> ["0 "]
 >     , claimEqual (map (map fst) lines) $
 >         padC $ case (h, toChar c) of
 >           (1, '\n') -> [[]]
@@ -374,14 +377,14 @@ Insert many 'a's
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_many_as dim tab k
 >     padC = padQuad (w,h) (mkGlyph ' ')
->     padL xs = take h $ xs ++ repeat Nothing
+>     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ heightIs box h
 >     , hasCoherentCursor box
 >     , cursorIs box
 >         (r, min q (h-1))
->     , claimEqual labels $ padL $ (take h $ drop l $
->         (Just 0) : [Nothing | i <- [1..q]])
+>     , claimEqual labels $ annotateCol $ padL $ (take h $ drop l $
+>         ("0 ") : ["  " | i <- [1..q]])
 >     , claimEqual (map (map fst) lines) $ padC $ (take h $ drop l $
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
@@ -419,10 +422,10 @@ Insert only newlines
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_newlines dim tab k
 >     padC = padQuad (w,h) (mkGlyph ' ')
->     padL xs = take h $ xs ++ repeat Nothing
+>     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
->     [ claimEqual labels $ padL
->         (map Just [(max (u-h+z) 0)..u])
+>     [ claimEqual labels $ annotateCol $ padL
+>         (map (\k -> show k ++ " ") [(max (u-h+z) 0)..u])
 >     , claimEqual (map (map fst) lines) $ padC
 >         ((replicate (min u (h-1)) [fromChar '\n']) ++ [[]])
 >     , heightIs box h
@@ -462,10 +465,10 @@ Insert some, then left
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_left dim tab k
 >     padC = padQuad (w,h) (mkGlyph ' ')
->     padL xs = take h $ xs ++ repeat Nothing
+>     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
->     [ claimEqual labels $ padL (take h
->         (Just 0 : (replicate q Nothing)))
+>     [ claimEqual labels $ annotateCol $ padL (take h
+>         ("0 " : (replicate q "  ")))
 >     , claimEqual (map (map fst) lines) $ padC (take h
 >         (replicate (quot u w) (replicate w (fromChar 'a')) ++
 >         [ replicate (rem u w) (fromChar 'a') ]))
@@ -506,9 +509,9 @@ Insert some, then backspace
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_backspace dim tab k b
 >     padC = padQuad (w,h) (mkGlyph ' ')
->     padL xs = take h $ xs ++ repeat Nothing
+>     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
->     [ claimEqual labels $ padL [Just 0]
+>     [ claimEqual labels $ annotateCol $ padL ["0 "]
 >     , claimEqual (map (map fst) lines) $ padC [[]]
 >     , heightIs box h
 >     , hasCoherentCursor box
@@ -548,9 +551,9 @@ Insert no characters
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_no_chars act dim tab
 >     padC = padQuad (w,h) (mkGlyph ' ')
->     padL xs = take h $ xs ++ repeat Nothing
+>     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
->     [ claimEqual labels $ padL [Just 0]
+>     [ claimEqual labels $ annotateCol $ padL ["0 "]
 >     , claimEqual (map (map fst) lines) $ padC [[]]
 >     , hasCoherentCursor box
 >     , cursorIs box (0, 0)
@@ -601,7 +604,7 @@ Action examples
 >   :: ( (Int, Int)
 >      , Int
 >      , [TextBoxAction] )
->   -> ( [Maybe Int]
+>   -> ( [[Char]]
 >      , [[Char]]
 >      , (Int, Int) )
 >   -> Check
@@ -611,7 +614,7 @@ Action examples
 >     DebugTextBox labels lines box =
 >       debugTextBox $ mkTextBox dim tab acts
 >   in claimAll
->     [ claimEqual labels labels'
+>     [ claimEqual labels $ annotateCol labels'
 >     , claimEqual (map (map fst) lines) (map (map fromChar) lines')
 >     , claimEqual (textboxCursor box) cursor
 >     , hasCoherentCursor box
@@ -627,7 +630,7 @@ Action examples
 >           , [ TextBoxInsert (mkGlyph 'a')
 >             ]
 >           )
->           ( [Just 0]
+>           ( ["0 "]
 >           , [ "a  " ]
 >           , (1,0)
 >           )
@@ -640,7 +643,7 @@ Action examples
 >             , TextBoxCursorLeft
 >             ]
 >           )
->           ( [Just 0]
+>           ( ["0 "]
 >           , [ "a  " ]
 >           , (0,0)
 >           )
@@ -654,7 +657,7 @@ Action examples
 >             , TextBoxInsert (mkGlyph 'b')
 >             ]
 >           )
->           ( [Just 0]
+>           ( ["0 "]
 >           , [ "ba " ]
 >           , (1,0)
 >           )
@@ -668,7 +671,7 @@ Action examples
 >             , TextBoxCursorUp
 >             ]
 >           )
->           ( [Just 0, Just 1]
+>           ( ["0 ", "1 "]
 >           , [ "\n  ", "a  " ]
 >           , (0,0)
 >           )
@@ -682,7 +685,7 @@ Action examples
 >             , TextBoxCursorRight
 >             ]
 >           )
->           ( [Just 0, Just 1]
+>           ( ["0 ", "1 "]
 >           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
@@ -698,7 +701,7 @@ Action examples
 >             , TextBoxCursorRight
 >             ]
 >           )
->           ( [Just 0, Just 1]
+>           ( ["0 ", "1 "]
 >           , [ "ab\n", "   " ]
 >           , (1,0)
 >           )
@@ -713,7 +716,7 @@ Action examples
 >             , TextBoxCursorDown
 >             ]
 >           )
->           ( [Just 0, Nothing]
+>           ( ["0 ", "  "]
 >           , [ "abc", "   " ]
 >           , (0,1)
 >           )
@@ -725,7 +728,7 @@ Action examples
 >           , [ TextBoxInsert (mkGlyph '\n')
 >             ]
 >           )
->           ( [Just 0, Just 1]
+>           ( ["0 ", "1 "]
 >           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
@@ -738,7 +741,7 @@ Action examples
 >             , TextBoxInsert (mkGlyph '\n')
 >             ]
 >           )
->           ( [Just 1, Just 2]
+>           ( ["1 ", "2 "]
 >           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
@@ -752,7 +755,7 @@ Action examples
 >             , TextBoxInsert (mkGlyph '\n')
 >             ]
 >           )
->           ( [Just 2, Just 3]
+>           ( ["2 ", "3 "]
 >           , [ "\n  ", "   " ]
 >           , (0,1)
 >           )
@@ -770,7 +773,7 @@ Action examples
 >             , TextBoxCursorDown
 >             ]
 >           )
->           ( [ Nothing ]
+>           ( [ "  " ]
 >           , [ "   " ]
 >           , (0,0)
 >           )
@@ -794,7 +797,7 @@ Action examples
 >             , TextBoxCursorDown
 >             ]
 >           )
->           ( [ Nothing, Nothing ]
+>           ( [ "  ", "  " ]
 >           , [ "jkl", "   " ]
 >           , (0,1)
 >           )
@@ -805,7 +808,7 @@ Action examples
 >           , 1
 >           , []
 >           )
->           ( [ Just 0, Nothing ]
+>           ( [ "0 ", "  " ]
 >           , [ "   ", "   " ]
 >           , (0,0)
 >           )
@@ -818,7 +821,7 @@ Action examples
 >             , TextBoxBackspace
 >             ]
 >           )
->           ( [ Just 0, Nothing ]
+>           ( [ "0 ", "  " ]
 >           , [ "   ", "   " ]
 >           , (0,0)
 >           )
@@ -832,7 +835,7 @@ Action examples
 >             , TextBoxBackspace
 >             ]
 >           )
->           ( [ Just 0, Nothing ]
+>           ( [ "0 ", "  " ]
 >           , [ "   ", "   " ]
 >           , (0,0)
 >           )
@@ -847,7 +850,7 @@ Action examples
 >             , TextBoxBackspace
 >             ]
 >           )
->           ( [ Just 0, Nothing ]
+>           ( [ "0 ", "  " ]
 >           , [ "b  ", "   " ]
 >           , (0,0)
 >           )
@@ -864,7 +867,7 @@ Action examples
 >             , TextBoxResize (3,1)
 >             ]
 >           )
->           ( [ Nothing ]
+>           ( [ "  " ]
 >           , [ "def" ]
 >           , (0,0)
 >           )
@@ -880,7 +883,7 @@ Action examples
 >             , TextBoxInsert (mkGlyph 'a')
 >             ]
 >           )
->           ( [ Just 0, Nothing ]
+>           ( [ "0 ", "  " ]
 >           , [ "a\tb     "
 >             , "        " ]
 >           , (1,0)

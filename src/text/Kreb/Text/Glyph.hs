@@ -3,7 +3,7 @@
 #-}
 
 module Kreb.Text.Glyph (
-    Glyph()
+    Glyph(..)
   , mkGlyph
 
   , GlyphRenderSettings(..)
@@ -17,6 +17,7 @@ module Kreb.Text.Glyph (
 
   , plainRune
   , dimRune
+  , phantomCursorRune
 ) where
 
 import Kreb.Check
@@ -72,40 +73,44 @@ dimRune :: Char -> Rune
 dimRune c =
   Rune [c] (RuneColor HueWhite BrightnessDull) (RuneColor HueBlack BrightnessDull)
 
+phantomCursorRune :: Rune
+phantomCursorRune =
+  Rune [' '] (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessDull)
+
 renderGlyph :: GlyphRenderSettings -> Int -> (Glyph, Int) -> [Rune]
-renderGlyph settings tab (g, col) = case toChar g of
+renderGlyph settings tab (Glyph c f b, col) = case c of
   '\n' -> _newlineGlyph settings
   '\t' -> _tabGlyph settings tab col
-  _    -> [plainRune (toChar g)]
+  _    -> [Rune [c] f b]
 
 
 data Glyph
-  = Glyph Char
+  = Glyph Char RuneColor RuneColor
   deriving Eq
 
 instance Show Glyph where
-  show (Glyph c) = concat
+  show (Glyph c _ _) = concat
     [ "(mkGlyph ", show c, ")" ]
 
 mkGlyph :: Char -> Glyph
-mkGlyph = Glyph
+mkGlyph c = Glyph c (RuneColor HueWhite BrightnessVivid) (RuneColor HueBlack BrightnessDull)
 
 instance
   ( IsWidth w, IsTab t
   ) => Valued (MeasureText w t) Glyph
   where
-    value (Glyph c) = value c
+    value (Glyph c _ _) = value c
 
 instance Arb Glyph where
   arb = mkGlyph <$> arb
 
 instance Prune Glyph where
-  prune (Glyph c) = map Glyph $ prune c
+  prune (Glyph c u v) = map (\x -> Glyph x u v) $ prune c
 
 
 
 instance IsChar Glyph where
-  toChar (Glyph c) = c
+  toChar (Glyph c _ _) = c
   fromChar = mkGlyph
 
 

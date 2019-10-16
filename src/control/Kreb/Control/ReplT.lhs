@@ -7,12 +7,16 @@ subtitle: "Kreb.Control.ReplT"
 
 <div class='frontmatter'>
 
+> {-# LANGUAGE InstanceSigs #-}
+> 
 > module Kreb.Control.ReplT (
 >     ReplParams(..)
 >   , ReplT
 >   , runReplT
 >   , loopReplT
 > ) where
+> 
+> import Kreb.Control.Trans
 
 </div>
 
@@ -115,12 +119,13 @@ We also need to specify `Functor`, `Applicative`, and `Monad` instances for `Rep
 
 And finally, we can lift a monadic value into `ReplT m`.
 
-> liftReplT
->   :: ( Monad m )
->   => m a -> ReplT act env sig st m a
-> liftReplT x = ReplT $ \_ _ st -> do
->   a <- x
->   return (a, st)
+> instance MonadTrans (ReplT act env sig st) where
+>   lift
+>     :: ( Monad m )
+>     => m a -> ReplT act env sig st m a
+>   lift x = ReplT $ \_ _ st -> do
+>     a <- x
+>     return (a, st)
 
 Effectively, `ReplT` will let us add REPL functionality to an arbitrary monad `m`. In a "real" program `m` will be `IO`. But we will also have the freedom to swap out `IO` for another type. In particular we can use it to run computations in a mock environment.
 

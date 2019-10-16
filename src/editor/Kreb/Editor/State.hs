@@ -46,7 +46,7 @@ data AppState (m :: * -> *) = AppState
   , glyphRenderSettings  :: GlyphRenderSettings
 
   , runtimeSt            :: RuntimeState (Hook m)
-  , stdLibPath    :: FilePath
+  , stdLibPath           :: FilePath
   }
 
 instance Show (AppState m) where
@@ -58,13 +58,13 @@ instance Show (AppState m) where
     , "tabbedBuffers = ", show $ tabbedBuffers st
     ]
 
-initAppState :: FilePath -> RuntimeState (Hook m) -> (Int, Int) -> AppState m
-initAppState stdLib rts (w,h) = AppState
+initAppState :: FilePath -> PanelDim -> RuntimeState (Hook m) -> (Int, Int) -> AppState m
+initAppState stdLib dim rts (w,h) = AppState
   { windowDim            = (w,h)
   , editorMode           = NormalMode
   , absCursorPos         = (0,0)
   , tabWidth             = 4
-  , tabbedBuffers        = initTabs "" (w,h) 4
+  , tabbedBuffers        = initTabs "" (w,h) dim 4
   , glyphRenderSettings  = defaultGlyphRenderSettings
   , bufferRenderSettings = defaultBufferRenderSettings
 
@@ -144,7 +144,7 @@ updateRenderedState st =
     opts = bufferRenderSettings st
     settings = glyphRenderSettings st
   in st
-    { tabbedBuffers = updateRenderedTabs opts settings mode (w,h)  tab tabs
+    { tabbedBuffers = updateRenderedTabs opts settings mode tab tabs
     }
 
 updateAbsCursorPos :: AppState m -> AppState m

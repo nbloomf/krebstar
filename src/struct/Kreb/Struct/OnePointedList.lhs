@@ -135,14 +135,16 @@ It's not too surprising that we can also give `OnePointedList` a `Foldable` inst
 >       [ toList as, [x], toList bs ]
 > 
 >   foldr
->     :: (a -> b -> b) -> b -> OnePointedList m a -> b
+>     :: (a -> b -> b) -> b
+>     -> OnePointedList m a -> b
 >   foldr f e w = case w of
 >     Vacant -> e
 >     Point (as, x, bs) ->
 >       foldr f (f x (foldr f e bs)) as
 > 
 >   foldl
->     :: (b -> a -> b) -> b -> OnePointedList m a -> b
+>     :: (b -> a -> b) -> b
+>     -> OnePointedList m a -> b
 >   foldl f e w = case w of
 >     Vacant -> e
 >     Point (as, x, bs) ->
