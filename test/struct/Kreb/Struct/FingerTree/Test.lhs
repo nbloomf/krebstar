@@ -4,38 +4,6 @@ title: Kreb.Struct.FingerTree.Test
 
 
 
-Contents
---------
-
-* [Introduction](#introduction)
-    * [A note on strategy](#a-note-on-strategy)
-* [Generators](#generators)
-* [Properties](#properties)
-    * [Count is a Monoid](#count-is-a-monoid)
-    * [Equality on finger trees is an equivalence](#equality-on-finger-trees-is-an-equivalence)
-    * [Finger trees and lists are interconvertible](#finger-trees-and-lists-are-interconvertible)
-    * [Functor laws for fmapFT](#functor-laws-for-fmapft)
-    * [Fold is lawful on finger trees](#fold-is-lawful-on-finger-trees)
-    * [Cons and uncons are mutual inverses](#cons-and-uncons-are-mutual-inverses)
-    * [Finger trees form a monoid](#finger-trees-form-a-monoid)
-    * [toList is a monoid homomorphism](#tolist-is-a-monoid-homomorphism)
-    * [fromList is a monoid homomorphism](#fromlist-is-a-monoid-homomorphism)
-    * [Reverse is a monoid involution](#reverse-is-a-monoid-involution)
-    * [Leaf is cons and snoc](#leaf-is-cons-and-snoc)
-    * [Splitting properties](#splitting-properties)
-    * [Break properties](#break-properties)
-* [Test Suite](#test-suite)
-* [Test Helpers](#test-helpers)
-
-
-
-Introduction
-============
-
-In [Ned.Data.FingerTree](src/Ned/Data/FingerTree.html) we developed a module of code for creating and manipulating finger trees. Now to test it.
-
-Throughout this project we'll be using the QuickCheck library to write and execute generative property tests. These differ from traditional unit tests in that rather than specifying a prescribed list of input/output/effect triples for a program, we specify boolean _properties_ that the program should satisfy and bombard it with randomly generated data looking for a counterexample. If you've never used these before, you're in for a treat; generative property testing is shockingly effective at rooting out bugs and improving confidence in our code.
-
 > {-# LANGUAGE
 >     MultiParamTypeClasses
 >   , ScopedTypeVariables
@@ -43,7 +11,6 @@ Throughout this project we'll be using the QuickCheck library to write and execu
 > 
 > module Kreb.Struct.FingerTree.Test (
 >     test_FingerTree
->   , ZZ(..)
 >   , Tup(..)
 > ) where
 > 
@@ -52,8 +19,154 @@ Throughout this project we'll be using the QuickCheck library to write and execu
 > 
 > import Test.Tasty
 > 
-> import Kreb.Check hiding (ZZ(..))
+> import Kreb.Check
+> import Kreb.Struct.Valued
 > import Kreb.Struct.FingerTree
+
+
+
+> test_FingerTree :: TestTree
+> test_FingerTree =
+>   testGroup "FingerTree"
+>     [ test_FingerTree_properties
+>         "Count/Char" (Proxy :: Proxy Char) (Proxy :: Proxy Count)
+>     , test_FingerTree_properties
+>         "Count/Char" (Proxy :: Proxy Bool) (Proxy :: Proxy Tup)
+> 
+>     , testGroup "Class Laws"
+>       [ testGroup "Eq"
+>         [ test_Eq_laws (Proxy :: Proxy (FingerTree Count Char))
+>         , test_Eq_laws (Proxy :: Proxy (FingerTree Tup Bool))
+>         ]
+> 
+>       , testGroup "Semigroup"
+>         [ test_Semigroup_laws (Proxy :: Proxy (FingerTree Count Char))
+>         , test_Semigroup_laws (Proxy :: Proxy (FingerTree Tup Bool))
+>         ]
+> 
+>       , testGroup "Monoid"
+>         [ test_Monoid_laws (Proxy :: Proxy (FingerTree Count Char))
+>         , test_Monoid_laws (Proxy :: Proxy (FingerTree Tup Bool))
+>         ]
+> 
+>       , test_Foldable_laws_with
+>           (fold :: FingerTree Count Bool -> Bool)
+>           (foldMap :: forall u n . (Monoid n) => (u -> n) -> FingerTree Count u -> n)
+>           (foldr :: (Bool -> Bool -> Bool) -> Bool -> FingerTree Count Bool -> Bool)
+>       , test_FoldableFunctor_laws_with
+>           (fmapFT :: (Bool -> Bool) -> FingerTree Count Bool -> FingerTree Count Bool)
+>           (fmapFT :: (Bool -> Bool) -> FingerTree Count Bool -> FingerTree Count Bool)
+>           (fold :: FingerTree Count Bool -> Bool)
+>           (foldMap :: forall u n . (Monoid n) => (u -> n) -> FingerTree Count u -> n)
+>       ]
+>     ]
+
+
+
+> test_FingerTree_properties
+>   :: forall m a
+>    . ( Eq a, Show a, Arb a, Prune a, MakeTo a, Valued m a )
+>   => String -> Proxy a -> Proxy m -> TestTree
+> test_FingerTree_properties label _ _ =
+>   let title = "FingerTree (" ++ label ++ ")"
+>   in testGroup title
+>     [ testKreb
+>         "isSingleton (singleton a) == True" $
+>         \(a :: a) ->
+>           let x = singleton a :: FingerTree m a
+>           in claimTrue (isSingleton x)
+> 
+>     , testKreb
+>         "Just a == readInit (singleton a)" $
+>         \(a :: a) ->
+>           let x = singleton a :: FingerTree m a
+>           in claimEqual
+>             (Just a)
+>             (readInit x)
+> 
+>     , testKreb
+>         "Just a == readLast (singleton a)" $
+>         \(a :: a) ->
+>           let x = singleton a :: FingerTree m a
+>           in claimEqual
+>             (Just a)
+>             (readLast x)
+> 
+>     , testKreb
+>         "False == isEmpty (singleton a)" $
+>         \(a :: a) ->
+>           let x = singleton a :: FingerTree m a
+>           in claimFalse (isEmpty x)
+> 
+>     , testKreb
+>         "(isEmpty as) == (Nothing == uncons as)" $
+>         \(as :: FingerTree m a) ->
+>           claimEqual
+>             (isEmpty as)
+>             (Nothing == (uncons as))
+> 
+>     , testKreb
+>         "(isEmpty as) == (Nothing == unsnoc as)" $
+>         \(as :: FingerTree m a) ->
+>           claimEqual
+>             (isEmpty as)
+>             (Nothing == (unsnoc as))
+> 
+>     , testKreb
+>         "cons a as == (leaf a) <> as" $
+>         \(a :: a) (as :: FingerTree m a) ->
+>           claimEqual
+>             (cons a as)
+>             ((singleton a) <> as)
+> 
+>     , testKreb
+>         "snoc a as == as <> (leaf a)" $
+>         \(a :: a) (as :: FingerTree m a) ->
+>           claimEqual
+>             (snoc a as)
+>             (as <> (singleton a))
+> 
+>     , testKreb
+>         "(isEmpty as) || (let Just u us = uncons as in as == cons u us)" $
+>         \(as :: FingerTree m a) ->
+>           claimAny
+>             [ claimTrue (isEmpty as)
+>             , case uncons as of
+>                 Just (u, us) -> claimEqual as (cons u us)
+>                 Nothing -> reject "impossible state"
+>             ]
+> 
+>     , testKreb
+>         "(isEmpty as) || (let Just u us = unsnoc as in as == snoc u us)" $
+>         \(as :: FingerTree m a) ->
+>           claimAny
+>             [ claimTrue (isEmpty as)
+>             , case unsnoc as of
+>                 Just (u, us) -> claimEqual as (snoc u us)
+>                 Nothing -> reject "impossible state"
+>             ]
+> 
+>     , testKreb
+>         "z == uncons (cons (fst z) (snd z))" $
+>         \(a :: a) (as :: FingerTree m a) ->
+>           case uncons (cons a as) of
+>             Nothing ->
+>               reject "impossible state"
+>             Just (b, bs) ->
+>               (claimEqual a b) .&&. (claimEqual as bs)
+> 
+>     , testKreb
+>         "z == unsnoc (snoc (fst z) (snd z))" $
+>         \(a :: a) (as :: FingerTree m a) ->
+>           case unsnoc (snoc a as) of
+>             Nothing ->
+>               reject "impossible state"
+>             Just (b, bs) ->
+>               (claimEqual a b) .&&. (claimEqual as bs)
+>     ]
+
+
+
 
 
 
@@ -61,37 +174,6 @@ Throughout this project we'll be using the QuickCheck library to write and execu
 
 Dummy Types
 -----------
-
-> data ZZ
->   = ZZ Int
->   deriving (Eq, Show)
-> 
-> pZZ :: Proxy ZZ
-> pZZ = Proxy
-> 
-> instance Semigroup ZZ where
->   (ZZ a) <> (ZZ b) = ZZ (a + b)
-> 
-> instance Monoid ZZ where
->   mempty = ZZ 0
-> 
-> instance Valued Count ZZ where
->   value _ = Count 1
-> 
-> instance Arb ZZ where
->   arb = ZZ <$> arb
-> 
-> instance CoArb ZZ where
->   coarb (ZZ k) = coarb k
-> 
-> instance MakeTo ZZ where
->   makeTo = makeToIntegralWith g h
->     where
->       g :: ZZ -> Integer
->       g (ZZ k) = fromIntegral k
-> 
->       h :: Integer -> ZZ
->       h k = ZZ $ fromInteger $ abs k
 
 > data Tup
 >   = Tup Int Int
@@ -114,7 +196,7 @@ Dummy Types
 >     then Tup 0 1
 >     else Tup 1 0
 > 
-> instance Valued Tup ZZ where
+> instance Valued Tup (ZZ a) where
 >   value (ZZ k) = if 0 == rem k 2
 >     then Tup 0 1
 >     else Tup 1 0
@@ -164,6 +246,8 @@ Generators
 > pBool = Proxy
 
 
+> {-
+
 
 Properties
 ==========
@@ -182,34 +266,6 @@ Recall that a _monoid_ is a type with an associative binary operation and a neut
 
 
 
-Equality on finger trees is an equivalence
-------------------------------------------
-
-Since we rolled our own `Eq` instance for finger trees, it makes sense to check that it really is an equivalence relation
-
-> test_FingerTree_Eq :: TestTree
-> test_FingerTree_Eq =
->   testGroup "Eq laws for FingerTree"
->     [ test_Eq_laws (Proxy :: Proxy (FingerTree Count Char))
->     , test_Eq_laws (Proxy :: Proxy (FingerTree Tup Bool))
->     ]
-
-
-
-Finger trees form a monoid
---------------------------
-
-Concatenation and mempty form a monoid structure on finger trees.
-
-> test_FingerTree_Monoid :: TestTree
-> test_FingerTree_Monoid =
->   testGroup "Monoid laws for concat/mempty"
->     [ test_Semigroup_laws (Proxy :: Proxy (FingerTree Count Char))
->     , test_Semigroup_laws (Proxy :: Proxy (FingerTree Tup Bool))
-> 
->     , test_Monoid_laws (Proxy :: Proxy (FingerTree Count Char))
->     , test_Monoid_laws (Proxy :: Proxy (FingerTree Tup Bool))
->     ]
 
 
 
@@ -439,208 +495,18 @@ We get a lot of mileage out of the `Foldable` instance for `FingerTree`, so it m
 
 
 
-Cons and uncons are mutual inverses
------------------------------------
 
-> test_FingerTree_cons_snoc_inverses :: TestTree
-> test_FingerTree_cons_snoc_inverses =
->   testGroup "cons/snoc and uncons/unsnoc are mutual inverses"
->     [ test_FingerTree_cons_uncons
->     , test_FingerTree_uncons_cons
->     , test_FingerTree_snoc_unsnoc
->     , test_FingerTree_unsnoc_snoc
->     , test_FingerTree_uncons_mempty
->     , test_FingerTree_unsnoc_mempty
->     ]
 
-> check_FingerTree_cons_uncons
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Check
-> check_FingerTree_cons_uncons _ _ xs =
->   check $ case uncons xs of
->     Nothing -> True
->     Just (a,zs) -> xs == cons a zs
+
 > 
-> test_FingerTree_cons_uncons :: TestTree
-> test_FingerTree_cons_uncons =
->   testGroup "cons . uncons == id"
->     [ testKreb "Char/Count" $
->         check_FingerTree_cons_uncons pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_cons_uncons pBool pTup
->     ]
-
-> check_FingerTree_uncons_cons
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a -> Check
-> check_FingerTree_uncons_cons _ _ a xs =
->   check $ case uncons (cons a xs) of
->     Nothing -> False
->     Just (b,ys) -> (a == b) && (xs == ys)
-> 
-> test_FingerTree_uncons_cons :: TestTree
-> test_FingerTree_uncons_cons =
->   testGroup "uncons . cons == id"
->     [ testKreb "Char/Count" $
->         check_FingerTree_uncons_cons pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_uncons_cons pBool pTup
->     ]
-
-> check_FingerTree_snoc_unsnoc
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Check
-> check_FingerTree_snoc_unsnoc _ _ xs =
->   check $ case unsnoc xs of
->     Nothing -> True
->     Just (a,zs) -> xs == snoc a zs
-> 
-> test_FingerTree_snoc_unsnoc :: TestTree
-> test_FingerTree_snoc_unsnoc =
->   testGroup "snoc . unsnoc == id"
->     [ testKreb "Char/Count" $
->         check_FingerTree_snoc_unsnoc pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_snoc_unsnoc pBool pTup
->     ]
-
-> check_FingerTree_unsnoc_snoc
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a -> Check
-> check_FingerTree_unsnoc_snoc _ _ a xs =
->   check $
->     case unsnoc (snoc a xs) of
->       Nothing -> False
->       Just (b,ys) -> (a == b) && (xs == ys)
-> 
-> test_FingerTree_unsnoc_snoc :: TestTree
-> test_FingerTree_unsnoc_snoc =
->   testGroup "unsnoc . snoc == id"
->     [ testKreb "Char/Count" $
->         check_FingerTree_unsnoc_snoc pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_unsnoc_snoc pBool pTup
->     ]
-
-> check_FingerTree_uncons_mempty
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Check
-> check_FingerTree_uncons_mempty _ _ xs =
->   check $
->     (Nothing == uncons xs) == (xs == mempty)
-> 
-> test_FingerTree_uncons_mempty :: TestTree
-> test_FingerTree_uncons_mempty =
->   testGroup "uncons == Nothing"
->     [ testKreb "Char/Count" $
->         check_FingerTree_uncons_mempty pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_uncons_mempty pBool pTup
->     ]
-
-> check_FingerTree_unsnoc_mempty
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> FingerTree m a -> Check
-> check_FingerTree_unsnoc_mempty _ _ xs =
->   check $
->     (Nothing == unsnoc xs) == (xs == mempty)
-> 
-> test_FingerTree_unsnoc_mempty :: TestTree
-> test_FingerTree_unsnoc_mempty =
->   testGroup "unsnoc == Nothing"
->     [ testKreb "Char/Count" $
->         check_FingerTree_unsnoc_mempty pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_unsnoc_mempty pBool pTup
->     ]
 
 
 
-Leaf is cons and snoc
----------------------
 
-This is a grab bag of properties of `leaf`.
 
-> test_FingerTree_leaf :: TestTree
-> test_FingerTree_leaf =
->   testGroup "Leaf properties"
->     [ test_FingerTree_cons_cat_singleton
->     , test_FingerTree_snoc_cat_singleton
->     , test_FingerTree_leaf_not_empty
->     , test_FingerTree_leaf_depth
->     ]
 
-`leaf` interacts with `cons`:
 
-> check_FingerTree_cons_cat_singleton
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a -> Check
-> check_FingerTree_cons_cat_singleton _ _ a xs =
->   check $
->     (cons a xs) == ((leaf a) <> xs)
-> 
-> test_FingerTree_cons_cat_singleton :: TestTree
-> test_FingerTree_cons_cat_singleton =
->   testGroup "cons a xs == leaf a <> xs"
->     [ testKreb "Char/Count" $
->         check_FingerTree_cons_cat_singleton pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_cons_cat_singleton pBool pTup
->     ]
 
-And with `snoc`:
-
-> check_FingerTree_snoc_cat_singleton
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> FingerTree m a -> Check
-> check_FingerTree_snoc_cat_singleton _ _ a xs =
->   check $
->     (snoc a xs) == (xs <> (leaf a))
-> 
-> test_FingerTree_snoc_cat_singleton :: TestTree
-> test_FingerTree_snoc_cat_singleton =
->   testGroup "snoc a xs == leaf a <> xs"
->     [ testKreb "Char/Count" $
->         check_FingerTree_snoc_cat_singleton pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_snoc_cat_singleton pBool pTup
->     ]
-
-`leaf` is not empty:
-
-> check_FingerTree_leaf_not_empty
->   :: forall a m
->    . ( Eq a, Valued m a )
->   => Proxy a -> Proxy m
->   -> a -> Check
-> check_FingerTree_leaf_not_empty _ _ a =
->   check $
->     notEmptyFT (leaf a :: FingerTree m a)
-> 
-> test_FingerTree_leaf_not_empty :: TestTree
-> test_FingerTree_leaf_not_empty =
->   testGroup "notEmpty (leaf x)"
->     [ testKreb "Char/Count" $
->         check_FingerTree_leaf_not_empty pChar pCount
->     , testKreb "Bool/Tup" $
->         check_FingerTree_leaf_not_empty pBool pTup
->     ]
 
 And `leaf` has depth 1:
 
@@ -849,24 +715,5 @@ Grab bag of properties for the `break`-related functions.
 
 
 
-Test Suite
-==========
 
-> test_FingerTree :: TestTree
-> test_FingerTree =
->   testGroup "FingerTree"
->     [ test_Count_Monoid
->     , test_FingerTree_Eq
->     , test_FingerTree_Monoid
->     , test_FingerTree_reverse
->     , test_FingerTree_fmapFT
->     , test_FingerTree_List_convert
->     , test_FingerTree_cons_snoc_action
->     , test_FingerTree_toList
->     , test_FingerTree_fromListFT
->     , test_FingerTree_Foldable
->     , test_FingerTree_cons_snoc_inverses
->     , test_FingerTree_leaf
->     , test_FingerTree_split
->     , test_FingerTree_break
->     ]
+> -}

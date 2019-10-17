@@ -27,7 +27,8 @@ title: Two-Pointed Lists
 > import Data.List (unwords)
 > 
 > import Kreb.Check
-> import Kreb.Struct.FingerTree
+> import Kreb.Struct.Valued
+> import qualified Kreb.Struct.FingerTree as FT
 
 :::
 
@@ -47,13 +48,13 @@ With `OnePointedList`, we used a triple to model a distinguished list item with 
 > data TwoPointedList m a
 >   = Vacant
 >   | PointOnly
->       (FingerTree m a, a, FingerTree m a)
+>       (FT.FingerTree m a, a, FT.FingerTree m a)
 >   | Coincide
->       (FingerTree m a, a, FingerTree m a)
+>       (FT.FingerTree m a, a, FT.FingerTree m a)
 >   | PointMark
->       (FingerTree m a, a, FingerTree m a, a, FingerTree m a)
+>       (FT.FingerTree m a, a, FT.FingerTree m a, a, FT.FingerTree m a)
 >   | MarkPoint
->       (FingerTree m a, a, FingerTree m a, a, FingerTree m a)
+>       (FT.FingerTree m a, a, FT.FingerTree m a, a, FT.FingerTree m a)
 >   deriving (Eq, Show)
 
 This is a little hairy! But consumers of this code should not have to worry about the details of how this type is implemented. The goal is to allow client code to treat a `TwoPointedList` like, well, a list of items with one and maybe a second read head.
@@ -81,7 +82,7 @@ We can also convert a list into a two-pointed list. This is analogous to `makeFr
 >   :: ( Valued m a )
 >   => [a] -> TwoPointedList m a
 > makeFromList xs =
->   case uncons $ fromListFT xs of
+>   case FT.uncons $ FT.fromList xs of
 >     Nothing -> Vacant
 >     Just (a, as) -> PointOnly (mempty, a, as)
 
@@ -92,28 +93,28 @@ For testing purposes it will be handy to have constructors which allow precise p
 >   => [a] -> a -> [a]
 >   -> TwoPointedList m a
 > makePointOnly as x bs =
->   PointOnly (fromListFT as, x, fromListFT bs)
+>   PointOnly ( FT.fromList as, x, FT.fromList bs )
 > 
 > makeCoincide
 >   :: ( Valued m a )
 >   => [a] -> a -> [a]
 >   -> TwoPointedList m a
 > makeCoincide as x bs =
->   Coincide (fromListFT as, x, fromListFT bs)
+>   Coincide ( FT.fromList as, x, FT.fromList bs )
 > 
 > makePointMark
 >   :: ( Valued m a )
 >   => [a] -> a -> [a] -> a -> [a]
 >   -> TwoPointedList m a
 > makePointMark as x bs y cs = PointMark
->   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
+>   ( FT.fromList as, x, FT.fromList bs, y, FT.fromList cs )
 > 
 > makeMarkPoint
 >   :: ( Valued m a )
 >   => [a] -> a -> [a] -> a -> [a]
 >   -> TwoPointedList m a
 > makeMarkPoint as x bs y cs = MarkPoint
->   ( fromListFT as, x, fromListFT bs, y, fromListFT cs )
+>   ( FT.fromList as, x, FT.fromList bs, y, FT.fromList cs )
 
 
 
@@ -173,13 +174,13 @@ We'd also like `TwoPointedList` to be a functor. But as was the case with `OnePo
 > fmapList f w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) ->
->     PointOnly (fmapFT f as, f x, fmapFT f bs)
+>     PointOnly (FT.fmapFT f as, f x, FT.fmapFT f bs)
 >   Coincide (as, x, bs) ->
->     Coincide (fmapFT f as, f x, fmapFT f bs)
+>     Coincide (FT.fmapFT f as, f x, FT.fmapFT f bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (fmapFT f as, f x, fmapFT f bs, f y, fmapFT f cs)
+>     PointMark (FT.fmapFT f as, f x, FT.fmapFT f bs, f y, FT.fmapFT f cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (fmapFT f as, f x, fmapFT f bs, f y, fmapFT f cs)
+>     MarkPoint (FT.fmapFT f as, f x, FT.fmapFT f bs, f y, FT.fmapFT f cs)
 
 We'll also provide a restricted form of `fmapList` that only takes effect between the mark and the point. Note that this function is _left-biased_ -- 'between' includes the left endpoint but not the right. This is because eventually we'll use two-pointed lists to model text buffers, and we'll think of the cursor (point or mark) as existing _between_ characters in the buffer, specifically at the left edge of each cell.
 
@@ -194,9 +195,9 @@ We'll also provide a restricted form of `fmapList` that only takes effect betwee
 >   Coincide (as, x, bs) ->
 >     Coincide (as, f x, bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (as, f x, fmapFT f bs, y, cs)
+>     PointMark (as, f x, FT.fmapFT f bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (as, f x, fmapFT f bs, y, cs)
+>     MarkPoint (as, f x, FT.fmapFT f bs, y, cs)
 
 An example of `fmapRegionL` is useful here.
 
@@ -240,15 +241,18 @@ We can also detect when the point is at the first or last position in the list.
 >   => TwoPointedList m a -> Bool
 > isPointAtStart w = case w of
 >   Vacant -> False
->   PointOnly (as, _, _) -> case uncons as of
->     Nothing -> True
->     _ -> False
->   Coincide (as, _, _) -> case uncons as of
->     Nothing -> True
->     _ -> False
->   PointMark (as, _, _, _, _) -> case uncons as of
->     Nothing -> True
->     _ -> False
+>   PointOnly (as, _, _) ->
+>     case FT.uncons as of
+>       Nothing -> True
+>       _ -> False
+>   Coincide (as, _, _) ->
+>     case FT.uncons as of
+>       Nothing -> True
+>       _ -> False
+>   PointMark (as, _, _, _, _) ->
+>     case FT.uncons as of
+>       Nothing -> True
+>       _ -> False
 >   MarkPoint _ -> False
 > 
 > isPointAtEnd
@@ -256,14 +260,14 @@ We can also detect when the point is at the first or last position in the list.
 >   => TwoPointedList m a -> Bool
 > isPointAtEnd w = case w of
 >   Vacant -> False
->   PointOnly (_, _, bs) -> case unsnoc bs of
+>   PointOnly (_, _, bs) -> case FT.unsnoc bs of
 >     Nothing -> True
 >     _ -> False
->   Coincide (_, _, bs) -> case unsnoc bs of
+>   Coincide (_, _, bs) -> case FT.unsnoc bs of
 >     Nothing -> True
 >     _ -> False
 >   PointMark _ -> False
->   MarkPoint (_, _, _, _, cs) -> case unsnoc cs of
+>   MarkPoint (_, _, _, _, cs) -> case FT.unsnoc cs of
 >     Nothing -> True
 >     _ -> False
 
@@ -275,13 +279,15 @@ We can do the same for the mark, although it's less clear when this would be use
 > isMarkAtStart w = case w of
 >   Vacant -> False
 >   PointOnly _ -> False
->   Coincide (as, _, _) -> case uncons as of
->     Nothing -> True
->     _ -> False
+>   Coincide (as, _, _) ->
+>     case FT.uncons as of
+>       Nothing -> True
+>       _ -> False
 >   PointMark _ -> False
->   MarkPoint (as, _, _, _, _) -> case uncons as of
->     Nothing -> True
->     _ -> False
+>   MarkPoint (as, _, _, _, _) ->
+>     case FT.uncons as of
+>       Nothing -> True
+>       _ -> False
 > 
 > isMarkAtEnd
 >   :: ( Valued m a )
@@ -289,10 +295,10 @@ We can do the same for the mark, although it's less clear when this would be use
 > isMarkAtEnd w = case w of
 >   Vacant -> False
 >   PointOnly _ -> False
->   Coincide (_, _, bs) -> case unsnoc bs of
+>   Coincide (_, _, bs) -> case FT.unsnoc bs of
 >     Nothing -> True
 >     _ -> False
->   PointMark (_, _, _, _, cs) -> case unsnoc cs of
+>   PointMark (_, _, _, _, cs) -> case FT.unsnoc cs of
 >     Nothing -> True
 >     _ -> False
 >   MarkPoint _ -> False
@@ -333,36 +339,36 @@ We can move the point directly to the start or end position:
 >   => TwoPointedList m a -> TwoPointedList m a
 > movePointToStart w = case w of
 >   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case uncons as of
+>   PointOnly (as, x, bs) -> case FT.uncons as of
 >     Nothing -> PointOnly (mempty, x, bs)
->     Just (a, as') -> PointOnly (mempty, a, snoc x as' <> bs)
->   Coincide (as, x, bs) -> case uncons as of
+>     Just (a, as') -> PointOnly (mempty, a, FT.snoc x as' <> bs)
+>   Coincide (as, x, bs) -> case FT.uncons as of
 >     Nothing -> Coincide (mempty, x, bs)
 >     Just (a, as') -> PointMark (mempty, a, as', x, bs)
->   PointMark (as, x, bs, y, cs) -> case uncons as of
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons as of
 >     Nothing -> PointMark (mempty, x, bs, y, cs)
->     Just (a, as') -> PointMark (mempty, a, snoc x as' <> bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons as of
->     Nothing -> Coincide (mempty, x, bs <> cons y cs)
->     Just (a, as') -> PointMark (mempty, a, as', x, snoc y bs <> cs)
+>     Just (a, as') -> PointMark (mempty, a, FT.snoc x as' <> bs, y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons as of
+>     Nothing -> Coincide (mempty, x, bs <> FT.cons y cs)
+>     Just (a, as') -> PointMark (mempty, a, as', x, FT.snoc y bs <> cs)
 > 
 > movePointToEnd
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> TwoPointedList m a
 > movePointToEnd w = case w of
 >   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case unsnoc bs of
+>   PointOnly (as, x, bs) -> case FT.unsnoc bs of
 >     Nothing -> PointOnly (as, x, mempty)
->     Just (b, bs') -> PointOnly (snoc x as <> bs', b, mempty)
->   Coincide (as, x, bs) -> case unsnoc bs of
+>     Just (b, bs') -> PointOnly (FT.snoc x as <> bs', b, mempty)
+>   Coincide (as, x, bs) -> case FT.unsnoc bs of
 >     Nothing -> Coincide (as, x, mempty)
 >     Just (b, bs') -> MarkPoint (as, x, bs', b, mempty)
->   PointMark (as, x, bs, y, cs) -> case unsnoc cs of
->     Nothing -> Coincide (snoc x as <> bs, y, mempty)
->     Just (c, cs') -> MarkPoint (snoc x as <> bs, y, cs', c, mempty)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc cs of
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc cs of
+>     Nothing -> Coincide (FT.snoc x as <> bs, y, mempty)
+>     Just (c, cs') -> MarkPoint (FT.snoc x as <> bs, y, cs', c, mempty)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc cs of
 >     Nothing -> MarkPoint (as, x, bs, y, mempty)
->     Just (c, cs') -> MarkPoint (as, x, bs <> cons y cs', c, mempty)
+>     Just (c, cs') -> MarkPoint (as, x, bs <> FT.cons y cs', c, mempty)
 
 And we can move the point left and right by one item.
 
@@ -371,36 +377,36 @@ And we can move the point left and right by one item.
 >   => TwoPointedList m a -> TwoPointedList m a
 > movePointLeft w = case w of
 >   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case unsnoc as of
+>   PointOnly (as, x, bs) -> case FT.unsnoc as of
 >     Nothing -> PointOnly (mempty, x, bs)
->     Just (a, as') -> PointOnly (as', a, cons x bs)
->   Coincide (as, x, bs) -> case unsnoc as of
+>     Just (a, as') -> PointOnly (as', a, FT.cons x bs)
+>   Coincide (as, x, bs) -> case FT.unsnoc as of
 >     Nothing -> Coincide (mempty, x, bs)
 >     Just (a, as') -> PointMark (as', a, mempty, x, bs)
->   PointMark (as, x, bs, y, cs) -> case unsnoc as of
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc as of
 >     Nothing -> PointMark (mempty, x, bs, y, cs)
->     Just (a, as') -> PointMark (as', a, cons x bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc bs of
->     Nothing -> Coincide (as, x, cons y cs)
->     Just (b, bs') -> MarkPoint (as, x, bs', b, cons y cs)
+>     Just (a, as') -> PointMark (as', a, FT.cons x bs, y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc bs of
+>     Nothing -> Coincide (as, x, FT.cons y cs)
+>     Just (b, bs') -> MarkPoint (as, x, bs', b, FT.cons y cs)
 > 
 > movePointRight
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> TwoPointedList m a
 > movePointRight w = case w of
 >   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case uncons bs of
+>   PointOnly (as, x, bs) -> case FT.uncons bs of
 >     Nothing -> PointOnly (as, x, mempty)
->     Just (b, bs') -> PointOnly (snoc x as, b, bs')
->   Coincide (as, x, bs) -> case uncons bs of
+>     Just (b, bs') -> PointOnly (FT.snoc x as, b, bs')
+>   Coincide (as, x, bs) -> case FT.uncons bs of
 >     Nothing -> Coincide (as, x, mempty)
 >     Just (b, bs') -> MarkPoint (as, x, mempty, b, bs')
->   PointMark (as, x, bs, y, cs) -> case uncons bs of
->     Nothing -> Coincide (snoc x as, y, cs)
->     Just (b, bs') -> PointMark (snoc x as, b, bs', y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons cs of
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons bs of
+>     Nothing -> Coincide (FT.snoc x as, y, cs)
+>     Just (b, bs') -> PointMark (FT.snoc x as, b, bs', y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons cs of
 >     Nothing -> MarkPoint (as, x, bs, y, mempty)
->     Just (c, cs') -> MarkPoint (as, x, snoc y bs, c, cs')
+>     Just (c, cs') -> MarkPoint (as, x, FT.snoc y bs, c, cs')
 
 And a few examples to test our understanding.
 
@@ -427,15 +433,15 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 > moveMarkToStart w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> PointOnly (as, x, bs)
->   Coincide (as, x, bs) -> case uncons as of
+>   Coincide (as, x, bs) -> case FT.uncons as of
 >     Nothing -> Coincide (mempty, x, bs)
 >     Just (a, as') -> MarkPoint (mempty, a, as', x, bs)
->   PointMark (as, x, bs, y, cs) -> case uncons as of
->     Nothing -> Coincide (mempty, x, bs <> cons y cs)
->     Just (a, as') -> MarkPoint (mempty, a, as', x, snoc y bs <> cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons as of
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons as of
+>     Nothing -> Coincide (mempty, x, bs <> FT.cons y cs)
+>     Just (a, as') -> MarkPoint (mempty, a, as', x, FT.snoc y bs <> cs)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons as of
 >     Nothing -> MarkPoint (mempty, x, bs, y, cs)
->     Just (a, as') -> MarkPoint (mempty, a, snoc x as' <> bs, y, cs)
+>     Just (a, as') -> MarkPoint (mempty, a, FT.snoc x as' <> bs, y, cs)
 > 
 > moveMarkToEnd
 >   :: ( Valued m a )
@@ -443,15 +449,15 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 > moveMarkToEnd w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> PointOnly (as, x, bs)
->   Coincide (as, x, bs) -> case unsnoc bs of
+>   Coincide (as, x, bs) -> case FT.unsnoc bs of
 >     Nothing -> Coincide (as, x, mempty)
 >     Just (b, bs') -> PointMark (as, x, bs', b, mempty)
->   PointMark (as, x, bs, y, cs) -> case unsnoc cs of
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc cs of
 >     Nothing -> PointMark (as, x, bs, y, mempty)
->     Just (c, cs') -> PointMark (as, x, bs <> cons y cs', c, mempty)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc cs of
->     Nothing -> Coincide (snoc x as <> bs, y, mempty)
->     Just (c, cs') -> PointMark (snoc x as <> bs, y, cs', c, mempty)
+>     Just (c, cs') -> PointMark (as, x, bs <> FT.cons y cs', c, mempty)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc cs of
+>     Nothing -> Coincide (FT.snoc x as <> bs, y, mempty)
+>     Just (c, cs') -> PointMark (FT.snoc x as <> bs, y, cs', c, mempty)
 > 
 > moveMarkLeft
 >   :: ( Valued m a )
@@ -459,15 +465,15 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 > moveMarkLeft w = case w of
 >   Vacant -> Vacant
 >   PointOnly z -> PointOnly z
->   Coincide (as, x, bs) -> case unsnoc as of
+>   Coincide (as, x, bs) -> case FT.unsnoc as of
 >     Nothing -> Coincide (mempty, x, bs)
 >     Just (a, as') -> MarkPoint (as', a, mempty, x, bs)
->   PointMark (as, x, bs, y, cs) -> case unsnoc bs of
->     Nothing -> Coincide (as, x, cons y cs)
->     Just (b, bs') -> PointMark (as, x, bs', b, cons y cs)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc as of
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc bs of
+>     Nothing -> Coincide (as, x, FT.cons y cs)
+>     Just (b, bs') -> PointMark (as, x, bs', b, FT.cons y cs)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc as of
 >     Nothing -> MarkPoint (mempty, x, bs, y, cs)
->     Just (a, as') -> MarkPoint (as', a, cons x bs, y, cs)
+>     Just (a, as') -> MarkPoint (as', a, FT.cons x bs, y, cs)
 > 
 > moveMarkRight
 >   :: ( Valued m a )
@@ -475,15 +481,15 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 > moveMarkRight w = case w of
 >   Vacant -> Vacant
 >   PointOnly z -> PointOnly z
->   Coincide (as, x, bs) -> case uncons bs of
+>   Coincide (as, x, bs) -> case FT.uncons bs of
 >     Nothing -> Coincide (as, x, mempty)
 >     Just (b, bs') -> PointMark (as, x, mempty, b, bs')
->   PointMark (as, x, bs, y, cs) -> case uncons cs of
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons cs of
 >     Nothing -> PointMark (as, x, bs, y, mempty)
->     Just (c, cs') -> PointMark (as, x, snoc y bs, c, cs')
->   MarkPoint (as, x, bs, y, cs) -> case uncons bs of
->     Nothing -> Coincide (snoc x as, y, cs)
->     Just (b, bs') -> MarkPoint (snoc x as, b, bs', y, cs)
+>     Just (c, cs') -> PointMark (as, x, FT.snoc y bs, c, cs')
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons bs of
+>     Nothing -> Coincide (FT.snoc x as, y, cs)
+>     Just (b, bs') -> MarkPoint (FT.snoc x as, b, bs', y, cs)
 
 
 
@@ -512,9 +518,9 @@ The second primitive clears the mark by resorbing it into the rest of the list.
 >   Coincide (as, x, bs) ->
 >     PointOnly (as, x, bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointOnly (as, x, bs <> (cons y cs))
+>     PointOnly (as, x, bs <> (FT.cons y cs))
 >   MarkPoint (as, x, bs, y, cs) ->
->     PointOnly (as <> (cons x bs), y, cs)
+>     PointOnly (as <> (FT.cons x bs), y, cs)
 
 And of course we have efficient operations for insertion and deletion. First at the start and end:
 
@@ -525,36 +531,36 @@ And of course we have efficient operations for insertion and deletion. First at 
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
 >   PointOnly (as, x, bs) ->
->     PointOnly (cons u as, x, bs)
+>     PointOnly (FT.cons u as, x, bs)
 >   Coincide (as, x, bs) ->
->     Coincide (cons u as, x, bs)
+>     Coincide (FT.cons u as, x, bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (cons u as, x, bs, y, cs)
+>     PointMark (FT.cons u as, x, bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (cons u as, x, bs, y, cs)
+>     MarkPoint (FT.cons u as, x, bs, y, cs)
 > 
 > deleteAtStart
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> TwoPointedList m a
 > deleteAtStart w = case w of
 >   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case uncons as of
->     Nothing -> case uncons bs of
+>   PointOnly (as, x, bs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
 >       Nothing -> Vacant
 >       Just (b, bs') -> PointOnly (mempty, b, bs')
 >     Just (_, as') -> PointOnly (as', x, bs)
->   Coincide (as, x, bs) -> case uncons as of
->     Nothing -> case uncons bs of
+>   Coincide (as, x, bs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
 >       Nothing -> Vacant
 >       Just (b, bs') -> Coincide (mempty, b, bs')
 >     Just (_, as') -> Coincide (as', x, bs)
->   PointMark (as, x, bs, y, cs) -> case uncons as of
->     Nothing -> case uncons bs of
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
 >       Nothing -> Coincide (mempty, y, cs)
 >       Just (b, bs') -> PointMark (mempty, b, bs', y, cs)
 >     Just (_, as') -> PointMark (as', x, bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons as of
->     Nothing -> case uncons bs of
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
 >       Nothing -> Coincide (mempty, y, cs)
 >       Just (b, bs') -> MarkPoint (mempty, b, bs', y, cs)
 >     Just (_, as') -> MarkPoint (as', x, bs, y, cs)
@@ -566,36 +572,36 @@ And of course we have efficient operations for insertion and deletion. First at 
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
 >   PointOnly (as, x, bs) ->
->     PointOnly (as, x, snoc u bs)
+>     PointOnly (as, x, FT.snoc u bs)
 >   Coincide (as, x, bs) ->
->     Coincide (as, x, snoc u bs)
+>     Coincide (as, x, FT.snoc u bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (as, x, bs, y, snoc u cs)
+>     PointMark (as, x, bs, y, FT.snoc u cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (as, x, bs, y, snoc u cs)
+>     MarkPoint (as, x, bs, y, FT.snoc u cs)
 > 
 > deleteAtEnd
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> TwoPointedList m a
 > deleteAtEnd w = case w of
 >   Vacant -> Vacant
->   PointOnly (as, x, bs) -> case unsnoc bs of
->     Nothing -> case unsnoc as of
+>   PointOnly (as, x, bs) -> case FT.unsnoc bs of
+>     Nothing -> case FT.unsnoc as of
 >       Nothing -> Vacant
 >       Just (a, as') -> PointOnly (as', a, mempty)
 >     Just (_, bs') -> PointOnly (as, x, bs')
->   Coincide (as, x, bs) -> case unsnoc bs of
->     Nothing -> case unsnoc as of
+>   Coincide (as, x, bs) -> case FT.unsnoc bs of
+>     Nothing -> case FT.unsnoc as of
 >       Nothing -> Vacant
 >       Just (a, as') -> Coincide (as', a, mempty)
 >     Just (_, bs') -> Coincide (as, x, bs')
->   PointMark (as, x, bs, y, cs) -> case unsnoc cs of
->     Nothing -> case unsnoc bs of
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc cs of
+>     Nothing -> case FT.unsnoc bs of
 >       Nothing -> Coincide (as, x, mempty)
 >       Just (b, bs') -> PointMark (as, x, bs', b, mempty)
 >     Just (_, cs') -> PointMark (as, x, bs, y, cs')
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc cs of
->     Nothing -> case unsnoc bs of
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc cs of
+>     Nothing -> case FT.unsnoc bs of
 >       Nothing -> Coincide (as, x, mempty)
 >       Just (b, bs') -> MarkPoint (as, x, bs', b, mempty)
 >     Just (_, cs') -> MarkPoint (as, x, bs, y, cs')
@@ -609,13 +615,13 @@ And next to the left and the right of the point.
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
 >   PointOnly (as, x, bs) ->
->     PointOnly (snoc u as, x, bs)
+>     PointOnly (FT.snoc u as, x, bs)
 >   Coincide (as, x, bs) ->
->     Coincide (snoc u as, x, bs)
+>     Coincide (FT.snoc u as, x, bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (snoc u as, x, bs, y, cs)
+>     PointMark (FT.snoc u as, x, bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (as, x, snoc u bs, y, cs)
+>     MarkPoint (as, x, FT.snoc u bs, y, cs)
 > 
 > deletePointLeft
 >   :: ( Valued m a )
@@ -623,16 +629,16 @@ And next to the left and the right of the point.
 > deletePointLeft w = case w of
 >   Vacant ->
 >     Vacant
->   PointOnly (as, x, bs) -> case unsnoc as of
+>   PointOnly (as, x, bs) -> case FT.unsnoc as of
 >     Nothing -> PointOnly (mempty, x, bs)
 >     Just (_, as') -> PointOnly (as', x, bs)
->   Coincide (as, x, bs) -> case unsnoc as of
+>   Coincide (as, x, bs) -> case FT.unsnoc as of
 >     Nothing -> Coincide (mempty, x, bs)
 >     Just (_, as') -> Coincide (as', x, bs)
->   PointMark (as, x, bs, y, cs) -> case unsnoc as of
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc as of
 >     Nothing -> PointMark (mempty, x, bs, y, cs)
 >     Just (_, as') -> PointMark (as', x, bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case unsnoc bs of
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc bs of
 >     Nothing -> Coincide (as, y, cs)
 >     Just (_, bs') -> MarkPoint (as, x, bs', y, cs)
 > 
@@ -643,13 +649,13 @@ And next to the left and the right of the point.
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
 >   PointOnly (as, x, bs) ->
->     PointOnly (as, x, cons u bs)
+>     PointOnly (as, x, FT.cons u bs)
 >   Coincide (as, x, bs) ->
->     Coincide (as, x, cons u bs)
+>     Coincide (as, x, FT.cons u bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (as, x, cons u bs, y, cs)
+>     PointMark (as, x, FT.cons u bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (as, x, bs, y, cons u cs)
+>     MarkPoint (as, x, bs, y, FT.cons u cs)
 > 
 > deletePointRight
 >   :: ( Valued m a )
@@ -657,18 +663,18 @@ And next to the left and the right of the point.
 > deletePointRight w = case w of
 >   Vacant ->
 >     Vacant
->   PointOnly (as, x, bs) -> case uncons bs of
+>   PointOnly (as, x, bs) -> case FT.uncons bs of
 >     Nothing -> PointOnly (as, x, mempty)
 >     Just (_, bs') -> PointOnly (as, x, bs')
->   Coincide (as, x, bs) -> case uncons bs of
+>   Coincide (as, x, bs) -> case FT.uncons bs of
 >     Nothing -> Coincide (as, x, mempty)
 >     Just (_, bs') -> Coincide (as, x, bs')
->   PointMark (as, x, bs, y, cs) -> case uncons bs of
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons bs of
 >     Nothing -> Coincide (as, x, cs)
->     Just (_, bs') -> MarkPoint (as, x, bs', y, cs)
->   MarkPoint (as, x, bs, y, cs) -> case uncons cs of
->     Nothing -> PointMark (as, x, bs, y, mempty)
->     Just (_, cs') -> PointMark (as, x, bs, y, cs')
+>     Just (_, bs') -> PointMark (as, x, bs', y, cs)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons cs of
+>     Nothing -> MarkPoint (as, x, bs, y, mempty)
+>     Just (_, cs') -> MarkPoint (as, x, bs, y, cs')
 
 
 
@@ -732,13 +738,13 @@ Finally, we can remeasure a two-pointed list. This will be especially useful for
 > remeasure w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) ->
->     PointOnly (remeasureFT as, x, remeasureFT bs)
+>     PointOnly (FT.remeasure as, x, FT.remeasure bs)
 >   Coincide (as, x, bs) ->
->     Coincide (remeasureFT as, x, remeasureFT bs)
+>     Coincide (FT.remeasure as, x, FT.remeasure bs)
 >   PointMark (as, x, bs, y, cs) ->
->     PointMark (remeasureFT as, x, remeasureFT bs, y, remeasureFT cs)
+>     PointMark (FT.remeasure as, x, FT.remeasure bs, y, FT.remeasure cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (remeasureFT as, x, remeasureFT bs, y, remeasureFT cs)
+>     MarkPoint (FT.remeasure as, x, FT.remeasure bs, y, FT.remeasure cs)
 
 
 
@@ -749,18 +755,18 @@ We can convert a two-pointed list back into a finger tree; this looks sort of li
 
 > integrate
 >   :: ( Valued m a )
->   => TwoPointedList m a -> FingerTree m a
+>   => TwoPointedList m a -> FT.FingerTree m a
 > integrate w = case w of
 >   Vacant ->
 >     mempty
 >   PointOnly (as, x, bs) ->
->     as <> (cons x bs)
+>     as <> (FT.cons x bs)
 >   Coincide (as, x, bs) ->
->     as <> (cons x bs)
+>     as <> (FT.cons x bs)
 >   PointMark (as, x, bs, y, cs) ->
->     as <> (cons x bs) <> (cons y cs)
+>     as <> (FT.cons x bs) <> (FT.cons y cs)
 >   MarkPoint (as, x, bs, y, cs) ->
->     as <> (cons x bs) <> (cons y cs)
+>     as <> (FT.cons x bs) <> (FT.cons y cs)
 
 Conversely, we can use split on finger trees to manipulate the point and mark of a two-pointed list. This is the operation that makes two-pointed lists practical; with an appropriate value annotation we can use it to get log complexity random access.
 
@@ -771,14 +777,14 @@ Conversely, we can use split on finger trees to manipulate the point and mark of
 >   -> TwoPointedList m a -> Maybe (TwoPointedList m a)
 > split pointP q w =
 >   let xs = integrate w
->   in case splitFT pointP xs of
+>   in case FT.splitFT pointP xs of
 >     Nothing -> Nothing
 >     Just (as, x, bs) -> Just $ case q of
 >       Nothing -> PointOnly (as, x, bs)
->       Just markP -> case splitFT markP as of
+>       Just markP -> case FT.splitFT markP as of
 >         Just (us, y, vs) ->
 >           MarkPoint (us, y, vs, x, bs)
->         Nothing -> case splitFT markP bs of
+>         Nothing -> case FT.splitFT markP bs of
 >           Just (us, y, vs) ->
 >             PointMark (as, x, us, y, vs)
 >           Nothing -> PointOnly (as, x, bs)
@@ -792,29 +798,29 @@ We also provide a splitting function that preserves the mark.
 > splitPoint pointP w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, bs) ->
->     let xs = as <> cons x bs
->     in case splitFT pointP xs of
+>     let xs = as <> FT.cons x bs
+>     in case FT.splitFT pointP xs of
 >       Nothing -> Nothing
 >       Just (us, y, vs) ->
 >         Just $ PointOnly (us, y, vs)
 >   Coincide (as, x, bs) ->
->     case splitFT pointP as of
+>     case FT.splitFT pointP as of
 >       Just (us, y, vs) -> Just $ PointMark (us, y, vs, x, bs)
->       Nothing -> case splitTree pointP (value as <> value x) bs of
+>       Nothing -> case FT.splitTree pointP (value as <> value x) bs of
 >         Just (us, y, vs) -> Just $ MarkPoint (as, x, us, y, vs)
 >         Nothing -> Nothing
 >   PointMark (as, x, bs, y, cs) ->
->     let ds = as <> cons x bs
->     in case splitFT pointP ds of
+>     let ds = as <> FT.cons x bs
+>     in case FT.splitFT pointP ds of
 >       Just (us, z, vs) -> Just $ PointMark (us, z, vs, y, cs)
->       Nothing -> case splitTree pointP (value ds <> value y) cs of
+>       Nothing -> case FT.splitTree pointP (value ds <> value y) cs of
 >         Just (us, z, vs) -> Just $ MarkPoint (ds, y, us, z, vs )
 >         Nothing -> Nothing
 >   MarkPoint (as, x, bs, y, cs) ->
->     let ds = bs <> cons y cs
->     in case splitFT pointP as of
+>     let ds = bs <> FT.cons y cs
+>     in case FT.splitFT pointP as of
 >       Just (us, z, vs) -> Just $ PointMark (us, z, vs, x, ds)
->       Nothing -> case splitTree pointP (value as <> value x) ds of
+>       Nothing -> case FT.splitTree pointP (value as <> value x) ds of
 >         Just (us, z, vs) -> Just $ MarkPoint (as, x, us, z, vs)
 >         Nothing -> Nothing
 
@@ -892,34 +898,34 @@ We end with some utility code. First, we need some class instances for interoper
 >   Vacant -> "Vacant"
 >   PointOnly (as, x, bs) -> concat
 >     [ "PointOnly "
->     , "( ", showInternalFT as
+>     , "( ", FT.showInternalFT as
 >     , ", ", show x
->     , ", ", showInternalFT bs
+>     , ", ", FT.showInternalFT bs
 >     , " )"
 >     ]
 >   Coincide (as, x, bs) -> concat
 >     [ "Coincide "
->     , "( ", showInternalFT as
+>     , "( ", FT.showInternalFT as
 >     , ", ", show x
->     , ", ", showInternalFT bs
+>     , ", ", FT.showInternalFT bs
 >     , " )"
 >     ]
 >   PointMark (as, x, bs, y, cs) -> concat
 >     [ "PointMark "
->     , "( ", showInternalFT as
+>     , "( ", FT.showInternalFT as
 >     , ", ", show x
->     , ", ", showInternalFT bs
+>     , ", ", FT.showInternalFT bs
 >     , ", ", show y
->     , ", ", showInternalFT cs
+>     , ", ", FT.showInternalFT cs
 >     , " )"
 >     ]
 >   MarkPoint (as, x, bs, y, cs) -> concat
 >     [ "MarkPoint "
->     , "( ", showInternalFT as
+>     , "( ", FT.showInternalFT as
 >     , ", ", show x
->     , ", ", showInternalFT bs
+>     , ", ", FT.showInternalFT bs
 >     , ", ", show y
->     , ", ", showInternalFT cs
+>     , ", ", FT.showInternalFT cs
 >     , " )"
 >     ]
 
@@ -929,13 +935,13 @@ We end with some utility code. First, we need some class instances for interoper
 > validate w = case w of
 >   Vacant -> True
 >   PointOnly (as, _, bs) ->
->     (validateFT as) && (validateFT bs)
+>     (FT.validateFT as) && (FT.validateFT bs)
 >   Coincide (as, _, bs) ->
->     (validateFT as) && (validateFT bs)
+>     (FT.validateFT as) && (FT.validateFT bs)
 >   PointMark (as, _, bs, _, cs) ->
->     (validateFT as) && (validateFT bs) && (validateFT cs)
+>     (FT.validateFT as) && (FT.validateFT bs) && (FT.validateFT cs)
 >   MarkPoint (as, _, bs, _, cs) ->
->     (validateFT as) && (validateFT bs) && (validateFT cs)
+>     (FT.validateFT as) && (FT.validateFT bs) && (FT.validateFT cs)
 
 > toListDebug
 >   :: ( Valued m a )
@@ -943,13 +949,13 @@ We end with some utility code. First, we need some class instances for interoper
 > toListDebug w = case w of
 >   Vacant -> []
 >   PointOnly (as, x, bs) ->
->     toListDebugFT (as <> (cons x bs))
+>     FT.toListDebugFT (as <> (FT.cons x bs))
 >   Coincide (as, x, bs) ->
->     toListDebugFT (as <> (cons x bs))
+>     FT.toListDebugFT (as <> (FT.cons x bs))
 >   PointMark (as, x, bs, y, cs) ->
->     toListDebugFT (as <> (cons x bs) <> (cons y cs))
+>     FT.toListDebugFT (as <> (FT.cons x bs) <> (FT.cons y cs))
 >   MarkPoint (as, x, bs, y, cs) ->
->     toListDebugFT (as <> (cons x bs) <> (cons y cs))
+>     FT.toListDebugFT (as <> (FT.cons x bs) <> (FT.cons y cs))
 
 
 

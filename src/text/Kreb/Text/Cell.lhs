@@ -6,7 +6,8 @@
 > module Kreb.Text.Cell where
 
 > import Kreb.Check
-> import Kreb.Struct.FingerTree
+> 
+> import Kreb.Struct.Valued
 
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.MeasureText

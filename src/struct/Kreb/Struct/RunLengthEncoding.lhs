@@ -49,6 +49,7 @@ We will need this utility type later.
 > 
 > import Kreb.Check (Arb(..), Prune(..), Positive(..), listOf)
 > 
+> import Kreb.Struct.Valued
 > import Kreb.Struct.FingerTree
 
 
@@ -180,7 +181,7 @@ Queries
 
 > isEmptyRLE
 >   :: RunLengthEncoding a -> Bool
-> isEmptyRLE (RLE xs) = isEmptyFT xs
+> isEmptyRLE (RLE xs) = isEmpty xs
 
 > firstRun
 >   :: RunLengthEncoding a
@@ -215,7 +216,7 @@ The `Semigroup` product on run length encoded lists combines the innermost runs,
 >         Just (Run (kb, b), bs') -> case unsnoc as of
 >           Nothing -> RLE bs
 >           Just (Run (ka, a), as') -> RLE $ mconcat $ if a == b
->             then [ as', fromListFT [ Run (ka+kb, a) ], bs' ]
+>             then [ as', fromList [ Run (ka+kb, a) ], bs' ]
 >             else [ as, bs ]
 > 
 > instance
@@ -232,7 +233,7 @@ With the semigroup instance in hand we can define a left inverse for `toFreqList
 > fromFreqList = foldr f mempty . filter p
 >   where
 >     f (k,a) xs =
->       (RLE $ fromListFT [mkRun k a]) <> xs
+>       (RLE $ fromList [mkRun k a]) <> xs
 > 
 >     p (k,_) = k > 0
 

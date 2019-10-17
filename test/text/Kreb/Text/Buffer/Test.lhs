@@ -38,6 +38,7 @@ Introduction
 > import Kreb.Struct
 > import Kreb.Reflect
 > import Kreb.Text
+> import qualified Kreb.Struct.FingerTree as FT
 > import qualified Kreb.Text.Buffer as Buf
 > 
 > --import Kreb.Struct.FingerTreeZip.Test
@@ -1095,11 +1096,11 @@ Take Line
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
 >      , Valued (MeasureText w t) a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> FingerTree (MeasureText w t) (Cell a)
+>   -> FT.FingerTree (MeasureText w t) (Cell a)
 >   -> Check
 > prop_Buffer_takeLine_concat _ _ _ xs =
 >   check $
->     let zs = xs <> fromListFT [eof] in
+>     let zs = xs <> FT.fromList [eof] in
 >     case takeLine zs of
 >       Nothing -> claimEqual xs mempty
 >       Just (as,bs) -> claimEqual zs (as <> bs)
@@ -1109,12 +1110,12 @@ Take Line
 >      , Valued (MeasureText w t) a )
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> NonNegative Int
->   -> FingerTree (MeasureText w t) (Cell a)
+>   -> FT.FingerTree (MeasureText w t) (Cell a)
 >   -> Check
 > prop_Buffer_takeLines_concat _ _ _ (NonNegative k) xs =
 >   check $
 >     let
->       zs = xs <> fromListFT [eof]
+>       zs = xs <> FT.fromList [eof]
 >       (uss,vs) = takeLines k zs
 >     in claimEqual zs (mconcat uss <> vs)
 
@@ -1127,13 +1128,13 @@ Take Line
 >   -> Check
 > prop_Buffer_takeLine_examples _ _ _ xs (as, bs) =
 >   let
->     zs :: FingerTree (MeasureText w t) (Cell a)
->     zs = fromListFT $ map (fmap fromChar) xs
+>     zs :: FT.FingerTree (MeasureText w t) (Cell a)
+>     zs = FT.fromList $ map (fmap fromChar) xs
 >   in case takeLine zs of
 >     Nothing -> error "prop_Buffer_takeLine_examples: panic"
 >     Just (us,vs) ->
->       (claimEqual us (fromListFT $ map (fmap fromChar) as)) .&&.
->       (claimEqual vs (fromListFT $ map (fmap fromChar) bs))
+>       (claimEqual us (FT.fromList $ map (fmap fromChar) as)) .&&.
+>       (claimEqual vs (FT.fromList $ map (fmap fromChar) bs))
 
 > test_Buffer_takeLine_examples
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a
@@ -1197,8 +1198,8 @@ Take Line
 >   (NonNegative h) xs (uss, vs) =
 >   let
 >     f :: [Cell Char]
->       -> FingerTree (MeasureText w t) (Cell a)
->     f zs = fromListFT $ map (fmap fromChar) zs
+>       -> FT.FingerTree (MeasureText w t) (Cell a)
+>     f zs = FT.fromList $ map (fmap fromChar) zs
 > 
 >     (css, ds) = takeLines h (f xs)
 >   in claimAll
@@ -1297,8 +1298,8 @@ Take Line
 >   m xs uss =
 >   let
 >     f :: [Cell Char]
->       -> FingerTree (MeasureText w t) (Cell a)
->     f zs = fromListFT $ map (fmap fromChar) zs
+>       -> FT.FingerTree (MeasureText w t) (Cell a)
+>     f zs = FT.fromList $ map (fmap fromChar) zs
 > 
 >     css = getLineNumbers (value $ f m) (map f xs)
 >   in claimEqual css (map (\(us, k) -> (f us, k)) uss)

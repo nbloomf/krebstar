@@ -1,98 +1,57 @@
 ---
-title: Kreb.Struct.FingerTree
+title: Finger Trees
 ---
 
-<blockquote>
-I can whistle with my fingers, especially if I have a whistle.
-
-<cite>Mitch Hedberg</cite>
-</blockquote>
-
-In this module we develop the core data structure of our text editor: _finger trees_.
-
-
-
-Contents
---------
-
-* [Introduction](#introduction)
-* [Exposed API](#exposed-api)
-* [The Valued Class](#the-valued-class)
-* [Internal Types](#internal-types)
-* [Finger Trees](#finger-trees)
-    * [Cons and Uncons](#cons-and-uncons)
-    * [Concatenation](#concatenation)
-    * [Splitting](#splitting)
-    * [Taking subsequences](#taking-subsequences)
-    * [Debugging](#debugging)
+::: contents
+* [Introduction](#introduction): The problem we're solving
+* [Internal Types](#internal-types): Building toward polymorphic recursion
+* [Finger Trees](#finger-trees): Not as scary as it sounds
+* [Queries](#queries): Extracting basic information from a finger tree
+* [Class Instances](#class-instances): Code for free
+* [Cons and Uncons](#cons-and-uncons): Building and destructuring finger trees
+* [Concatenation](#concatenation): Joining finger trees
+:::
 
 
 
-Introduction
-============
-
-The most basic requirement of a text editor is surely that it provide some mechanism for modeling and manipulating strings of characters. This mechanism had better be pretty robust and efficient, too, at least for common operations, since it will be doing most of the work during everyday use. Several different data structures have been developed for this purpose, including gap buffers and piece tables, but not all of them translate cleanly to a language like Haskell where mutation is not allowed (or at least very strictly controlled) and evaluation is lazy by default.
-
-Choosing a data structure is all about making tradeoffs. We think about our particular application and what data and operations it needs, then choose a structure that makes those operations efficient. With that in mind, what exactly do we need for our simple text editor? I can think of a few things.
-
-1. Our data structure should essentially model a list of characters; that is, whatever weird branching or in-place mutating business is happening behind the scenes, the API is more or less that of lists.
-2. Typically when editing text we've got a distinguished position called the _cursor_ where our editing actions (insert, delete) have immediate effect. It is vital that interacting with and moving the cursor around be blazing fast, since that's where most of the work happens.
-3. Another very common action when editing text is _search_. This takes a few forms -- jumping to a particular line and column position, or searching for a literal substring, or looking for matches to a given regular expression.
-
-There are others -- fast syntax highlighting is nice, for instance -- but these are the absolute essentials.
-
-Lucky for us, there's a powerful data structure that gives us all three, based on _finger trees_. These were introduced in the present form in the paper [_Finger trees: a simple general-purpose data structure_](http://www.staff.city.ac.uk/~ross/papers/FingerTree.html) by Hinze and Paterson. The funny name refers to the fact that trees of this type have _fingers_ -- distinguished locations where read and write access is cheap.
-
-In this module we'll develop an API for working with finger trees by following the Hinze and Paterson paper pretty closely. There are existing implementations of this that we could use instead, but finger trees are quite elegant and seeing how they work by rolling our own is a worthwhile exercise.
-
-This code uses the following compiler extensions:
+::: frontmatter
 
 > {-# LANGUAGE
 >     MultiParamTypeClasses
 >   , ScopedTypeVariables
->   , FlexibleContexts
 >   , FlexibleInstances
+>   , FlexibleContexts
 >   , DeriveGeneric
 >   , InstanceSigs
 >   , Rank2Types
 > #-}
-
-Some of these are essential, while others are just convenient. We will address them as we come to them.
-
-
-
-Exposed API
-===========
-
+> 
 > module Kreb.Struct.FingerTree (
->   -- ** Valued
->     Valued(..)
->   , Count(..)
+>     FingerTree()
+>   , empty
+>   , singleton
 > 
->   -- ** FingerTree
->   , FingerTree()
+>   , isEmpty
+>   , isSingleton
+>   , readInit
+>   , readLast
+> 
 >   , fmapFT
+>   , remeasure
 > 
->   -- * Constructors
->   , fromListFT
->   , leaf
 >   , cons
+>   , fromList
 >   , snoc
-> 
->   -- * Destructors
+>   , reverse
 >   , uncons
 >   , unsnoc
-> 
+
+
 >   -- * Operators
->   , reverseFT
->   , remeasureFT
+
 >   , takeWhileValueFT
 >   , breakPrefixWhileValueFT
-> 
->   -- * Queries
->   , isEmptyFT
->   , notEmptyFT
->   , isLeafFT
+
 > 
 >   -- * Splitting
 >   , splitFT
@@ -106,88 +65,51 @@ Exposed API
 >   , validateFT
 > ) where
 > 
+> import Prelude hiding (reverse)
+> import qualified Prelude as Prelude (reverse)
+> 
 > import GHC.Generics
 > 
 > import Data.Monoid
 > import Data.Foldable
 > import Data.List (unwords)
 
-> import Debug.Trace
-
 > import Kreb.Check
->   ( Arb(..), Prune(..), CoArb(..)
->   , MakeTo(..), makeToIntegralWith, makeToExtendWith )
+> import Kreb.Struct.Valued
+
+:::
 
 
 
-The Valued Class
-================
+Introduction
+------------
 
-The secret power of finger trees is that they aren't just _a_ data structure. They are a whole _family_ of data structures parameterized by a monoid. Different choices of this monoid give structures with different characteristics, but all are constructed and accessed in the same way.
+The most basic requirement of a text editor is surely that it provide some mechanism for modeling and manipulating strings of characters. This mechanism had better be pretty robust and efficient, too, at least for common operations, since it will be doing most of the work during everyday use. Several different data structures have been developed for this purpose, including gap buffers and piece tables, but not all of them translate cleanly to a language like Haskell where mutation is very strictly controlled and evaluation is lazy by default.
 
-The _content_ type `a` of a finger tree must have a distinguished mapping into some monoid type `m`. We can enforce this in Haskell using a typeclass with two parameters. It looks a little bit like we're saying that `a` has an `m`-valuation, so we'll call this class `Valued`.
+Choosing a data structure is all about making tradeoffs. We think about our particular application and what data and operations it needs, then choose a structure that makes those operations efficient. With that in mind, what exactly do we need for our simple text editor? I can think of a few things.
 
-> class
->   ( Monoid m
->   ) => Valued m a
->   where
->     value :: a -> m
+1. Our data structure should essentially model a list of characters; that is, whatever weird branching or in-place mutating business is happening behind the scenes, the API is more or less that of lists.
+2. Typically when editing text we've got a distinguished position called the _cursor_ where our editing actions (insert, delete) have immediate effect. It is vital that interacting with and moving the cursor around be blazing fast, since that's where most of the work happens.
+3. Another very common action when editing text is _search_. This takes a few forms -- jumping to a particular line and column position, or searching for a literal substring, or looking for matches to a given regular expression.
 
-This is where the `MultiParamTypeClasses` extension is needed. And the extension is genuinely necessary here; in general we may want multiple valuations on the same `a`, and likewise multiple types valued by the same `m`. So as far as I can see we can't drop MPTC in favor of some other mechanism like associated type families.
+There are others -- fast syntax highlighting is nice, for instance -- but these are the absolute essentials.
 
-Note that the `Valued` class does not impose any laws. It can't, really, because at this level of abstraction there's no structure on `a` to relate to that of `m`. Normally this is a design smell -- generally typeclasses should come with laws -- but here we'll let it slide.
+Lucky for us, there's a powerful data structure that gives us all three, based on _finger trees_. These were introduced in the present form in the paper [_Finger trees: a simple general-purpose data structure_](http://www.staff.city.ac.uk/~ross/papers/FingerTree.html) by Hinze and Paterson. The funny name refers to the fact that trees of this type have _fingers_ -- distinguished locations where read and write access is cheap.^[Finger trees are themselves an instance of a more general and very powerful pattern for designing data structures based on _numerical representations_. Okasaki's <a href="https://www.cs.cmu.edu/~rwh/theses/okasaki.pdf">thesis</a> on _Purely Functional Data Structures_ (also available in book form) is the classic reference on this topic.]
 
-Now lets define a concrete monoid and `Valued` instance for testing. Note that while `Valued` is a many-to-many type class constraint, for most applications we'll want to define a specific monoid type `m` just for that purpose -- even if it's just a `newtype` wrapper around some other type. For example, here's a wrapper around `Int` that is a monoid under addition.
+In this module we'll develop an API for working with finger trees by following the Hinze and Paterson paper pretty closely. There are existing implementations of this that we could use instead, but finger trees are quite elegant and seeing how they work by rolling our own is a worthwhile exercise.
 
-> data Count
->   = Count Int
->   deriving (Eq, Show, Generic)
-> 
-> instance Semigroup Count where
->   (Count a) <> (Count b) = Count (a + b)
-> 
-> instance Monoid Count where
->   mempty = Count 0
-> 
-> instance Arb Count where
->   arb = Count <$> arb
-> 
-> instance Prune Count where
->   prune (Count k) =
->     map Count $ prune k
-> 
-> instance CoArb Count where
->   coarb (Count k) = coarb k
-> 
-> instance MakeTo Count where
->   makeTo = makeToIntegralWith g h
->     where
->       g :: Count -> Integer
->       g (Count k) = fromIntegral k
-> 
->       h :: Integer -> Count
->       h k = Count $ fromInteger $ abs k
-
-
-
-> instance Valued Count Char where
->   value _ = Count 1
-> 
-> instance Valued Count Bool where
->   value _ = Count 1
-> 
-> instance
->   ( Valued Count a
->   ) => Valued Count (a,b)
->   where
->     value (a,_) = value a
+The secret sauce behind finger trees is that they are not a single data structure but a whole family of structures, parameterized by a monoid, which permit an efficient _search_ algorithm. Different choices for the monoid yield specific structures with different behavior, but we can implement them all at once. This is a good case study on the principle that _throwing away detail_ can lead to clean and general code.
 
 
 
 Internal Types
-==============
+--------------
 
-Finger trees exhibit a phenomenon called _polymorphic recursion_, where at each level the 'inner' and 'outer' structures have different types. First we have the 'fingers' to the left and the right, which can number from one to four on each side. We represent this with the `Some` class.
+Recursive data types are the bread and butter of functional programming -- after a little practice we whip up new recursive types without even thinking about it. Finger trees are also recursively defined, but exhibit a phenomenon called _polymorphic recursion_ where at each level the "inner" and "outer" structures have different types. To get there we first need to define some auxiliary types.
+
+Finger trees have nested data of two forms: the _fingers_, which provide amortized constant complexity access to a small number of values on either "end" of the tree, and the _branches_, which carry more deeply nested values. These are implemented as the types `Some` and `Node`, which are used only inside this module.
+
+First for the fingers. The number of values on each end ranges from one to four. Why four? The short answer is that this is the number required to make the complexity proofs work out; it provides just the right balance between _immediate access_ at the fingers and _deep nesting_ in the branches. The Hinze and Paterson paper has the details. We represent the fingers with the following `Some` type.^[Some is also a sum.]
 
 > data Some m a
 >   = Only1 m a
@@ -196,7 +118,7 @@ Finger trees exhibit a phenomenon called _polymorphic recursion_, where at each 
 >   | Only4 m a a a a
 >   deriving (Eq, Show)
 
-Note the `m` parameter; this is the cached `value` of the internal data.
+Note the `m` parameter; this is the cached monoidal value of the internal data. Specifically the value of a `Some` is the product of the values of its internal data.
 
 > instance
 >   ( Monoid m
@@ -208,9 +130,11 @@ Note the `m` parameter; this is the cached `value` of the internal data.
 >       Only3 m _ _ _ -> m
 >       Only4 m _ _ _ _ -> m
 
-To maintain the invariant that our cached `value` is accurate, it's important that we only create `Some` values using the following _smart constructors_:
+To maintain the invariant that our cached value is accurate, it's important that we only create `Some` values using the following _smart constructors_. The `Valued` class here is essential; this is where the `Monoid` instance on `m` is enforced.
 
-> only1 :: (Valued m a) => a -> Some m a
+> only1
+>   :: ( Valued m a )
+>   => a -> Some m a
 > only1 a1 = Only1 m a1
 >   where m = value a1
 > 
@@ -223,21 +147,25 @@ To maintain the invariant that our cached `value` is accurate, it's important th
 >       [ value a1, value a2 ]
 >   in Only2 m a1 a2 
 > 
-> only3 :: (Valued m a) => a -> a -> a -> Some m a
+> only3
+>   :: ( Valued m a )
+>   => a -> a -> a -> Some m a
 > only3 a1 a2 a3 =
 >   let
 >     m = mconcat
 >       [ value a1, value a2, value a3 ]
 >   in Only3 m a1 a2 a3 
 > 
-> only4 :: (Valued m a) => a -> a -> a -> a -> Some m a
+> only4
+>   :: ( Valued m a )
+>   => a -> a -> a -> a -> Some m a
 > only4 a1 a2 a3 a4 =
 >   let
 >     m = mconcat
 >       [ value a1, value a2, value a3, value a4 ]
 >   in Only4 m a1 a2 a3 a4 
 
-These constructors are not exposed outside this module since they are only used in the internal representation. For instance, we use them to define something like `fmap` for `Some` -- although we can't use the `Functor` typeclass for this due to the `Valued` constraint.
+These constructors are not exposed outside this module since they are only used in the internal representation. For instance, we use them to define something like `fmap` for `Some` -- although we can't use the `Functor` typeclass for this due to the `Valued` constraint. (A common theme for types based on finger trees.)
 
 > fmapSome
 >   :: ( Valued m1 a1, Valued m2 a2 )
@@ -252,7 +180,23 @@ These constructors are not exposed outside this module since they are only used 
 >   Only4 _ u1 u2 u3 u4 ->
 >     only4 (f u1) (f u2) (f u3) (f u4)
 
-Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clarity):
+We can test our intuition for how `fmapSome` should behave with an example.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y :: Some Count Int
+> --   x = only3 1 2 3
+> --   y = only3 2 4 6
+> -- in y == fmapSome (*2) x
+> -- :}
+> -- True
+
+:::
+
+Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clarity). Here we do have a bona fide class instance because we don't need to use the smart constructors.
 
 > instance Foldable (Some m) where
 >   toList
@@ -287,9 +231,22 @@ Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clar
 >     Only4 _ a1 a2 a3 a4 ->
 >       f (f (f (f b a1) a2) a3) a4
 
-This instance is mainly used as a helper for defining the instance for `FingerTree`.
+This instance is mainly used as a helper for defining the instance for `FingerTree`. Because `Some` is not exposed outside of this module we won't rigorously check that this instance is lawful (though we will do this indirectly when we test the corresponding instance for finger trees). We can however manually check some small examples.
 
-Next we have the nested tree type. Finger trees are basically rearranged 2-3 trees, and the nested `Node` type represents internal branching nodes of this kind.
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: Some Count Char
+> --   x = only3 'a' 'b' 'c'
+> -- in (foldr (:) [] x, foldl (flip (:)) [] x)
+> -- :}
+> -- ("abc","cba")
+
+:::
+
+Next we have a nested tree type. Finger trees are basically rearranged 2-3 trees, and the nested `Node` type represents internal branching nodes of this sort.
 
 > data Node m a
 >  = Node2 m a a
@@ -338,21 +295,27 @@ From here we can give something like `fmap` for `Node`, again outside of the usu
 And we need a `Foldable` instance:
 
 > instance Foldable (Node m) where
->  foldr
->    :: (a -> b -> b) -> b -> Node m a -> b
->  foldr f b w = case w of
->    Node2 _ a1 a2 ->
->      f a1 (f a2 b)
->    Node3 _ a1 a2 a3 ->
->      f a1 (f a2 (f a3 b))
+>   toList
+>     :: Node m a -> [a]
+>   toList w = case w of
+>     Node2 _ a1 a2 -> [a1, a2]
+>     Node3 _ a1 a2 a3 -> [a1, a2, a3]
 > 
->  foldl
->    :: (b -> a -> b) -> b -> Node m a -> b
->  foldl f b w = case w of
->    Node2 _ a1 a2 ->
->      f (f b a1) a2
->    Node3 _ a1 a2 a3 ->
->      f (f (f b a1) a2) a3
+>   foldr
+>     :: (a -> b -> b) -> b -> Node m a -> b
+>   foldr f b w = case w of
+>     Node2 _ a1 a2 ->
+>       f a1 (f a2 b)
+>     Node3 _ a1 a2 a3 ->
+>       f a1 (f a2 (f a3 b))
+> 
+>   foldl
+>     :: (b -> a -> b) -> b -> Node m a -> b
+>   foldl f b w = case w of
+>     Node2 _ a1 a2 ->
+>       f (f b a1) a2
+>     Node3 _ a1 a2 a3 ->
+>       f (f (f b a1) a2) a3
 
 Finally, note that `Node` can be thought of as a strict subset of `Some`. We use a helper function, `toSome`, to make this formal.
 
@@ -366,14 +329,19 @@ Finally, note that `Node` can be thought of as a strict subset of `Some`. We use
 
 
 Finger Trees
-============
+------------
 
 Now for the big show. A finger tree is either empty, or consists of a single node (with its cached value), or has some left and right fingers with a nested finger tree in the middle (with the cached product of their values).
 
 > data FingerTree m a
->  = Stump
->  | Leaf m a
->  | Branch m (Some m a) (FingerTree m (Node m a)) (Some m a)
+>   = Stump
+>   | Leaf m a
+>   | Branch m
+>       (Some m a)                -- left fingers
+>       (FingerTree m (Node m a)) -- nested tree
+>       (Some m a)                -- right fingers
+
+Note that the second type parameter of the outer appearance of `FingerTree` is simply `a`, while on the inner appearance it is `Node m a`. This is polymorphic recursion, and it took me a while to wrap my head around what it means.
 
 As with `Some` and `Node`, `FingerTree` inherits an instance of `Valued` and to maintain integrity we must only use smart constructors to define them.
 
@@ -392,8 +360,7 @@ As with `Some` and `Node`, `FingerTree` inherits an instance of `Valued` and to 
 > 
 > leaf
 >   :: ( Valued m a )
->   => a
->   -> FingerTree m a
+>   => a -> FingerTree m a
 > leaf a = Leaf m a
 >   where m = value a
 > 
@@ -407,14 +374,123 @@ As with `Some` and `Node`, `FingerTree` inherits an instance of `Valued` and to 
 >        [ value heads, value mids, value lasts ]
 >   in Branch m heads mids lasts
 
-> isLeafFT
+These constructors are useful inside this module, where we know (and need to know) the internal structure of a finger tree. But outside this module it will be more useful to expose constructors with less concrete names.
+
+> empty
+>   :: FingerTree m a
+> empty = stump
+> 
+> singleton
+>   :: ( Valued m a )
+>   => a -> FingerTree m a
+> singleton = leaf
+
+Also, just as every `Node` can be converted into a `Some`, every `Some` can be converted to a `FingerTree`. This conversion will come in handy later so we define it here, but this code is not exposed outside of this module.
+
+> someToFingerTree
+>   :: ( Valued m a )
+>   => Some m a -> FingerTree m a
+> someToFingerTree w = case w of
+>   Only1 _ a1 ->
+>     leaf a1
+>   Only2 _ a1 a2 ->
+>     branch (only1 a1) stump (only1 a2)
+>   Only3 _ a1 a2 a3 ->
+>     branch (only2 a1 a2) stump (only1 a3)
+>   Only4 _ a1 a2 a3 a4 ->
+>     branch (only2 a1 a2) stump (only2 a3 a4)
+> 
+> maybeSomeToFingerTree
+>   :: ( Valued m a )
+>   => Maybe (Some m a) -> FingerTree m a
+> maybeSomeToFingerTree w = case w of
+>   Nothing -> stump
+>   Just z -> someToFingerTree z
+
+
+
+Queries
+-------
+
+Next we define some simple structural queries on finger trees. We can detect whether the tree is empty or a singleton.
+
+> isEmpty
+>   :: FingerTree m a -> Bool
+> isEmpty x = case x of
+>   Stump -> True
+>   _     -> False
+> 
+> isSingleton
 >   :: ( Valued m a )
 >   => FingerTree m a -> Bool
-> isLeafFT x = case x of
+> isSingleton x = case x of
 >   Leaf _ _ -> True
->   _ -> False
+>   _        -> False
 
-And we can define something like `fmap` for finger trees:
+Next we define very basic queries for reading the first or last item in a nonempty finger tree. Recall that efficient access to these items is the point of the finger. (These are very basic; we'll define much more powerful _destructors_ which generalize this behavior in a bit.)
+
+> readInit
+>   :: FingerTree m a -> Maybe a
+> readInit w = case w of
+>   Stump -> Nothing
+>   Leaf _ a -> Just a
+>   Branch _ as _ _ -> case as of
+>     Only1 _ a -> Just a
+>     Only2 _ a _ -> Just a
+>     Only3 _ a _ _ -> Just a
+>     Only4 _ a _ _ _ -> Just a
+> 
+> readLast
+>   :: FingerTree m a -> Maybe a
+> readLast w = case w of
+>   Stump -> Nothing
+>   Leaf _ a -> Just a
+>   Branch _ _ _ as -> case as of
+>     Only1 _ a -> Just a
+>     Only2 _ _ a -> Just a
+>     Only3 _ _ _ a -> Just a
+>     Only4 _ _ _ _ a -> Just a
+
+
+
+Class Instances
+---------------
+
+It isn't too surprising that we have a `Foldable` instance for finger trees.
+
+> instance Foldable (FingerTree m) where
+>   toList
+>     :: FingerTree m a -> [a]
+>   toList w = case w of
+>     Stump -> []
+>     Leaf _ a -> [a]
+>     Branch _ as1 as2 as3 -> concat
+>       [ toList as1, concatMap toList as2, toList as3 ]
+> 
+>   foldr
+>     :: (a -> b -> b) -> b -> FingerTree m a -> b
+>   foldr f b w = case w of
+>     Stump -> b
+>     Leaf _ a -> f a b
+>     Branch _ as1 as2 as3 ->
+>       foldr f
+>         (foldr (flip (foldr f)) (foldr f b as3) as2) as1
+> 
+>   foldl
+>     :: (b -> a -> b) -> b -> FingerTree m a -> b
+>   foldl f b w = case w of
+>     Stump -> b
+>     Leaf _ a -> f b a
+>     Branch _ as1 as2 as3 ->
+>       foldl f
+>         (foldl (foldl f) (foldl f b as1) as2) as3
+
+Note that we didn't derive the `Eq` instance for `FingerTree`. This is because in some sense the tree structure itself is only incidental, used for maintaining the fingers and caching values. The meat of the structure is the left-to-right traversal of the leaf nodes and fingers, and the derived (structural) equality instance would be too granular. To get around this we'll instead check for equality on `FingerTree`s by converting to lists first, using the `Foldable` instance.
+
+> instance (Eq a) => Eq (FingerTree m a) where
+>   a == b = (toList a) == (toList b)
+
+We'd also like for finger trees to be a functor. Unfortunately this can't be expressed in the Haskell type system (as far as I know) due to the `Valued` class constraint. We can however define a bespoke `fmap`-like function on finger trees.
 
 > fmapFT
 >   :: forall m1 m2 a1 a2
@@ -430,95 +506,20 @@ And we can define something like `fmap` for finger trees:
 
 With this version of `fmap` we can do something interesting. Mapping with `id` can swap out the cached value monoid.
 
-> remeasureFT
+> remeasure
 >  :: forall m1 m2 a
 >   . ( Valued m1 a, Valued m2 a )
 >  => FingerTree m1 a -> FingerTree m2 a
-> remeasureFT = fmapFT id
-
-Next we define some simple structural queries on finger trees. First to detect whether the tree is empty:
-
-> isEmptyFT
->   :: FingerTree m a -> Bool
-> isEmptyFT x = case x of
->   Stump -> True
->   _     -> False
-> 
-> notEmptyFT
->   :: FingerTree m a -> Bool
-> notEmptyFT x = case x of
->   Stump -> False
->   _     -> True
-
-We can also compute the 'depth' of the tree. This function is only exposed for testing purposes. During normal use the internal structure of a finger tree is of no interest to us, but this will help us to ensure good test coverage later.
-
-> depthFT
->  :: FingerTree m a -> Int
-> depthFT x = case x of
->  Stump -> 0
->  Leaf _ _ -> 1
->  Branch _ _ z _ -> 1 + depthFT z
-
-Now we can define a `Foldable` instance:
-
-> instance
->   Foldable (FingerTree m)
->   where
->     foldr
->       :: (a -> b -> b) -> b -> FingerTree m a -> b
->     foldr f b w = case w of
->       Stump -> b
->       Leaf _ a -> f a b
->       Branch _ as1 as2 as3 ->
->         foldr f
->           (foldr (flip (foldr f)) (foldr f b as3) as2) as1
-> 
->     foldl
->       :: (b -> a -> b) -> b -> FingerTree m a -> b
->     foldl f b w = case w of
->       Stump -> b
->       Leaf _ a -> f b a
->       Branch _ as1 as2 as3 ->
->         foldl f
->           (foldl (foldl f) (foldl f b as1) as2) as3
-
-Note that we didn't derive the `Eq` instance for `FingerTree`. This is because in some sense the tree structure itself is only incidental, used for maintaining the fingers and caching values. The meat of the structure is the left-to-right traversal of the leaf nodes and fingers, and the derived (structural) equality instance would be too granular. To get around this we'll instead check for equality on `FingerTree`s by converting to lists first, using the `Foldable` instance.
-
-> instance
->   ( Eq a
->   ) => Eq (FingerTree m a)
->   where
->     a == b =
->       (toList a) == (toList b)
-
-As every `Node` can be converted into a `Some`, every `Some` can be converted to a `FingerTree`. This conversion will come in handy later so we define it here, though this code is not exposed outside of this module.
-
-> someToFingerTree
->   :: ( Valued m a )
->   => Some m a -> FingerTree m a
-> someToFingerTree w = case w of
->   Only1 _ a1 ->
->     leaf a1
->   Only2 _ a1 a2 ->
->     branch (only1 a1) stump (only1 a2)
->   Only3 _ a1 a2 a3 ->
->     branch (only2 a1 a2) stump (only1 a3)
->   Only4 _ a1 a2 a3 a4 ->
->     branch (only2 a1 a2) stump (only2 a3 a4)
-> 
-> maybeToFingerTree
->   :: ( Valued m a )
->   => Maybe (Some m a) -> FingerTree m a
-> maybeToFingerTree w = case w of
->   Nothing -> stump
->   Just z -> someToFingerTree z
+> remeasure = fmapFT id
 
 
 
 Cons and Uncons
 ---------------
 
-`cons` is a traditional name for the function that appends an item to the head of the list; it originates in Lisp. For finger trees, if the left side does not have a full complement of fingers then `cons` is a constant time operation. If it does, then we take some of the fingers and recursively `cons` them as a node to the inner tree.
+In this section we'll implement four of the most important functions on finger trees, which efficiently build and decompose finger trees by adding or removing items from one of the ends.
+
+The traditional name for appending an item to a list is _cons_, after the Lisp function for this operation. Given a finger tree, if the left end does not have a full complement of fingers then `cons` is a constant time operation. If it does, then we take some of the fingers and recursively `cons` them as a node to the inner tree. This is the first place where the magic numbers 4 and 3, for the numbers of fingers and children per node, respectively, become important.
 
 > cons
 >  :: ( Valued m a )
@@ -538,18 +539,39 @@ Cons and Uncons
 
 With `cons` in hand we can now write a helper for converting lists into finger trees; this is handy for testing.
 
-> fromListFT
+> fromList
 >  :: ( Valued m a )
 >  => [a] -> FingerTree m a
-> fromListFT = foldr cons stump
+> fromList = foldr cons stump
 
-And with `fromListFT` we can also give a convenient `Show` instance. Note that the derived instance would include a lot of superfluous information about the internal structure of the tree.
+At this point we can also test some interesting examples.
 
-> instance
->   ( Show a
->   ) => Show (FingerTree m a)
->   where
->     show a = "fromListFT " ++ show (toList a)
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: FingerTree Count Char
+> --   x = fromList ['a','b','c']
+> -- in (readInit x, readLast x)
+> -- :}
+> -- (Just 'a',Just 'c')
+> --
+> -- >>> :{
+> -- let
+> --   x, y :: FingerTree Count Char
+> --   x = fromList ['b','c','d']
+> --   y = fromList ['a','b','c','d']
+> -- in y == cons 'a' x
+> -- :}
+> -- True
+
+:::
+
+Before moving on, with `fromList` in hand we can also give a convenient `Show` instance. Note that the derived instance would include a lot of superfluous information about the internal structure of the tree.
+
+> instance (Show a) => Show (FingerTree m a) where
+>   show a = "fromList " ++ show (toList a)
 
 The mirror operation -- appending on the right -- is defined similarly. This is called `snoc`.
 
@@ -571,35 +593,51 @@ The mirror operation -- appending on the right -- is defined similarly. This is 
 
 With `snoc` we can reverse the tree.
 
-> reverseFT
+> reverse
 >   :: ( Valued m a )
 >   => FingerTree m a -> FingerTree m a
-> reverseFT = foldr snoc mempty
+> reverse = foldr snoc mempty
+
+For example:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y :: FingerTree Count Char
+> --   x = fromList ['a','b','c']
+> --   y = fromList ['c','b','a']
+> -- in y == reverse x
+> -- :}
+> -- True
+
+:::
 
 `cons` also has an inverse, called `uncons`. (The inverse here is not literal, but can be made so if instead of cons we consider the coproduct of cons with the constant `stump` function, but for our purposes here that's splitting hairs.)
 
-Like `cons`, `uncons` is very fast if the left side of the tree has fingers to spare. But if not, we have to do a kind of recursive borrowing.
+Like `cons`, `uncons` is very fast if the left side of the tree has fingers to spare. But if not, we have to do a kind of recursive borrowing.^[Think "borrow" as in the usual algorithm for subtracting natural numbers.]
 
 > uncons
->  :: ( Valued m a )
->  => FingerTree m a
->  -> Maybe (a, FingerTree m a)
+>   :: ( Valued m a )
+>   => FingerTree m a
+>   -> Maybe (a, FingerTree m a)
 > uncons w = case w of
->  Stump -> Nothing
->  Leaf _ a -> Just (a, stump)
->  Branch _ as1 as2 as3 ->
->    let (a, as) = uncons' as1
->    in Just (a, borrowL as as2 as3)
-> 
-> uncons'
->  :: ( Valued m a )
->  => Some m a
->  -> (a, Maybe (Some m a))
-> uncons' w = case w of
->  Only1 _ a1 -> (a1, Nothing)
->  Only2 _ a1 a2 -> (a1, Just (only1 a2))
->  Only3 _ a1 a2 a3 -> (a1, Just (only2 a2 a3))
->  Only4 _ a1 a2 a3 a4 -> (a1, Just (only3 a2 a3 a4))
+>   Stump -> Nothing
+>   Leaf _ a -> Just (a, stump)
+>   Branch _ as1 as2 as3 ->
+>     let (a, as) = uncons' as1
+>     in Just (a, borrowL as as2 as3)
+>   where
+>     uncons'
+>       :: ( Valued m a )
+>       => Some m a
+>       -> (a, Maybe (Some m a))
+>     uncons' w = case w of
+>       Only1 _ a1 -> (a1, Nothing)
+>       Only2 _ a1 a2 -> (a1, Just (only1 a2))
+>       Only3 _ a1 a2 a3 -> (a1, Just (only2 a2 a3))
+>       Only4 _ a1 a2 a3 a4 -> (a1, Just (only3 a2 a3 a4))
 > 
 > borrowL
 >  :: ( Valued m a )
@@ -613,28 +651,28 @@ Like `cons`, `uncons` is very fast if the left side of the tree has fingers to s
 >    Nothing -> someToFingerTree as3
 >    Just (a, as) -> branch (toSome a) as as3
 
-And there's a similar analogue for `snoc`.
+And there's an analogous partner for `snoc`.
 
 > unsnoc
->  :: ( Valued m a )
->  => FingerTree m a
->  -> Maybe (a, FingerTree m a)
+>   :: ( Valued m a )
+>   => FingerTree m a
+>   -> Maybe (a, FingerTree m a)
 > unsnoc w = case w of
->  Stump -> Nothing
->  Leaf _ a -> Just (a, stump)
->  Branch _ as1 as2 as3 ->
->    let (a, as) = unsnoc' as3
->    in Just (a, borrowR as1 as2 as)
-> 
-> unsnoc'
->  :: ( Valued m a )
->  => Some m a
->  -> (a, Maybe (Some m a))
-> unsnoc' w = case w of
->  Only1 _ a1 -> (a1, Nothing)
->  Only2 _ a1 a2 -> (a2, Just (only1 a1))
->  Only3 _ a1 a2 a3 -> (a3, Just (only2 a1 a2))
->  Only4 _ a1 a2 a3 a4 -> (a4, Just (only3 a1 a2 a3))
+>   Stump -> Nothing
+>   Leaf _ a -> Just (a, stump)
+>   Branch _ as1 as2 as3 ->
+>     let (a, as) = unsnoc' as3
+>     in Just (a, borrowR as1 as2 as)
+>   where
+>     unsnoc'
+>       :: ( Valued m a )
+>       => Some m a
+>       -> (a, Maybe (Some m a))
+>     unsnoc' w = case w of
+>       Only1 _ a1 -> (a1, Nothing)
+>       Only2 _ a1 a2 -> (a2, Just (only1 a1))
+>       Only3 _ a1 a2 a3 -> (a3, Just (only2 a1 a2))
+>       Only4 _ a1 a2 a3 a4 -> (a4, Just (only3 a1 a2 a3))
 > 
 > borrowR
 >  :: ( Valued m a )
@@ -647,6 +685,34 @@ And there's a similar analogue for `snoc`.
 >  Nothing -> case unsnoc as2 of
 >    Nothing -> someToFingerTree as1
 >    Just (a, as) -> branch as1 as (toSome a)
+
+And some examples:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y, z :: FingerTree Count Char
+> --   x = fromList ['a','b','c']
+> --   y = fromList ['b','c']
+> --   z = fromList ['a','b']
+> -- in
+> --   ( Just ('a', y) == uncons x
+> --   , Just ('c', z) == unsnoc x )
+> -- :}
+> -- (True,True)
+
+:::
+
+
+
+
+
+
+
+
+
 
 
 
@@ -790,7 +856,7 @@ Next we define a generalized split that prepends a given monoid value to the lef
 >             Nothing -> error "split: panic (1)"
 >             Just (ds1, x, ds3) ->
 >               let
->                 bs1 = maybeToFingerTree ds1
+>                 bs1 = maybeSomeToFingerTree ds1
 >                 bs3 = borrowL ds3 as2 as3
 >               in
 >                 Just (bs1, x, bs3)
@@ -819,7 +885,7 @@ Next we define a generalized split that prepends a given monoid value to the lef
 >                     Just (ds1, x, ds3) ->
 >                       let
 >                         bs1 = borrowR as1 as2 ds1
->                         bs3 = maybeToFingerTree ds3
+>                         bs3 = maybeSomeToFingerTree ds3
 >                       in
 >                         Just (bs1, x, bs3)
 >                   else Nothing -- precondition violated
@@ -850,10 +916,10 @@ Now the general `split` function specializes to the identity.
 >       :: Int -> FingerTree m a -> m
 >       -> [(FingerTree m a, m)] -> [(FingerTree m a, m)]
 >     f t z m us =
->       if (isEmptyFT z) || (t >= k)
->         then reverse us
+>       if (isEmpty z) || (t >= k)
+>         then Prelude.reverse us
 >         else case splitTree (q t) m z of
->           Nothing -> reverse us
+>           Nothing -> Prelude.reverse us
 >           Just (as,x,bs) ->
 >             f (t+1) bs (m <> value (snoc x as)) ((snoc x as,m):us)
 
@@ -1014,20 +1080,27 @@ Even the most thoroughly tested code can go wrong sometimes. For when that happe
 >         , p $ showSome s bs
 >         ]
 
+We can also compute the 'depth' of the tree. This function is only exposed for testing purposes. During normal use the internal structure of a finger tree is of no interest to us, but this will help us to ensure good test coverage later.
 
+> depthFT
+>  :: FingerTree m a -> Int
+> depthFT x = case x of
+>  Stump -> 0
+>  Leaf _ _ -> 1
+>  Branch _ _ z _ -> 1 + depthFT z
 
 > instance
 >   ( Arb a, Valued m a
 >   ) => Arb (FingerTree m a)
 >   where
->     arb = fromListFT <$> arb
+>     arb = fromList <$> arb
 > 
 > instance
 >   ( Prune a, Valued m a
 >   ) => Prune (FingerTree m a)
 >   where
 >     prune =
->       map fromListFT . prune . toList
+>       map fromList . prune . toList
 > 
 > instance
 >   ( CoArb a, Valued m a
@@ -1039,4 +1112,14 @@ Even the most thoroughly tested code can go wrong sometimes. For when that happe
 >   ( MakeTo a, Valued m a
 >   ) => MakeTo (FingerTree m a)
 >   where
->     makeTo = makeToExtendWith makeTo toList fromListFT
+>     makeTo = makeToExtendWith makeTo toList fromList
+
+::: epigraph
+
+<blockquote>
+I can whistle with my fingers, especially if I have a whistle.
+
+<footer>Mitch Hedberg, <cite>Live at the Congress Theater in Chicago, 2004</cite></footer>
+</blockquote>
+
+:::

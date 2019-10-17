@@ -20,7 +20,7 @@ title: Kreb.Struct.TwoPointedList.Test
 > import Test.Tasty
 > 
 > import Kreb.Check
-> import Kreb.Struct.FingerTree
+> import Kreb.Struct.Valued
 > import Kreb.Struct.TwoPointedList
 > import Kreb.Struct.FingerTree.Test
 
@@ -433,15 +433,5 @@ title: Kreb.Struct.TwoPointedList.Test
 >             , claimEqual
 >                 (readPoint as)
 >                 (readPoint (insertAtEnd u as))
->             ]
-> 
->     , testKreb
->         "(p mempty == True) || (readMark as == (splitPoint p as >>= readMark))" $
->         \(p :: Fun m Bool) (as :: TwoPointedList m a) ->
->           claimAny
->             [ claimTrue (apFun p mempty)
->             , claimEqual
->                 (readMark as)
->                 (splitPoint (apFun p) as >>= readMark)
 >             ]
 >     ]

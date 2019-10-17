@@ -33,10 +33,11 @@
 >   , "src/reflect/Kreb/Reflect/Nat.lhs"
 > 
 >   , "src/struct/Kreb/Struct.lhs"
+>   , "src/struct/Kreb/Struct/Valued.lhs"
 >   , "src/struct/Kreb/Struct/FingerTree.lhs"
 >   , "src/struct/Kreb/Struct/OnePointedList.lhs"
->   , "src/struct/Kreb/Struct/TwoPointedList.lhs"
 >   , "src/struct/Kreb/Struct/Seq.lhs"
+>   , "src/struct/Kreb/Struct/TwoPointedList.lhs"
 >   , "src/struct/Kreb/Struct/RunLengthEncoding.lhs"
 > 
 >   , "src/text/Kreb/Text.lhs"

@@ -25,6 +25,7 @@
 > import Data.Word (Word8)
 > import Data.Char (ord, chr)
 > 
+> import Kreb.Check.Seeded
 > import Kreb.Check.Arb
 
 
@@ -328,3 +329,12 @@ Base Constructors
 >           then []
 >           else [ Fun part def Pruned tot ]
 >       ]
+
+> instance MakeTo (ZZ a) where
+>   makeTo = makeToIntegralWith g h
+>     where
+>       g :: ZZ a -> Integer
+>       g (ZZ k) = fromIntegral k
+> 
+>       h :: Integer -> ZZ a
+>       h k = ZZ $ fromInteger $ abs k

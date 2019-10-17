@@ -196,7 +196,7 @@ Outcome of a single test case
 >     _ -> y
 > 
 > claimAny :: [Check] -> Check
-> claimAny = foldr (.||.) accept
+> claimAny = foldr (.||.) (reject "No accepted alternatives")
 
 
 

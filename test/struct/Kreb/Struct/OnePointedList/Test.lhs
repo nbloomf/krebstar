@@ -20,7 +20,8 @@ title: Kreb.Struct.OnePointedList.Test
 > import Test.Tasty
 > 
 > import Kreb.Check
-> import Kreb.Struct.FingerTree
+> import Kreb.Struct.Valued
+> import qualified Kreb.Struct.FingerTree as FT
 > import Kreb.Struct.OnePointedList
 > import Kreb.Struct.FingerTree.Test
 
@@ -33,7 +34,7 @@ OnePointedList Test Suite
 > test_OnePointedList =
 >   testGroup "OnePointedList"
 >     [ test_OnePointedList_properties
->         "Char/Count" (Proxy :: Proxy Char) (Proxy :: Proxy Count)
+>         "Count/Char" (Proxy :: Proxy Char) (Proxy :: Proxy Count)
 >     , test_OnePointedList_properties
 >         "Bool/Tup" (Proxy :: Proxy Bool) (Proxy :: Proxy Tup)
 > 
@@ -227,12 +228,12 @@ OnePointedList Test Suite
 >             [ claimTrue (isSingleton as)
 >             , claimEqual
 >                 (alterInit (apFun f) (alterLast (apFun g) as))
->                 (alterLast (apFun g) (alterLast (apFun f) as))
+>                 (alterLast (apFun g) (alterInit (apFun f) as))
 >             ]
 > 
 >     , testKreb
 >         "(p mempty) || (not (p (value as))) || (as == integrate (split p as))" $
->         \(as :: FingerTree m a) (p :: Fun m Bool) ->
+>         \(as :: FT.FingerTree m a) (p :: Fun m Bool) ->
 >           claimAny
 >             [ claimTrue (apFun p mempty)
 >             , claimFalse (apFun p (value as))

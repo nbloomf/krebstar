@@ -38,6 +38,13 @@
 > data Depth
 > data Size
 
+> instance Semigroup (ZZ a) where
+>   (ZZ a) <> (ZZ b) = ZZ (a + b)
+> 
+> instance Monoid (ZZ a) where
+>   mempty = ZZ 0
+
+
 
 
 > newtype Seeded a = Seeded

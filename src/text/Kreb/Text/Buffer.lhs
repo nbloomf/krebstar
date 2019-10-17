@@ -135,7 +135,8 @@ Exposed API
 > 
 > import Kreb.Check
 > import Kreb.Reflect
-> import Kreb.Struct.FingerTree
+> import Kreb.Struct.Valued
+> import qualified Kreb.Struct.FingerTree as FT
 > import qualified Kreb.Struct.TwoPointedList as TPL
 > 
 > import Kreb.Text.ScreenOffset
@@ -724,49 +725,49 @@ Rendering
 > takeLine
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
->   => FingerTree (MeasureText w t) (Cell a)
+>   => FT.FingerTree (MeasureText w t) (Cell a)
 >   -> Maybe
->       ( FingerTree (MeasureText w t) (Cell a)
->       , FingerTree (MeasureText w t) (Cell a) )
+>       ( FT.FingerTree (MeasureText w t) (Cell a)
+>       , FT.FingerTree (MeasureText w t) (Cell a) )
 > takeLine xs =
->   if isEmptyFT xs
+>   if FT.isEmpty xs
 >     then Nothing
->     else case splitFT (atScreenLine 1) xs of
+>     else case FT.splitFT (atScreenLine 1) xs of
 >       Nothing -> Just (xs, mempty)
 >       Just (as, x, bs) ->
->         if isEmptyFT bs
->           then case unsnoc as of
->             Nothing -> Just (snoc x as, bs)
+>         if FT.isEmpty bs
+>           then case FT.unsnoc as of
+>             Nothing -> Just (FT.snoc x as, bs)
 >             Just (EOF, _) -> error "panic (3)" 
 >             Just (Cell u,us) -> case toChar u of
->               '\n' -> Just (as, cons x bs)
+>               '\n' -> Just (as, FT.cons x bs)
 >               _    ->
 >                 let
 >                   m = value as :: MeasureText w t
 >                   (_,y) = applyScreenOffset (screenOffset m) (0,0)
 >                 in if y == 0
->                   then Just (as, cons x bs)
->                   else Just (snoc x as, bs)
->           else Just (as, cons x bs)
+>                   then Just (as, FT.cons x bs)
+>                   else Just (FT.snoc x as, bs)
+>           else Just (as, FT.cons x bs)
 > 
 > takeLines
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => Int
->   -> FingerTree (MeasureText w t) (Cell a)
->   -> ( [ FingerTree (MeasureText w t) (Cell a) ]
->      , FingerTree (MeasureText w t) (Cell a) )
+>   -> FT.FingerTree (MeasureText w t) (Cell a)
+>   -> ( [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>      , FT.FingerTree (MeasureText w t) (Cell a) )
 > takeLines n xs = f 0 [] xs
 >   where
 >     f :: Int
->       -> [FingerTree (MeasureText w t) (Cell a)]
->       -> FingerTree (MeasureText w t) (Cell a)
->       -> ( [ FingerTree (MeasureText w t) (Cell a) ]
->          , FingerTree (MeasureText w t) (Cell a) )
+>       -> [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>       -> FT.FingerTree (MeasureText w t) (Cell a)
+>       -> ( [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>          , FT.FingerTree (MeasureText w t) (Cell a) )
 >     f k us vs =
->       if (k >= n) || isEmptyFT vs
+>       if (k >= n) || FT.isEmpty vs
 >         then (reverse us, vs)
->         else if isLeafFT vs
+>         else if FT.isSingleton vs
 >           then (reverse (vs : us), mempty)
 >           else case takeLine vs of
 >             Nothing ->
@@ -780,9 +781,9 @@ Rendering
 >   => Int -- top screen line
 >   -> Int -- view height
 >   -> Buffer w t a
->   -> ( FingerTree (MeasureText w t) (Cell a)
->      , [ FingerTree (MeasureText w t) (Cell a) ]
->      , FingerTree (MeasureText w t) (Cell a) )
+>   -> ( FT.FingerTree (MeasureText w t) (Cell a)
+>      , [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>      , FT.FingerTree (MeasureText w t) (Cell a) )
 > splitLines t h buf =
 >   case splitBufferAtScreenLine t buf of
 >     Nothing ->
@@ -794,35 +795,35 @@ Rendering
 >         TPL.Vacant ->
 >           (mempty, [], mempty)
 >         TPL.PointOnly (as, x, bs) ->
->           let (us, vs) = takeLines h (cons x bs)
+>           let (us, vs) = takeLines h (FT.cons x bs)
 >           in (as, us, vs)
 >         TPL.Coincide (as, x, bs) ->
->           let (us, vs) = takeLines h (cons x bs)
+>           let (us, vs) = takeLines h (FT.cons x bs)
 >           in (as, us, vs)
 >         TPL.PointMark (as, x, bs, y, cs) ->
->           let (us, vs) = takeLines h (cons x bs <> cons y cs)
+>           let (us, vs) = takeLines h (FT.cons x bs <> FT.cons y cs)
 >           in (as, us, vs)
 >         TPL.MarkPoint (as, x, bs, y, cs) ->
->           let (us, vs) = takeLines h (cons y cs)
->           in (as <> cons x bs, us, vs)
+>           let (us, vs) = takeLines h (FT.cons y cs)
+>           in (as <> FT.cons x bs, us, vs)
 
 > getLineNumbers
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => MeasureText w t
->   -> [ FingerTree (MeasureText w t) (Cell a) ]
->   -> [ ( FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
+>   -> [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>   -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
 > getLineNumbers m xs = f m xs []
 >   where
 >     f :: MeasureText w t
->       -> [ FingerTree (MeasureText w t) (Cell a) ]
->       -> [ ( FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
->       -> [ ( FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
+>       -> [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>       -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
+>       -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
 >     f i as bs = case as of
 >       [] -> reverse bs
 >       us:uss ->
 >         let
->           k = case uncons us of
+>           k = case FT.uncons us of
 >             Nothing -> Nothing
 >             Just (c, _) ->
 >               let
@@ -851,7 +852,7 @@ Rendering
 >   let (as, xs, _) = splitLines t h $ fmapRegionL f buf
 >   in
 >     unzip $
->       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ toListDebugFT z)) $
+>       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ FT.toListDebugFT z)) $
 >       getLineNumbers (value as) xs
 
 
@@ -862,8 +863,8 @@ Testing and debugging
 > mkFT
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => Proxy w -> Proxy t -> Proxy a
->   -> [Cell Char] -> FingerTree (MeasureText w t) (Cell a)
-> mkFT _ _ _ = fromListFT . map (fmap fromChar)
+>   -> [Cell Char] -> FT.FingerTree (MeasureText w t) (Cell a)
+> mkFT _ _ _ = FT.fromList . map (fmap fromChar)
 
 > toListDebugBuffer
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )

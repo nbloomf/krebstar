@@ -1,10 +1,12 @@
 0.0.1 Checklist
 ===============
+- move Tup to Valued module and remove dependencies on FingerTree.Test
 - replace 'normal mode' with 'debug mode'
   - record input events to interaction log
 - store document history.
   - can we get more complex than linear history?
 - Cut/Copy/Paste primitives
+  - use patch algebra for this
 - CLI
   - add "input mode" (kbd or mouse) to state
   - need to nail down mouse mode state
@@ -24,8 +26,7 @@
 
 Refactoring
 - get rid of showInternal
-- move Valued and Count to own module
-- rewrite Tape tests for TwoPointedList/Seq
+- rewrite Tape tests for Seq
 - make TextBox and Editor tests active again
 - Move sizedbuffer to own module
 

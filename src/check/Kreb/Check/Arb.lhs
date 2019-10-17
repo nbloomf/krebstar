@@ -426,3 +426,14 @@ Function
 >     prune =
 >       map M.fromList . prune . M.toList
 
+
+
+> instance Arb (ZZ a) where
+>   arb = ZZ <$> arb
+> 
+> instance CoArb (ZZ a) where
+>   coarb (ZZ k) = coarb k
+> 
+> instance Prune (ZZ a) where
+>   prune (ZZ k) = map ZZ $ prune k
+

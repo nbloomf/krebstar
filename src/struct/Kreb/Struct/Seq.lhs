@@ -41,7 +41,7 @@ So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type
 > 
 > import Kreb.Check (Arb(..), Prune(..))
 > 
-> import Kreb.Struct.FingerTree
+> import Kreb.Struct.Valued
 > import qualified Kreb.Struct.OnePointedList as OPL
 
 

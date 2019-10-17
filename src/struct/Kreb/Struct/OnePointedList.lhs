@@ -24,14 +24,16 @@ title: One-Pointed Lists
 >   , FlexibleInstances
 >   , InstanceSigs
 > #-}
-
+> 
 > module Kreb.Struct.OnePointedList where
 > 
 > import Data.List (unwords)
 > import Data.Foldable
 > 
 > import Kreb.Check
-> import Kreb.Struct.FingerTree
+> 
+> import Kreb.Struct.Valued
+> import qualified Kreb.Struct.FingerTree as FT
 
 :::
 
@@ -79,7 +81,7 @@ In this module we will develop such a type from scratch, called `OnePointedList`
 
 > data OnePointedList m a
 >   = Vacant
->   | Point (FingerTree m a, a, FingerTree m a)
+>   | Point (FT.FingerTree m a, a, FT.FingerTree m a)
 >   deriving (Eq, Show)
 
 (Note that, since this is defined in terms of `FingerTree`, we have an extra value type parameter `m`.) `OnePointedList` combines the benefits of `Zipper` with the efficient splitting and deque operations of `FingerTree`. Recall that we have amortized constant time access to both ends of a finger tree, so `OnePointedList` gives us fast access to the beginning and end of the list in addition to the read head.
@@ -108,7 +110,7 @@ It's also natural to convert lists to `OnePointedList`s; we'll do this by interp
 >   => [a] -> OnePointedList m a
 > makeFromList xs = case xs of
 >   [] -> Vacant
->   x:xs -> Point (mempty, x, fromListFT xs)
+>   x:xs -> Point (mempty, x, FT.fromList xs)
 
 Finally, we also provide a constructor which converts lists to `OnePointedList`s, but also allows us to specify where the point is. This is especially useful for testing.
 
@@ -117,7 +119,7 @@ Finally, we also provide a constructor which converts lists to `OnePointedList`s
 >   => [a] -> a -> [a]
 >   -> OnePointedList m a
 > makePoint as x bs =
->   Point (fromListFT as, x, fromListFT bs)
+>   Point (FT.fromList as, x, FT.fromList bs)
 
 
 
@@ -159,7 +161,7 @@ Another natural class instance we'd like for `OnePointedList` is `Functor`. Unfo
 > fmapList f w = case w of
 >   Vacant -> Vacant
 >   Point (as, x, bs) ->
->     Point (fmapFT f as, f x, fmapFT f bs)
+>     Point (FT.fmapFT f as, f x, FT.fmapFT f bs)
 
 Note that types built on top of `OnePointedList` which fix the `m` parameter can generally be given a proper `Functor` instance, which is given by `fmapList`.
 
@@ -217,7 +219,7 @@ Another simple and sometimes useful predicate detects when our list has only one
 >   => OnePointedList m a -> Bool
 > isSingleton w = case w of
 >   Vacant -> False
->   Point (as,_,bs) -> (isEmptyFT as) && (isEmptyFT bs)
+>   Point (as,_,bs) -> (FT.isEmpty as) && (FT.isEmpty bs)
 
 We can also detect when the read head is at the beginning (init) or end (last) position of the list. This is where we break the symmetry of `Point` and declare one end of the list to be the beginning and the other side the end.
 
@@ -226,14 +228,14 @@ We can also detect when the read head is at the beginning (init) or end (last) p
 >   => OnePointedList m a -> Bool
 > isAtInit w = case w of
 >   Vacant -> False
->   Point (as,_,_) -> isEmptyFT as
+>   Point (as,_,_) -> FT.isEmpty as
 > 
 > isAtLast
 >   :: ( Valued m a )
 >   => OnePointedList m a -> Bool
 > isAtLast w = case w of
 >   Vacant -> False
->   Point (_,_,bs) -> isEmptyFT bs
+>   Point (_,_,bs) -> FT.isEmpty bs
 
 Again we check our intuition with some examples.
 
@@ -289,7 +291,7 @@ Our final queries allow us to extract the item at three special indices in the l
 >   => OnePointedList m a -> Maybe a
 > readInit w = case w of
 >   Vacant -> Nothing
->   Point (as, x, bs) -> case uncons as of
+>   Point (as, x, bs) -> case FT.uncons as of
 >     Nothing -> Just x
 >     Just (a, _) -> Just a
 > 
@@ -298,7 +300,7 @@ Our final queries allow us to extract the item at three special indices in the l
 >   => OnePointedList m a -> Maybe a
 > readLast w = case w of
 >   Vacant -> Nothing
->   Point (as, x, bs) -> case unsnoc bs of
+>   Point (as, x, bs) -> case FT.unsnoc bs of
 >     Nothing -> Just x
 >     Just (b,_) -> Just b
 > 
@@ -351,22 +353,22 @@ What distinguishes a pointed list from an ordinary list is the read head, which 
 >   => OnePointedList m a -> OnePointedList m a
 > movePointLeft w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case unsnoc as of
+>   Point (as, x, bs) -> case FT.unsnoc as of
 >     Nothing ->
 >       Point (mempty, x, bs)
 >     Just (a, as') ->
->       Point (as', a, cons x bs)
+>       Point (as', a, FT.cons x bs)
 > 
 > movePointRight
 >   :: ( Valued m a )
 >   => OnePointedList m a -> OnePointedList m a
 > movePointRight w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case uncons bs of
+>   Point (as, x, bs) -> case FT.uncons bs of
 >     Nothing ->
 >       Point (as, x, mempty)
 >     Just (b, bs') ->
->       Point (snoc x as, b, bs')
+>       Point (FT.snoc x as, b, bs')
 
 We can test our understanding of these functions with some examples.
 
@@ -408,22 +410,22 @@ Because finger trees have amortized constant `uncons` and `unsnoc`, we can also 
 >   => OnePointedList m a -> OnePointedList m a
 > moveToInit w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case uncons as of
+>   Point (as, x, bs) -> case FT.uncons as of
 >     Nothing ->
 >       Point (mempty, x, bs)
 >     Just (a, as') ->
->       Point (mempty, a, as' <> (cons x bs))
+>       Point (mempty, a, as' <> (FT.cons x bs))
 > 
 > moveToLast
 >   :: ( Valued m a )
 >   => OnePointedList m a -> OnePointedList m a
 > moveToLast w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case unsnoc bs of
+>   Point (as, x, bs) -> case FT.unsnoc bs of
 >     Nothing ->
 >       Point (as, x, mempty)
 >     Just (b, bs') -> 
->       Point (as <> (cons x bs'), b, mempty)
+>       Point (as <> (FT.cons x bs'), b, mempty)
 
 And more examples:
 
@@ -466,16 +468,16 @@ First we can insert and delete items at the beginning.
 >   Vacant ->
 >     Point (mempty, a, mempty)
 >   Point (as, x, bs) ->
->     Point (cons a as, x, bs)
+>     Point (FT.cons a as, x, bs)
 > 
 > deleteInit
 >   :: ( Valued m a )
 >   => OnePointedList m a -> OnePointedList m a
 > deleteInit w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case uncons as of
+>   Point (as, x, bs) -> case FT.uncons as of
 >     Just (_,as') -> Point (as', x, bs)
->     Nothing -> case uncons bs of
+>     Nothing -> case FT.uncons bs of
 >       Nothing -> Vacant
 >       Just (b,bs') -> Point (mempty, b, bs')
 
@@ -524,15 +526,15 @@ Similarly, we can insert and delete items at the end of the list.
 >   Vacant ->
 >     Point (mempty, a, mempty)
 >   Point (as, x, bs) ->
->     Point (as, x, snoc a bs)
+>     Point (as, x, FT.snoc a bs)
 > 
 > deleteLast
 >   :: ( Valued m a )
 >   => OnePointedList m a -> OnePointedList m a
 > deleteLast w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case unsnoc bs of
->     Nothing -> case unsnoc as of
+>   Point (as, x, bs) -> case FT.unsnoc bs of
+>     Nothing -> case FT.unsnoc as of
 >       Nothing -> Vacant
 >       Just (a, as') -> Point (as', a, mempty)
 >     Just (_, bs') -> Point (as, x, bs')
@@ -580,23 +582,23 @@ Insert and delete at the point is a little more complex, because we need to dist
 >   => a -> OnePointedList m a -> OnePointedList m a
 > insertPointLeft a w = case w of
 >   Vacant -> Point (mempty, a, mempty)
->   Point (as, x, bs) -> Point (snoc a as, x, bs)
+>   Point (as, x, bs) -> Point (FT.snoc a as, x, bs)
 > 
 > insertPointRight
 >   :: ( Valued m a )
 >   => a -> OnePointedList m a -> OnePointedList m a
 > insertPointRight a w = case w of
 >   Vacant -> Point (mempty, a, mempty)
->   Point (as, x, bs) -> Point (as, x, cons a bs)
+>   Point (as, x, bs) -> Point (as, x, FT.cons a bs)
 > 
 > deletePointLeft
 >   :: ( Valued m a )
 >   => OnePointedList m a -> OnePointedList m a
 > deletePointLeft w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case unsnoc as of
+>   Point (as, x, bs) -> case FT.unsnoc as of
 >     Just (a,as') -> Point (as', x, bs)
->     Nothing -> case uncons bs of
+>     Nothing -> case FT.uncons bs of
 >       Just (b,bs') -> Point (mempty, b, bs')
 >       Nothing -> Vacant
 > 
@@ -605,9 +607,9 @@ Insert and delete at the point is a little more complex, because we need to dist
 >   => OnePointedList m a -> OnePointedList m a
 > deletePointRight w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case uncons bs of
+>   Point (as, x, bs) -> case FT.uncons bs of
 >     Just (b,bs') -> Point (as, x, bs')
->     Nothing -> case unsnoc as of
+>     Nothing -> case FT.unsnoc as of
 >       Just (a,as') -> Point (as', a, mempty)
 >       Nothing -> Vacant
 
@@ -684,9 +686,9 @@ Finally, we can alter the item at each of our three special positions. These fun
 >   -> OnePointedList m a -> OnePointedList m a
 > alterInit f w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case uncons as of
+>   Point (as, x, bs) -> case FT.uncons as of
 >     Nothing -> Point (mempty, f x, bs)
->     Just (a, as') -> Point (cons (f a) as', x, bs)
+>     Just (a, as') -> Point (FT.cons (f a) as', x, bs)
 > 
 > alterLast
 >   :: ( Valued m a )
@@ -694,9 +696,9 @@ Finally, we can alter the item at each of our three special positions. These fun
 >   -> OnePointedList m a -> OnePointedList m a
 > alterLast f w = case w of
 >   Vacant -> Vacant
->   Point (as, x, bs) -> case unsnoc bs of
+>   Point (as, x, bs) -> case FT.unsnoc bs of
 >     Nothing -> Point (as, f x, mempty)
->     Just (b,bs') -> Point (as, x, snoc (f b) bs')
+>     Just (b, bs') -> Point (as, x, FT.snoc (f b) bs')
 > 
 > alterPoint
 >   :: ( Valued m a )
@@ -749,7 +751,7 @@ It will also be handy to _remeasure_ a one-pointed list. Note that on the actual
 > remeasure w = case w of
 >   Vacant -> Vacant
 >   Point (as,x,bs) ->
->     Point (remeasureFT as, x, remeasureFT bs)
+>     Point (FT.remeasure as, x, FT.remeasure bs)
 
 
 
@@ -761,9 +763,9 @@ Recall that one of the killer features of finger trees is a powerful _splitting_
 > split
 >   :: ( Valued m a )
 >   => (m -> Bool)
->   -> FingerTree m a
+>   -> FT.FingerTree m a
 >   -> OnePointedList m a
-> split p xs = case splitFT p xs of
+> split p xs = case FT.splitFT p xs of
 >     Nothing -> Vacant
 >     Just z -> Point z
 
@@ -771,10 +773,10 @@ Analogously, we may sometimes need to turn a pointed list back into a finger tre
 
 > integrate
 >   :: ( Valued m a )
->   => OnePointedList m a -> FingerTree m a
+>   => OnePointedList m a -> FT.FingerTree m a
 > integrate w = case w of
 >   Vacant -> mempty
->   Point (as, x, bs) -> as <> (cons x bs)
+>   Point (as, x, bs) -> as <> (FT.cons x bs)
 
 
 

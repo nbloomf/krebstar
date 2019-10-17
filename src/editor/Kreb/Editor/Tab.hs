@@ -23,6 +23,7 @@ import Kreb.Editor.Settings
 import Kreb.Text.Buffer
 import Kreb.Text.Glyph
 import Kreb.Editor.Panel
+import Kreb.Struct.Valued
 import Kreb.Struct.FingerTree
 import qualified Kreb.Struct.Seq as Seq
 

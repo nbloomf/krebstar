@@ -144,6 +144,7 @@ library kreb-struct
   hs-source-dirs: src/struct
   exposed-modules:
       Kreb.Struct
+    , Kreb.Struct.Valued
     , Kreb.Struct.FingerTree
     , Kreb.Struct.OnePointedList
     , Kreb.Struct.TwoPointedList

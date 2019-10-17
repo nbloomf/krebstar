@@ -29,8 +29,6 @@ Design and Implementation
 -------------------------
 
 1. [Project Rationale](html/Rationale.html)
-1. Requirements
-1. Design
 1. The Editor Core
     1. [The Read-Eval-Print Loop](html/ReplT.html)
     1. Buffers
@@ -48,7 +46,7 @@ Appendices
 1. Data Structures
     1. [Finger Trees](html/FingerTree.html)
     1. [One-Pointed Lists](html/OnePointedList.html)
-    1. Seq
+    1. [Seq](html/Seq.html)
     1. [Two-Pointed Lists](html/TwoPointedList.html)
 1. Testing Library
 1. Bibliography
