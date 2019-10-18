@@ -24,10 +24,22 @@
 >      , Arb a, Show a, Prune a, Functor t )
 >   => Proxy t -> Proxy a -> Proxy b -> Proxy c
 >   -> TestTree
-> test_Functor_laws _ _ _ _ =
->   let
->     map = fmap :: forall u v. (u -> v) -> t u -> t v
->   in testGroup "Functor laws"
+> test_Functor_laws pt pa pb pc =
+>   test_Functor_laws_with pt pa pb pc
+>     (fmap :: forall u v. (u -> v) -> t u -> t v)
+
+> test_Functor_laws_with
+>   :: forall a b c t
+>    . ( Eq (t a), Eq (t c)
+>      , MakeTo a, MakeTo b, CoArb b, CoArb a
+>      , Show b, Arb c, Arb b, Arb (t a), Prune b
+>      , Prune c, Prune (t a), Show c, Show (t a)
+>      , Arb a, Show a, Prune a )
+>   => Proxy t -> Proxy a -> Proxy b -> Proxy c
+>   -> (forall u v. (u -> v) -> t u -> t v)
+>   -> TestTree
+> test_Functor_laws_with _ _ _ _ map =
+>   testGroup "Functor laws"
 >     [ testKreb "identity" $
 >         (check_prop_fmap_id map :: t a -> Check)
 >     , testKreb "composite" $

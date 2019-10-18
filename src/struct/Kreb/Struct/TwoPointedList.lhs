@@ -8,6 +8,10 @@ title: Two-Pointed Lists
 * [Class Instances](#class-instances): Code for free
 * [Queries](#queries): Extracting value from a two-pointed list
 * [Navigation](#navigation): Moving the point and mark
+* [Mutation](#mutation): Altering state
+* [Measurement](#measurement): Working with value annotations
+* [Splitting](#splitting): Breaking and searching
+* [Testing and Debugging](#testing-and-debugging): For when things go wrong
 :::
 
 
@@ -777,14 +781,14 @@ Conversely, we can use split on finger trees to manipulate the point and mark of
 >   -> TwoPointedList m a -> Maybe (TwoPointedList m a)
 > split pointP q w =
 >   let xs = integrate w
->   in case FT.splitFT pointP xs of
+>   in case FT.split pointP xs of
 >     Nothing -> Nothing
 >     Just (as, x, bs) -> Just $ case q of
 >       Nothing -> PointOnly (as, x, bs)
->       Just markP -> case FT.splitFT markP as of
+>       Just markP -> case FT.split markP as of
 >         Just (us, y, vs) ->
 >           MarkPoint (us, y, vs, x, bs)
->         Nothing -> case FT.splitFT markP bs of
+>         Nothing -> case FT.split markP bs of
 >           Just (us, y, vs) ->
 >             PointMark (as, x, us, y, vs)
 >           Nothing -> PointOnly (as, x, bs)
@@ -799,28 +803,28 @@ We also provide a splitting function that preserves the mark.
 >   Vacant -> Nothing
 >   PointOnly (as, x, bs) ->
 >     let xs = as <> FT.cons x bs
->     in case FT.splitFT pointP xs of
+>     in case FT.split pointP xs of
 >       Nothing -> Nothing
 >       Just (us, y, vs) ->
 >         Just $ PointOnly (us, y, vs)
 >   Coincide (as, x, bs) ->
->     case FT.splitFT pointP as of
+>     case FT.split pointP as of
 >       Just (us, y, vs) -> Just $ PointMark (us, y, vs, x, bs)
->       Nothing -> case FT.splitTree pointP (value as <> value x) bs of
+>       Nothing -> case FT.splitWithContext (value as <> value x) pointP bs of
 >         Just (us, y, vs) -> Just $ MarkPoint (as, x, us, y, vs)
 >         Nothing -> Nothing
 >   PointMark (as, x, bs, y, cs) ->
 >     let ds = as <> FT.cons x bs
->     in case FT.splitFT pointP ds of
+>     in case FT.split pointP ds of
 >       Just (us, z, vs) -> Just $ PointMark (us, z, vs, y, cs)
->       Nothing -> case FT.splitTree pointP (value ds <> value y) cs of
+>       Nothing -> case FT.splitWithContext (value ds <> value y) pointP cs of
 >         Just (us, z, vs) -> Just $ MarkPoint (ds, y, us, z, vs )
 >         Nothing -> Nothing
 >   MarkPoint (as, x, bs, y, cs) ->
 >     let ds = bs <> FT.cons y cs
->     in case FT.splitFT pointP as of
+>     in case FT.split pointP as of
 >       Just (us, z, vs) -> Just $ PointMark (us, z, vs, x, ds)
->       Nothing -> case FT.splitTree pointP (value as <> value x) ds of
+>       Nothing -> case FT.splitWithContext (value as <> value x) pointP ds of
 >         Just (us, z, vs) -> Just $ MarkPoint (as, x, us, z, vs)
 >         Nothing -> Nothing
 
@@ -848,6 +852,14 @@ Some examples:
 > -- True
 
 :::
+
+While we're here, it is also useful to convert two-pointed lists to ordinary lists with the accumulated value annotation.
+
+> toAnnotatedList
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> [(a,m)]
+> toAnnotatedList =
+>   FT.toAnnotatedList . integrate
 
 
 
@@ -891,43 +903,7 @@ We end with some utility code. First, we need some class instances for interoper
 >         , MarkPoint <$> prune (as, x, bs, y, cs)
 >         ]
 
-> showInternal
->   :: ( Show m, Show a, Valued m a )
->   => TwoPointedList m a -> String
-> showInternal w = case w of
->   Vacant -> "Vacant"
->   PointOnly (as, x, bs) -> concat
->     [ "PointOnly "
->     , "( ", FT.showInternalFT as
->     , ", ", show x
->     , ", ", FT.showInternalFT bs
->     , " )"
->     ]
->   Coincide (as, x, bs) -> concat
->     [ "Coincide "
->     , "( ", FT.showInternalFT as
->     , ", ", show x
->     , ", ", FT.showInternalFT bs
->     , " )"
->     ]
->   PointMark (as, x, bs, y, cs) -> concat
->     [ "PointMark "
->     , "( ", FT.showInternalFT as
->     , ", ", show x
->     , ", ", FT.showInternalFT bs
->     , ", ", show y
->     , ", ", FT.showInternalFT cs
->     , " )"
->     ]
->   MarkPoint (as, x, bs, y, cs) -> concat
->     [ "MarkPoint "
->     , "( ", FT.showInternalFT as
->     , ", ", show x
->     , ", ", FT.showInternalFT bs
->     , ", ", show y
->     , ", ", FT.showInternalFT cs
->     , " )"
->     ]
+And finally, since two-pointed lists are built out of finger trees, it will be handy to have a function checking that the underlying structure is valid.
 
 > validate
 >   :: ( Eq m, Valued m a )
@@ -935,28 +911,10 @@ We end with some utility code. First, we need some class instances for interoper
 > validate w = case w of
 >   Vacant -> True
 >   PointOnly (as, _, bs) ->
->     (FT.validateFT as) && (FT.validateFT bs)
+>     (FT.validate as) && (FT.validate bs)
 >   Coincide (as, _, bs) ->
->     (FT.validateFT as) && (FT.validateFT bs)
+>     (FT.validate as) && (FT.validate bs)
 >   PointMark (as, _, bs, _, cs) ->
->     (FT.validateFT as) && (FT.validateFT bs) && (FT.validateFT cs)
+>     (FT.validate as) && (FT.validate bs) && (FT.validate cs)
 >   MarkPoint (as, _, bs, _, cs) ->
->     (FT.validateFT as) && (FT.validateFT bs) && (FT.validateFT cs)
-
-> toListDebug
->   :: ( Valued m a )
->   => TwoPointedList m a -> [(a, m)]
-> toListDebug w = case w of
->   Vacant -> []
->   PointOnly (as, x, bs) ->
->     FT.toListDebugFT (as <> (FT.cons x bs))
->   Coincide (as, x, bs) ->
->     FT.toListDebugFT (as <> (FT.cons x bs))
->   PointMark (as, x, bs, y, cs) ->
->     FT.toListDebugFT (as <> (FT.cons x bs) <> (FT.cons y cs))
->   MarkPoint (as, x, bs, y, cs) ->
->     FT.toListDebugFT (as <> (FT.cons x bs) <> (FT.cons y cs))
-
-
-
-
+>     (FT.validate as) && (FT.validate bs) && (FT.validate cs)

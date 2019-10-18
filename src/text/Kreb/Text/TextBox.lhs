@@ -672,10 +672,7 @@ Resizing should not change the logical coordinates of the focus.
 >     , "TextBox State:"
 >     , show _box
 >     , ""
->     , "Buffer State:"
->     , querySizedBuffer
->         (show . toListDebugBuffer)
->         (textboxBuffer _box)
+>     , "Buffer State: UNIMPLEMENTED"
 >     ]
 
 > debugTextBox

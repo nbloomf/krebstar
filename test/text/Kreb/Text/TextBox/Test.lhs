@@ -202,7 +202,7 @@ Test Helpers
 >       querySizedBuffer
 >         ( map (\x -> applyScreenOffset x (0,0)) .
 >           map (screenCoords . snd) .
->           toListDebugBuffer
+>           toAnnotatedList
 >         ) $ textboxBuffer box
 >   in if elem (x, y+l) offsets
 >     then accept

@@ -89,6 +89,8 @@ Exposed API
 >   , atScreenLine
 >   , atLineCol
 >   , atScreenCoords
+
+>   , toAnnotatedList
 > 
 >   -- * Rendering
 >   , BufferRenderSettings(..)
@@ -120,8 +122,6 @@ Exposed API
 >   , rawPointMark
 >   , rawMarkPoint
 > 
->   , toListDebugBuffer
->   , showInternalBuffer
 >   , validateBuffer
 >   , mkFT
 > ) where
@@ -364,7 +364,10 @@ Constructing buffers with a specific structure for testing.
 
 
 
-
+> toAnnotatedList
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> [(Cell a, MeasureText w t)]
+> toAnnotatedList = TPL.toAnnotatedList . unBuffer
 
 
 The `def` variants will mostly be used for testing or in the shell.
@@ -732,7 +735,7 @@ Rendering
 > takeLine xs =
 >   if FT.isEmpty xs
 >     then Nothing
->     else case FT.splitFT (atScreenLine 1) xs of
+>     else case FT.split (atScreenLine 1) xs of
 >       Nothing -> Just (xs, mempty)
 >       Just (as, x, bs) ->
 >         if FT.isEmpty bs
@@ -852,7 +855,7 @@ Rendering
 >   let (as, xs, _) = splitLines t h $ fmapRegionL f buf
 >   in
 >     unzip $
->       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ FT.toListDebugFT z)) $
+>       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ FT.toAnnotatedList z)) $
 >       getLineNumbers (value as) xs
 
 
@@ -865,17 +868,6 @@ Testing and debugging
 >   => Proxy w -> Proxy t -> Proxy a
 >   -> [Cell Char] -> FT.FingerTree (MeasureText w t) (Cell a)
 > mkFT _ _ _ = FT.fromList . map (fmap fromChar)
-
-> toListDebugBuffer
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> [(Cell a, MeasureText w t)]
-> toListDebugBuffer = TPL.toListDebug . unBuffer
-
-> showInternalBuffer
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Show a, IsChar a )
->   => Buffer w t a -> String
-> showInternalBuffer (Buffer xs) = unwords
->   [ "Buffer", TPL.showInternal xs ]
 
 > validateBuffer
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )

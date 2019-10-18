@@ -85,3 +85,57 @@ Now lets define a concrete monoid and `Valued` instance for testing. Note that w
 > 
 > instance Valued Count [a] where
 >   value _ = Count 1
+
+
+
+> data Tup
+>   = Tup Int Int
+>   deriving (Eq, Show)
+> 
+> instance Semigroup Tup where
+>   (Tup a1 b1) <> (Tup a2 b2) =
+>     if a2 > 0
+>       then Tup (a1+a2) b2
+>       else Tup a1 (b1+b2)
+> 
+> instance Monoid Tup where
+>   mempty = Tup 0 0
+> 
+> instance Valued Tup Bool where
+>   value p = if p
+>     then Tup 0 1
+>     else Tup 1 0
+> 
+> instance Valued Tup Int where
+>   value k = if 0 == rem k 2
+>     then Tup 0 1
+>     else Tup 1 0
+> 
+> instance Valued Tup (ZZ a) where
+>   value (ZZ k) = if 0 == rem k 2
+>     then Tup 0 1
+>     else Tup 1 0
+> 
+> instance Arb Tup where
+>   arb = do
+>     NonNegative a <- arb
+>     NonNegative b <- arb
+>     return $ Tup a b
+> 
+> instance Prune Tup where
+>   prune (Tup a b) =
+>     [ Tup a c | c <- prune b ] ++
+>     [ Tup c b | c <- prune a ]
+> 
+> instance CoArb Tup where
+>   coarb (Tup a b) =
+>     coarb (a,b)
+> 
+> instance MakeTo Tup where
+>   makeTo = makeToExtendWith makeTo g h
+>     where
+>       g :: Tup -> (Int, Int)
+>       g (Tup a b) = (a,b)
+> 
+>       h :: (Int, Int) -> Tup
+>       h (a,b) = Tup a b

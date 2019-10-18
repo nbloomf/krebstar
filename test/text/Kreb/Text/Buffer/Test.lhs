@@ -178,7 +178,7 @@ Basics
 > 
 > prop_Buffer_debug _ _ _ (buf, zs) =
 >   let ws = map (\(c, m) -> (fmap fromChar c, m)) zs in
->   claimEqual ws (toListDebugBuffer buf)
+>   claimEqual ws (toAnnotatedList buf)
 > 
 > test_Buffer_debug
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
@@ -245,7 +245,7 @@ Basics
 >   check $
 >     and $ dropWhile (== False) $
 >       map (atLineCol w . snd) $
->       toListDebugBuffer buf
+>       toAnnotatedList buf
 > 
 > test_Buffer_atLineCol_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
@@ -268,7 +268,7 @@ Basics
 >   check $
 >     and $ dropWhile (== False) $
 >       map (atScreenCoords (u,v) . snd) $
->       toListDebugBuffer buf
+>       toAnnotatedList buf
 > 
 > test_Buffer_atScreenCoords_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
@@ -292,7 +292,7 @@ Basics
 >   check $
 >     and $ dropWhile (== False) $
 >       map (atScreenLine u . snd) $
->       toListDebugBuffer buf
+>       toAnnotatedList buf
 > 
 > test_Buffer_atScreenLine_monotone
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
@@ -546,7 +546,7 @@ Examples for checking our intuition about screen line splitting:
 >   (NonNegative k) xs ys =
 >   let
 >     zs = map (\(a,b) -> (a, atScreenLine k b))
->           $ toListDebugBuffer xs
+>           $ toAnnotatedList xs
 >   in claimEqual zs ys
 
 > test_Buffer_atScreenLine_examples

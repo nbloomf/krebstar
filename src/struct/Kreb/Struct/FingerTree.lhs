@@ -10,6 +10,8 @@ title: Finger Trees
 * [Class Instances](#class-instances): Code for free
 * [Cons and Uncons](#cons-and-uncons): Building and destructuring finger trees
 * [Concatenation](#concatenation): Joining finger trees
+* [Splitting](#splitting): Efficient search
+* [Testing and Debugging](#testing-and-debugging): Validation and test case generation
 :::
 
 
@@ -45,24 +47,14 @@ title: Finger Trees
 >   , reverse
 >   , uncons
 >   , unsnoc
-
-
->   -- * Operators
-
->   , takeWhileValueFT
->   , breakPrefixWhileValueFT
-
+>   , toAnnotatedList
 > 
->   -- * Splitting
->   , splitFT
->   , splitTree
->   , takeFromSplitFT
+>   , concatWithList
 > 
->   -- ** Testing and Debugging
->   , toListDebugFT
->   , depthFT
->   , showInternalFT
->   , validateFT
+>   , splitWithContext
+>   , split
+> 
+>   , validate
 > ) where
 > 
 > import Prelude hiding (reverse)
@@ -651,6 +643,19 @@ Like `cons`, `uncons` is very fast if the left side of the tree has fingers to s
 >    Nothing -> someToFingerTree as3
 >    Just (a, as) -> branch (toSome a) as as3
 
+With `uncons`, we can define an alternate version of `toList` (from the `Foldable` class) that also returns the accumulated value annotations. This will be handy in a few places.
+
+> toAnnotatedList
+>  :: ( Valued m a )
+>  => FingerTree m a -> [(a,m)]
+> toAnnotatedList xs = foo mempty xs
+>  where
+>    foo e z = case uncons z of
+>      Nothing -> []
+>      Just (a, ys) ->
+>        let u = e <> value a
+>        in (a, u) : foo u ys
+
 And there's an analogous partner for `snoc`.
 
 > unsnoc
@@ -707,27 +712,18 @@ And some examples:
 
 
 
-
-
-
-
-
-
-
-
-
 Concatenation
 -------------
 
-Before defining concatenation proper, we start with a generalized version that takes an additional list of elements to insert between the concatenands.
+Despite the name, finger trees are really list-like, and on such structures it's typically handy to be able to append one list to another. The fancy word for this is _concatenation_. Before defining concatenation proper, we start with a generalized version that takes an additional list of elements to insert between the concatenands.
 
-> cat'
+> concatWithList
 >  :: ( Valued m a )
 >  => FingerTree m a
 >  -> [a]
 >  -> FingerTree m a
 >  -> FingerTree m a
-> cat' u as v = case u of
+> concatWithList u as v = case u of
 >  Stump -> foldr cons v as
 >  Leaf _ a -> cons a (foldr cons v as)
 >  Branch _ us1 us2 us3 -> case v of
@@ -735,50 +731,66 @@ Before defining concatenation proper, we start with a generalized version that t
 >    Leaf _ a -> snoc a (foldl (flip snoc) u as)
 >    Branch _ vs1 vs2 vs3 ->
 >      let ns = (toList us3) ++ as ++ (toList vs1)
->      in branch us1 (cat' us2 (toNodes ns) vs2) vs3
-> 
-> toNodes
->  :: ( Valued m a )
->  => [a] -> [Node m a]
-> toNodes w = case w of
->  [] -> []
->  [a1, a2] -> [node2 a1 a2]
->  [a1, a2, a3] -> [node3 a1 a2 a3]
->  [a1, a2, a3, a4] -> [node2 a1 a2, node2 a3 a4]
->  a1:a2:a3:a4:as -> (node3 a1 a2 a3) : toNodes (a4:as)
->  _ -> error "toNodes: panic"
+>      in branch us1 (concatWithList us2 (toNodes ns) vs2) vs3
+>   where
+>     toNodes
+>       :: ( Valued m a )
+>       => [a] -> [Node m a]
+>     toNodes w = case w of
+>       [] -> []
+>       [a1, a2] -> [node2 a1 a2]
+>       [a1, a2, a3] -> [node3 a1 a2 a3]
+>       [a1, a2, a3, a4] -> [node2 a1 a2, node2 a3 a4]
+>       a1:a2:a3:a4:as -> (node3 a1 a2 a3) : toNodes (a4:as)
+>       _ -> error "toNodes: panic"
 
-Now the real `cat` is a specialization of `cat'`:
+We can test this with an example.
 
-> cat
->  :: ( Valued m a )
->  => FingerTree m a
->  -> FingerTree m a
->  -> FingerTree m a
-> cat u v = cat' u [] v
+::: doctest
 
-And concat makes the type of finger trees into a monoid.
+> -- $
+> -- >>> :{
+> -- let
+> --   x1, x2, y :: FingerTree Count Char
+> --   x1 = fromList ['a','b']
+> --   x2 = fromList ['d','e']
+> --   y = fromList ['a','b','c','d','e']
+> -- in y == concatWithList x1 ['c'] x2
+> -- :}
+> -- True
+
+:::
+
+Now the real `cat` is a specialization of `concatWithList`, and along with `empty` makes the type of finger trees into a monoid.
 
 > instance
 >  ( Valued m a
 >  ) => Semigroup (FingerTree m a)
 >  where
->    (<>) = cat
+>    u <> v = concatWithList u [] v
 > 
 > instance
 >  ( Valued m a
 >  ) => Monoid (FingerTree m a)
 >  where
->    mempty = stump
+>    mempty = empty
 
 
 
 Splitting
 ---------
 
-The killer operation on finger trees, and the reason for caching the `m` value at each node, is efficient _splitting_. This operation takes a predicate `p` on `m` and a finger tree `w` and attempts to break it into three pieces, `as`, `x`, and `bs`, with the property that `w == as <> leaf x <> bs`, `p (value as)` is false, and `p (value as <> value x)` is true. The internal structure of finger trees allow this to be done efficiently. In general there may be many possible places to break the tree, but with a judicious choice of `m` and the predicate we can perform some complex operations quickly.
+The killer operation on finger trees, and the reason for caching the `m` value at each node, is efficient _splitting_. This operation takes a predicate `p` on `m` and a finger tree `w` and attempts to break it into three pieces, `as`, `x`, and `bs`. We can think of `x` as a _search result_ and of `as` and `bs` as the prefix and suffix of the search. Moreover, the search result must satisfy three _splitting properties_:
 
-First we need a version of this operation on the fingers.
+1. That `w == as <> singleton x <> bs` -- so that splitting is a bona fide cat-factorization;
+2. That `p (value as)` is false -- so the portion of the list _up to_ the search result doesn't satisfy `p`; and
+3. That `p (value as <> value x)` is true -- so the portion of the list _up to and including_ the search result does satisfy `p`.
+
+The internal structure of finger trees allows this to be done efficiently. In general there may be many possible places to break the tree, but with a judicious choice of `m` and the predicate we can perform some complex operations quickly.
+
+It's natural to wonder why this is a useful thing to do. Well, for a judiciously chosen monoid `m` and predicate `p`, splitting can do some interesting things. As a simple example, with the `Count` monoid and a predicate like $p(k) = (k \geq N)$ we can break the finger tree at a specific index. Later on we'll use it to break a text buffer at a specific line and column position or screen coordinate.
+
+First we need a version of this operation on the fingers. This is pretty tedious because we're essentially using brute force to make sure the output satisfies the splitting properties. (`splitSome` is only used inside this module.) Tedious though it is, note that `splitSome` has constant complexity.
 
 > splitSome
 >  :: ( Valued m a )
@@ -830,13 +842,17 @@ First we need a version of this operation on the fingers.
 >                        then Just (Just (only3 a1 a2 a3), a4, Nothing)
 >                        else Nothing
 
-Next we define a generalized split that prepends a given monoid value to the left of `value as`.
+Next we define a version of split that prepends a given monoid value on the left before searching. This is a stepping stone toward our main splitting function, but is also useful in its own right; the extra `m` parameter acts like a kind of value context.
 
-> splitTree
+We use the cached value at each node to decide whether to continue the search down a given branch or ignore it. In the complexity analysis of this algorithm (available in the Hinze and Paterson paper) this, with the branching factor of the tree, is where the efficiency comes from.
+
+Note also that the input to `splitWithContext` needs to satisfy a precondition: the value of the entire finger tree should be true. This is (I think) what guarantees that the search will succeed.
+
+> splitWithContext
 >  :: ( Valued m a )
->  => (m -> Bool) -> m -> FingerTree m a
+>  => m -> (m -> Bool) -> FingerTree m a
 >  -> Maybe (FingerTree m a, a, FingerTree m a)
-> splitTree p i w =
+> splitWithContext i p w =
 >   if p i
 >     then case uncons w of
 >       Nothing -> Nothing
@@ -858,13 +874,12 @@ Next we define a generalized split that prepends a given monoid value to the lef
 >               let
 >                 bs1 = maybeSomeToFingerTree ds1
 >                 bs3 = borrowL ds3 as2 as3
->               in
->                 Just (bs1, x, bs3)
+>               in Just (bs1, x, bs3)
 >           else
 >             let vas2 = vas1 <> (value as2) in
 >             if p vas2
 >               -- there's a match in the spine
->               then case splitTree p vas1 as2 of
+>               then case splitWithContext vas1 p as2 of
 >                 Nothing -> error "split: panic (2)"
 >                 Just (cs1, xs, cs3) ->
 >                   let vs = vas1 <> (value cs1) in
@@ -874,8 +889,7 @@ Next we define a generalized split that prepends a given monoid value to the lef
 >                       let
 >                         bs1 = borrowR as1 cs1 ds1
 >                         bs3 = borrowL ds3 cs3 as3
->                       in
->                         Just (bs1, x, bs3)
+>                       in Just (bs1, x, bs3)
 >               else
 >                 let vas3 = vas2 <> (value as3) in
 >                 if p vas3
@@ -886,208 +900,72 @@ Next we define a generalized split that prepends a given monoid value to the lef
 >                       let
 >                         bs1 = borrowR as1 as2 ds1
 >                         bs3 = maybeSomeToFingerTree ds3
->                       in
->                         Just (bs1, x, bs3)
+>                       in Just (bs1, x, bs3)
 >                   else Nothing -- precondition violated
 
-Now the general `split` function specializes to the identity.
+Now the general `split` function just specializes `splitWithContext` to the identity.
 
-> splitFT
+> split
 >  :: ( Valued m a )
 >  => (m -> Bool)
 >  -> FingerTree m a
 >  -> Maybe (FingerTree m a, a, FingerTree m a)
-> splitFT p w = splitTree p mempty w
+> split p w = splitWithContext mempty p w
 
-> takeFromSplitFT
->   :: forall m a
->    . ( Valued m a )
->   => (m -> Bool)
->   -> (Int -> m -> Bool)
->   -> Int
->   -> FingerTree m a
->   -> [(FingerTree m a, m)]
-> takeFromSplitFT p q k w =
->   case splitFT p w of
->     Nothing -> []
->     Just (as,x,bs) -> f 0 (cons x bs) (value as :: m) []
->   where
->     f
->       :: Int -> FingerTree m a -> m
->       -> [(FingerTree m a, m)] -> [(FingerTree m a, m)]
->     f t z m us =
->       if (isEmpty z) || (t >= k)
->         then Prelude.reverse us
->         else case splitTree (q t) m z of
->           Nothing -> Prelude.reverse us
->           Just (as,x,bs) ->
->             f (t+1) bs (m <> value (snoc x as)) ((snoc x as,m):us)
+Now's a good time for some examples.
 
+::: doctest
 
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: FingerTree Count Char
+> --   x = fromList ['a','b','c','d','e']
+> --   --
+> --   us, vs :: FingerTree Count Char
+> --   us = fromList ['a','b','c']
+> --   vs = fromList ['e']
+> --   --
+> --   p :: Count -> Bool
+> --   p (Count k) = k > 3
+> -- in Just (us, 'd', vs) == split p x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x :: FingerTree Count Char
+> --   x = fromList ['a','b','c','d']
+> --   --
+> --   us, vs :: FingerTree Count Char
+> --   us = fromList ['a']
+> --   vs = fromList ['c','d']
+> --   --
+> --   p :: Count -> Bool
+> --   p (Count k) = k >= 2
+> -- in Just (us, 'b', vs) == split p x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x :: FingerTree Count Char
+> --   x = fromList ['a','b','c','d']
+> --   --
+> --   p :: Count -> Bool
+> --   p (Count k) = k >= 7
+> -- in split p x
+> -- :}
+> -- Nothing
 
-Taking subsequences
--------------------
-
-Now we have some miscellaneous functions for taking subsequences of a finger tree.
-
-> breakPrefixWhileValueFT
->   :: forall m a
->    . ( Valued m a )
->   => (m -> Bool) -> FingerTree m a
->   -> (FingerTree m a, FingerTree m a)
-> breakPrefixWhileValueFT p xs =
->   break mempty xs
->   where
->     break
->       :: FingerTree m a -> FingerTree m a
->       -> (FingerTree m a, FingerTree m a)
->     break as bs = case uncons bs of
->       Nothing -> (as, mempty)
->       Just (x,cs) ->
->         if p (value as <> value x)
->           then break (snoc x as) cs
->           else (as, bs)
-
-> takeWhileValueFT
->  :: ( Valued m a )
->  => m -> (m -> Bool) -> FingerTree m a -> [(a, m)]
-> takeWhileValueFT e p xs =
->  case uncons xs of
->    Nothing -> []
->    Just (a, ys) ->
->      let z = e <> value a in
->      if p z
->        then (a, z) : takeWhileValueFT z p ys
->        else []
+:::
 
 
 
-Debugging
----------
+Testing and Debugging
+---------------------
 
-Even the most thoroughly tested code can go wrong sometimes. For when that happens, we'll also provide a basic debugging function that exposes the accumulated value of the finger tree at each position.
-
-> validateFT
->   :: ( Eq m, Valued m a )
->   => FingerTree m a -> Bool
-> validateFT = validateFT' (const True)
-> 
-> validateFT'
->   :: ( Eq m, Valued m a )
->   => (a -> Bool) -> FingerTree m a -> Bool
-> validateFT' valid xs = case xs of
->   Stump ->
->     True
->   Leaf m a ->
->     m == value a
->   Branch m as x bs -> and
->     [ validateSome valid as
->     , validateFT' (validateNode valid) x
->     , validateSome valid bs
->     , m == mconcat [ value as, value x, value bs ]
->     ]
-> 
-> validateSome
->   :: ( Eq m, Valued m a )
->   => (a -> Bool) -> Some m a -> Bool
-> validateSome valid x = case x of
->   Only1 m a1 -> and
->     [ m == value a1
->     , valid a1
->     ]
->   Only2 m a1 a2 -> and
->     [ m == mconcat [ value a1, value a2 ]
->     , valid a1, valid a2
->     ]
->   Only3 m a1 a2 a3 -> and
->     [ m == mconcat [ value a1, value a2, value a3 ]
->     , valid a1, valid a2, valid a3
->     ]
->   Only4 m a1 a2 a3 a4 -> and
->     [ m == mconcat [ value a1, value a2, value a3, value a4 ]
->     , valid a1, valid a2, valid a3, valid a4
->     ]
-> 
-> validateNode
->   :: ( Eq m, Valued m a )
->   => (a -> Bool) -> Node m a -> Bool
-> validateNode valid x = case x of
->   Node2 m a1 a2 -> and
->     [ m == mconcat [ value a1, value a2 ]
->     , valid a1, valid a2
->     ]
->   Node3 m a1 a2 a3 -> and
->     [ m == mconcat [ value a1, value a2, value a3 ]
->     , valid a1, valid a2, valid a3
->     ]
-
-> toListDebugFT
->  :: ( Valued m a )
->  => FingerTree m a -> [(a,m)]
-> toListDebugFT xs = foo mempty xs
->  where
->    foo e z = case uncons z of
->      Nothing -> []
->      Just (a, ys) ->
->        let u = e <> value a
->        in (a, u) : foo u ys
-
-> showInternalFT
->   :: ( Valued m a, Show m, Show a )
->   => FingerTree m a -> String
-> showInternalFT = showInternalFT' show
-
-> showInternalFT'
->   :: forall m a
->    . ( Valued m a, Show m )
->   => (a -> String)
->   -> FingerTree m a -> String
-> showInternalFT' s x =
->   let
->     p cs = if elem ' ' cs
->       then concat ["(",cs,")"]
->       else cs
-> 
->     showNode
->       :: (a -> String) -> Node m a -> String
->     showNode s x = case x of
->       Node2 m a1 a2 -> unwords
->         [ "Node2", p $ show m, p $ s a1, p $ s a2 ]
->       Node3 m a1 a2 a3 -> unwords
->         [ "Node3", p $ show m, p $ s a1, p $ s a2, p $ s a3 ]
-> 
->     showSome
->       :: (a -> String) -> Some m a -> String
->     showSome s x = case x of
->       Only1 m a1 -> unwords
->         [ "Only1", p $ show m, p $ s a1 ]
->       Only2 m a1 a2 -> unwords
->         [ "Only2", p $ show m, p $ s a1, p $ s a2 ]
->       Only3 m a1 a2 a3 -> unwords
->         [ "Only3", p $ show m, p $ s a1, p $ s a2, p $ s a3 ]
->       Only4 m a1 a2 a3 a4 -> unwords
->         [ "Only4", p $ show m, p $ s a1, p $ s a2, p $ s a3, p $ s a4 ]
->   in
->     case x of
->       Stump -> "Stump"
->       Leaf m a -> unwords
->         [ "Leaf", p $ show m, s a ]
->       Branch m as x bs -> unwords
->         [ "Branch"
->         , p $ show m
->         , p $ showSome s as
->         , p $ showInternalFT' (showNode s) x
->         , p $ showSome s bs
->         ]
-
-We can also compute the 'depth' of the tree. This function is only exposed for testing purposes. During normal use the internal structure of a finger tree is of no interest to us, but this will help us to ensure good test coverage later.
-
-> depthFT
->  :: FingerTree m a -> Int
-> depthFT x = case x of
->  Stump -> 0
->  Leaf _ _ -> 1
->  Branch _ _ z _ -> 1 + depthFT z
+Finally we define some utilities to help with testing. First, to interoperate with our testing framework, we need `FingerTree` to be an instance of some type classes.
 
 > instance
 >   ( Arb a, Valued m a
@@ -1112,7 +990,66 @@ We can also compute the 'depth' of the tree. This function is only exposed for t
 >   ( MakeTo a, Valued m a
 >   ) => MakeTo (FingerTree m a)
 >   where
->     makeTo = makeToExtendWith makeTo toList fromList
+>     makeTo = makeToExtendWith
+>       makeTo toList fromList
+
+Next, recall that our finger tree type has an internal invariant that needs to be maintained in order for the complexity and correctness proofs of our algorithms to hold. Namely, the cached monoidal value at each node must be the product of the monoidal values of the node's contents. We introduce a function (only used for testing) to check this. Note how polymorphic recursion makes this a little tricky.
+
+> validate
+>   :: ( Eq m, Valued m a )
+>   => FingerTree m a -> Bool
+> validate = validateNested (const True)
+>   where
+>     validateNested
+>       :: ( Eq m, Valued m a )
+>       => (a -> Bool) -> FingerTree m a -> Bool
+>     validateNested valid xs = case xs of
+>       Stump ->
+>         True
+>       Leaf m a ->
+>         m == value a
+>       Branch m as x bs -> and
+>         [ validateSome valid as
+>         , validateNested (validateNode valid) x
+>         , validateSome valid bs
+>         , m == mconcat [ value as, value x, value bs ]
+>         ]
+> 
+>     validateSome
+>       :: ( Eq m, Valued m a )
+>       => (a -> Bool) -> Some m a -> Bool
+>     validateSome valid x = case x of
+>       Only1 m a1 -> and
+>         [ m == value a1
+>         , valid a1
+>         ]
+>       Only2 m a1 a2 -> and
+>         [ m == mconcat [ value a1, value a2 ]
+>         , valid a1, valid a2
+>         ]
+>       Only3 m a1 a2 a3 -> and
+>         [ m == mconcat [ value a1, value a2, value a3 ]
+>         , valid a1, valid a2, valid a3
+>         ]
+>       Only4 m a1 a2 a3 a4 -> and
+>         [ m == mconcat [ value a1, value a2, value a3, value a4 ]
+>         , valid a1, valid a2, valid a3, valid a4
+>         ]
+> 
+>     validateNode
+>       :: ( Eq m, Valued m a )
+>       => (a -> Bool) -> Node m a -> Bool
+>     validateNode valid x = case x of
+>       Node2 m a1 a2 -> and
+>         [ m == mconcat [ value a1, value a2 ]
+>         , valid a1, valid a2
+>         ]
+>       Node3 m a1 a2 a3 -> and
+>         [ m == mconcat [ value a1, value a2, value a3 ]
+>         , valid a1, valid a2, valid a3
+>         ]
+
+
 
 ::: epigraph
 

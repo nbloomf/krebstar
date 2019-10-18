@@ -765,7 +765,7 @@ Recall that one of the killer features of finger trees is a powerful _splitting_
 >   => (m -> Bool)
 >   -> FT.FingerTree m a
 >   -> OnePointedList m a
-> split p xs = case FT.splitFT p xs of
+> split p xs = case FT.split p xs of
 >     Nothing -> Vacant
 >     Just z -> Point z
 
