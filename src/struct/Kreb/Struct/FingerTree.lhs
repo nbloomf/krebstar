@@ -18,15 +18,13 @@ title: Finger Trees
 
 ::: frontmatter
 
-> {-# LANGUAGE
->     MultiParamTypeClasses
->   , ScopedTypeVariables
->   , FlexibleInstances
->   , FlexibleContexts
->   , DeriveGeneric
->   , InstanceSigs
->   , Rank2Types
-> #-}
+> {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE ScopedTypeVariables #-}
+> {-# LANGUAGE FlexibleInstances #-}
+> {-# LANGUAGE FlexibleContexts #-}
+> {-# LANGUAGE DeriveGeneric #-}
+> {-# LANGUAGE InstanceSigs #-}
+> {-# LANGUAGE Rank2Types #-}
 > 
 > module Kreb.Struct.FingerTree (
 >     FingerTree()

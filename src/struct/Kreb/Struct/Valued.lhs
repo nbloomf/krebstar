@@ -58,7 +58,6 @@ Now lets define a concrete monoid and `Valued` instance for testing. Note that w
 >       h k = Count $ fromInteger $ abs k
 
 
-
 > instance Valued Count Char where
 >   value _ = Count 1
 > 
@@ -85,6 +84,8 @@ Now lets define a concrete monoid and `Valued` instance for testing. Note that w
 > 
 > instance Valued Count [a] where
 >   value _ = Count 1
+
+
 
 
 

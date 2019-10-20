@@ -1,6 +1,8 @@
 0.0.1 Checklist
 ===============
-- replace 'normal mode' with 'debug mode'
+- rename Seq to Sequence
+- When a region loses focus the selection should highlight to a dimmer color
+- replace 'normal mode' with 'debug mode' (not sure about this idea)
   - record input events to interaction log
 - store document history.
   - can we get more complex than linear history?
@@ -52,8 +54,6 @@ Refactoring
 - record actions as macros?
 
 - Rename Int to Nat
-- rename lang to kreblang
-- rename krebed to krebedit
 - start standard library
 
 list dependencies
@@ -146,7 +146,6 @@ l4c5 move
 
 CLEANUP
 =======
-- FingerTree: get rid of takeWhile.. in favor of break prefix
 - add finger tree, zip, and buffer tests to use the validate* functions
 - clean up buffer constructor mess
 
@@ -154,9 +153,7 @@ CLEANUP
 
 Features
 ========
-- built in command language
 - configurable keymapping (?)
-- load command dictionary from a file (and reload)
 - debug mode that dumps repro steps to a log file in a parseable format
 
 

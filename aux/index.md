@@ -7,6 +7,8 @@ author: nbloomf
 
 This is the user manual, design documentation, and source code of the `krebedit` text editor. As of this writing the project is very much Not Ready for Prime Time and supports exactly zero users. It is under rapid development though, and I hope for it to be "self-hosting" -- featureful enough that I can develop krebedit _in_ krebedit -- very soon.
 
+The table of contents below is _aspirational_; most of it doesn't exist yet.
+
 </section>
 
 
@@ -37,6 +39,7 @@ Design and Implementation
     1. Virtual Machine
     1. Expressions
     1. Type System
+1. The Terminal Frontend
 
 
 
@@ -47,6 +50,7 @@ Appendices
     1. [Finger Trees](html/FingerTree.html)
     1. [One-Pointed Lists](html/OnePointedList.html)
     1. [Seq](html/Seq.html)
+    1. [Run Length Encoding](html/RunLengthEncoding.html)
     1. [Two-Pointed Lists](html/TwoPointedList.html)
 1. Testing Library
 1. Bibliography

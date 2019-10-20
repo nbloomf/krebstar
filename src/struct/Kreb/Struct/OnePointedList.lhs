@@ -18,21 +18,18 @@ title: One-Pointed Lists
 
 ::: frontmatter
 
-> {-# LANGUAGE
->     MultiParamTypeClasses
->   , ScopedTypeVariables
->   , FlexibleInstances
->   , InstanceSigs
-> #-}
+> {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE ScopedTypeVariables #-}
+> {-# LANGUAGE FlexibleInstances #-}
+> {-# LANGUAGE InstanceSigs #-}
 > 
 > module Kreb.Struct.OnePointedList where
 > 
 > import Data.List (unwords)
 > import Data.Foldable
 > 
-> import Kreb.Check
-> 
-> import Kreb.Struct.Valued
+> import           Kreb.Check
+> import           Kreb.Struct.Valued
 > import qualified Kreb.Struct.FingerTree as FT
 
 :::

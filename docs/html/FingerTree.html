@@ -96,53 +96,51 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul>
 </div>
 <div class="frontmatter">
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">    MultiParamTypeClasses</span></a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">  , ScopedTypeVariables</span></a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">  , FlexibleInstances</span></a>
-<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">  , FlexibleContexts</span></a>
-<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">  , DeriveGeneric</span></a>
-<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ot">  , InstanceSigs</span></a>
-<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="ot">  , Rank2Types</span></a>
-<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="ot">#-}</span></a>
-<a class="sourceLine" id="cb1-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb1-11" data-line-number="11"><span class="kw">module</span> <span class="dt">Kreb.Struct.FingerTree</span> (</a>
-<a class="sourceLine" id="cb1-12" data-line-number="12">    <span class="dt">FingerTree</span>()</a>
-<a class="sourceLine" id="cb1-13" data-line-number="13">  , empty</a>
-<a class="sourceLine" id="cb1-14" data-line-number="14">  , singleton</a>
-<a class="sourceLine" id="cb1-15" data-line-number="15"></a>
-<a class="sourceLine" id="cb1-16" data-line-number="16">  , isEmpty</a>
-<a class="sourceLine" id="cb1-17" data-line-number="17">  , isSingleton</a>
-<a class="sourceLine" id="cb1-18" data-line-number="18">  , readInit</a>
-<a class="sourceLine" id="cb1-19" data-line-number="19">  , readLast</a>
-<a class="sourceLine" id="cb1-20" data-line-number="20"></a>
-<a class="sourceLine" id="cb1-21" data-line-number="21">  , fmapFT</a>
-<a class="sourceLine" id="cb1-22" data-line-number="22">  , remeasure</a>
-<a class="sourceLine" id="cb1-23" data-line-number="23"></a>
-<a class="sourceLine" id="cb1-24" data-line-number="24">  , cons</a>
-<a class="sourceLine" id="cb1-25" data-line-number="25">  , fromList</a>
-<a class="sourceLine" id="cb1-26" data-line-number="26">  , snoc</a>
-<a class="sourceLine" id="cb1-27" data-line-number="27">  , reverse</a>
-<a class="sourceLine" id="cb1-28" data-line-number="28">  , uncons</a>
-<a class="sourceLine" id="cb1-29" data-line-number="29">  , unsnoc</a>
-<a class="sourceLine" id="cb1-30" data-line-number="30">  , toAnnotatedList</a>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE FlexibleInstances #-}</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE FlexibleContexts #-}</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE DeriveGeneric #-}</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE InstanceSigs #-}</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ot">{-# LANGUAGE Rank2Types #-}</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="kw">module</span> <span class="dt">Kreb.Struct.FingerTree</span> (</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">    <span class="dt">FingerTree</span>()</a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">  , empty</a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  , singleton</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">  , isEmpty</a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  , isSingleton</a>
+<a class="sourceLine" id="cb1-16" data-line-number="16">  , readInit</a>
+<a class="sourceLine" id="cb1-17" data-line-number="17">  , readLast</a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19">  , fmapFT</a>
+<a class="sourceLine" id="cb1-20" data-line-number="20">  , remeasure</a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22">  , cons</a>
+<a class="sourceLine" id="cb1-23" data-line-number="23">  , fromList</a>
+<a class="sourceLine" id="cb1-24" data-line-number="24">  , snoc</a>
+<a class="sourceLine" id="cb1-25" data-line-number="25">  , reverse</a>
+<a class="sourceLine" id="cb1-26" data-line-number="26">  , uncons</a>
+<a class="sourceLine" id="cb1-27" data-line-number="27">  , unsnoc</a>
+<a class="sourceLine" id="cb1-28" data-line-number="28">  , toAnnotatedList</a>
+<a class="sourceLine" id="cb1-29" data-line-number="29"></a>
+<a class="sourceLine" id="cb1-30" data-line-number="30">  , concatWithList</a>
 <a class="sourceLine" id="cb1-31" data-line-number="31"></a>
-<a class="sourceLine" id="cb1-32" data-line-number="32">  , concatWithList</a>
-<a class="sourceLine" id="cb1-33" data-line-number="33"></a>
-<a class="sourceLine" id="cb1-34" data-line-number="34">  , splitWithContext</a>
-<a class="sourceLine" id="cb1-35" data-line-number="35">  , split</a>
-<a class="sourceLine" id="cb1-36" data-line-number="36"></a>
-<a class="sourceLine" id="cb1-37" data-line-number="37">  , validate</a>
-<a class="sourceLine" id="cb1-38" data-line-number="38">) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb1-39" data-line-number="39"></a>
-<a class="sourceLine" id="cb1-40" data-line-number="40"><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (reverse)</a>
-<a class="sourceLine" id="cb1-41" data-line-number="41"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Prelude</span> <span class="kw">as</span> <span class="dt">Prelude</span> (reverse)</a>
+<a class="sourceLine" id="cb1-32" data-line-number="32">  , splitWithContext</a>
+<a class="sourceLine" id="cb1-33" data-line-number="33">  , split</a>
+<a class="sourceLine" id="cb1-34" data-line-number="34"></a>
+<a class="sourceLine" id="cb1-35" data-line-number="35">  , validate</a>
+<a class="sourceLine" id="cb1-36" data-line-number="36">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-37" data-line-number="37"></a>
+<a class="sourceLine" id="cb1-38" data-line-number="38"><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (reverse)</a>
+<a class="sourceLine" id="cb1-39" data-line-number="39"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Prelude</span> <span class="kw">as</span> <span class="dt">Prelude</span> (reverse)</a>
+<a class="sourceLine" id="cb1-40" data-line-number="40"></a>
+<a class="sourceLine" id="cb1-41" data-line-number="41"><span class="kw">import</span> <span class="dt">GHC.Generics</span></a>
 <a class="sourceLine" id="cb1-42" data-line-number="42"></a>
-<a class="sourceLine" id="cb1-43" data-line-number="43"><span class="kw">import</span> <span class="dt">GHC.Generics</span></a>
-<a class="sourceLine" id="cb1-44" data-line-number="44"></a>
-<a class="sourceLine" id="cb1-45" data-line-number="45"><span class="kw">import</span> <span class="dt">Data.Monoid</span></a>
-<a class="sourceLine" id="cb1-46" data-line-number="46"><span class="kw">import</span> <span class="dt">Data.Foldable</span></a>
-<a class="sourceLine" id="cb1-47" data-line-number="47"><span class="kw">import</span> <span class="dt">Data.List</span> (unwords)</a></code></pre></div>
+<a class="sourceLine" id="cb1-43" data-line-number="43"><span class="kw">import</span> <span class="dt">Data.Monoid</span></a>
+<a class="sourceLine" id="cb1-44" data-line-number="44"><span class="kw">import</span> <span class="dt">Data.Foldable</span></a>
+<a class="sourceLine" id="cb1-45" data-line-number="45"><span class="kw">import</span> <span class="dt">Data.List</span> (unwords)</a></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Kreb.Check</span></a>
 <a class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Kreb.Struct.Valued</span></a></code></pre></div>
 </div>

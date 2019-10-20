@@ -63,7 +63,7 @@ Exposed API
 > import Kreb.Check (Arb(..), Prune(..), Positive(..), listOf, pickFrom4)
 
 > import Kreb.Reflect
-> import Kreb.Struct
+> import qualified Kreb.Struct.RunLengthEncoded as RLE
 
 
 
@@ -99,14 +99,16 @@ There's actually one more special case -- newlines, whose width is however many 
 We will be using run length encoded lists of spans, and it will be very useful to know the total width of such a list.
 
 > spanWidth
->   :: Int -> RunLengthEncoding Span -> Int
+>   :: Int -> RLE.RunLengthEncoded Span -> Int
 > spanWidth tab rle = w 0 rle
 >   where
->     w :: Int -> RunLengthEncoding Span -> Int
->     w m xs = case firstRun xs of
+>     w :: Int -> RLE.RunLengthEncoded Span -> Int
+>     w m xs = case RLE.firstRun xs of
 >       Nothing -> m
->       Just (Run (k',a), bs) ->
->         let k = fromIntegral k'
+>       Just (run, bs) ->
+>         let
+>           (k',a) = RLE.unRun run
+>           k = fromIntegral k'
 >         in case a of
 >           Fixed0 -> w m bs
 >           Fixed1 -> w (m + k) bs
@@ -171,11 +173,11 @@ The `ScreenOffset` type models the position of a given character on the screen. 
 
 > data ScreenOffset w t
 >   = NoNewlines
->       (RunLengthEncoding Span)
+>       (RLE.RunLengthEncoded Span)
 >   | WithNewlines
->       (RunLengthEncoding Span)
+>       (RLE.RunLengthEncoded Span)
 >       Int
->       (RunLengthEncoding Span)
+>       (RLE.RunLengthEncoded Span)
 >   deriving Eq
 
 > instance
@@ -223,85 +225,86 @@ We can break the problem of wrapping lists of spans into subproblems. First cons
 The `takeChunk` function performs this operation. The details are a little hairier because (1) we have to account for tabs too and (2) the queue of spans is run length encoded for efficiency reasons, and we can use this to optimize here as well but it makes the arithmetic much fiddlier.
 
 > takeChunk
->   :: Int -> Int -> RunLengthEncoding Span
->   -> Maybe (RunLengthEncoding Span, RunLengthEncoding Span)
+>   :: Int -> Int -> RLE.RunLengthEncoded Span
+>   -> Maybe (RLE.RunLengthEncoded Span, RLE.RunLengthEncoded Span)
 > takeChunk width tab rle =
->   if isEmptyRLE rle
+>   if RLE.isEmpty rle
 >     then Nothing
 >     else greedy 0 mempty rle
 >   where
 >     greedy
 >       :: Integer
->       -> RunLengthEncoding Span
->       -> RunLengthEncoding Span
->       -> Maybe (RunLengthEncoding Span, RunLengthEncoding Span)
+>       -> RLE.RunLengthEncoded Span
+>       -> RLE.RunLengthEncoded Span
+>       -> Maybe (RLE.RunLengthEncoded Span, RLE.RunLengthEncoded Span)
 >     greedy m as bs =
 >       if (fromIntegral m) >= width
 > 
 >         -- chunk is full; make sure remainder is not empty.
->         then case firstRun bs of
+>         then case RLE.firstRun bs of
 >           Nothing -> Just (as, mempty)
->           Just (Run (k, a), ds) ->
+>           Just (run, ds) ->
+>             let (k,a) = RLE.unRun run in
 >             case a of
->               Fixed0 -> greedy m (as <> fromFreqList [(k,a)]) ds
+>               Fixed0 -> greedy m (as <> RLE.fromRuns [(k,a)]) ds
 >               _      -> Just (as, bs)
 > 
 >         -- chunk is not full yet
->         else case firstRun bs of
+>         else case RLE.firstRun bs of
 >           Nothing -> Nothing
->           Just (Run (k,a), ds) ->
->             
+>           Just (run, ds) ->
+>             let (k,a) = RLE.unRun run in
 >             case a of
->               Fixed0 -> greedy m (as <> fromFreqList [(k,a)]) ds
+>               Fixed0 -> greedy m (as <> RLE.fromRuns [(k,a)]) ds
 > 
 >               Fixed1 -> let capacity = (fromIntegral width) - m in
 >                 if k <= capacity
->                   then greedy (m+k) (as <> fromFreqList [(k,a)]) ds
+>                   then greedy (m+k) (as <> RLE.fromRuns [(k,a)]) ds
 >                   else Just
->                     ( as <> fromFreqList [(capacity,a)]
->                     , fromFreqList [(k-capacity,a)] <> ds )
+>                     ( as <> RLE.fromRuns [(capacity,a)]
+>                     , RLE.fromRuns [(k-capacity,a)] <> ds )
 > 
 >               Fixed2 -> let capacity = (fromIntegral width) - m in
 >                 if capacity < 2
 >                   then Just (as, bs)
 >                   else if (2*k) <= capacity
 >                     then greedy (m + 2*k)
->                       (as <> fromFreqList [(k,a)]) ds
+>                       (as <> RLE.fromRuns [(k,a)]) ds
 >                     else let q = capacity `quot` 2 in
 >                       greedy (m + 2*q)
->                         (as <> fromFreqList [(q,a)])
->                         (fromFreqList [(k-q,a)] <> ds)
+>                         (as <> RLE.fromRuns [(q,a)])
+>                         (RLE.fromRuns [(k-q,a)] <> ds)
 > 
 >               Stretchy ->
 >                 -- next tab stop
 >                 let n = (fromIntegral tab) * (1 + quot m (fromIntegral tab)) in
 >                 if n >= (fromIntegral width)
 >                   then greedy n
->                     (as <> fromFreqList [(1,a)])
->                     (fromFreqList [(k-1,a)] <> ds)
+>                     (as <> RLE.fromRuns [(1,a)])
+>                     (RLE.fromRuns [(k-1,a)] <> ds)
 >                   else let capacity = (fromIntegral width) - n in
 >                     if ((fromIntegral tab)*(k-1)) <= capacity
 >                       then greedy (n + (fromIntegral tab)*(k-1))
->                         (as <> fromFreqList [(k,a)]) ds
+>                         (as <> RLE.fromRuns [(k,a)]) ds
 >                       else let q = capacity `quot` (fromIntegral tab) in
 >                         greedy (n + (fromIntegral tab)*q)
->                           (as <> fromFreqList [(q+1,a)])
->                           (fromFreqList [(k-q-1,a)] <> ds)
+>                           (as <> RLE.fromRuns [(q+1,a)])
+>                           (RLE.fromRuns [(k-q-1,a)] <> ds)
 
 Then `takeChunks` repeatedly tries to take the _first_ chunk, bailing out when it can't. Note that the taken chunks must all be 'full' lines.
 
 > takeChunks
->   :: Int -> Int -> RunLengthEncoding Span
->   -> ([RunLengthEncoding Span], RunLengthEncoding Span)
+>   :: Int -> Int -> RLE.RunLengthEncoded Span
+>   -> ([RLE.RunLengthEncoded Span], RLE.RunLengthEncoded Span)
 > takeChunks width tab rle =
 >   if (width <= 0) || (tab <= 0)
 >     then ([], rle)
 >     else greedy [] rle
 >   where
 >     greedy
->       :: [RunLengthEncoding Span]
->       -> RunLengthEncoding Span
->       -> ([RunLengthEncoding Span], RunLengthEncoding Span)
+>       :: [RLE.RunLengthEncoded Span]
+>       -> RLE.RunLengthEncoded Span
+>       -> ([RLE.RunLengthEncoded Span], RLE.RunLengthEncoded Span)
 >     greedy xs z =
 >       case takeChunk width tab z of
 >         Nothing -> (reverse xs, z)
@@ -342,14 +345,14 @@ We're finally prepared to define a helper function for constructing screen offse
 >   => [(Integer, Span)]
 >   -> ScreenOffset w t
 > mkNoNewlines xs =
->   NoNewlines (fromFreqList xs)
+>   NoNewlines (RLE.fromRuns xs)
 > 
 > mkWithNewlines
 >   :: ( IsWidth w, IsTab t )
 >   => [(Integer, Span)] -> Int -> [(Integer, Span)]
 >   -> ScreenOffset w t
 > mkWithNewlines as k bs =
->   WithNewlines (fromFreqList as) k (fromFreqList bs)
+>   WithNewlines (RLE.fromRuns as) k (RLE.fromRuns bs)
 
 > defNoNewlines
 >   :: ( IsWidth w, IsTab t )
@@ -374,15 +377,15 @@ We're finally prepared to define a helper function for constructing screen offse
 >         [ "defNoNewlines "
 >         , showWidth (Proxy :: Proxy w), " "
 >         , showTab (Proxy :: Proxy t), " "
->         , show $ toFreqList xs
+>         , show $ RLE.toRuns xs
 >         ]
 >       WithNewlines as k bs -> concat
 >         [ "defWithNewlines "
 >         , showWidth (Proxy :: Proxy w), " "
 >         , showTab (Proxy :: Proxy t), " "
->         , show $ toFreqList as, " "
+>         , show $ RLE.toRuns as, " "
 >         , show k, " "
->         , show $ toFreqList bs
+>         , show $ RLE.toRuns bs
 >         ]
 
 
@@ -393,7 +396,7 @@ A monoid action for screen offsets
 The purpose of screen offsets is to let us express _relative_ positions in the terminal window, so we can (for instance) have a chunk of text and know quickly at which position the _following_ chunk of text will start. First a helper for span lists:
 
 > applyBlockOffset
->   :: Int -> Int -> RunLengthEncoding Span
+>   :: Int -> Int -> RLE.RunLengthEncoded Span
 >   -> (Int, Int) -> (Int, Int)
 > applyBlockOffset width tab rle x =
 >   foldl f x rle

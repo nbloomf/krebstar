@@ -41,7 +41,8 @@ Introduction
 > 
 > import Kreb.Check
 > import Kreb.Reflect
-> import Kreb.Struct
+> import Kreb.Struct.Valued
+> import qualified Kreb.Struct.RunLengthEncoded as RLE
 > 
 > import Kreb.Text.ScreenOffset
 
@@ -53,13 +54,13 @@ Generators
 > genAll
 >   :: Span
 >   -> NonNegative Int
->   -> Seeded (RunLengthEncoding Span)
+>   -> Seeded (RLE.RunLengthEncoded Span)
 > genAll span (NonNegative k) = do
 >   let
 >     xs = if k <= 0
 >       then []
 >       else [(fromIntegral k, span)]
->   return $ fromFreqList xs
+>   return $ RLE.fromRuns xs
 
 > genValidCoords
 >   :: forall w
@@ -78,12 +79,14 @@ Test helpers
 ------------
 
 > lastSpanWithPositiveWidth
->   :: RunLengthEncoding Span -> Maybe Span
+>   :: RLE.RunLengthEncoded Span -> Maybe Span
 > lastSpanWithPositiveWidth xs = do
->   (Run (_,a), ys) <- lastRun xs
+>   (run1, ys) <- RLE.lastRun xs
+>   let (_, a) = RLE.unRun run1
 >   case a of
 >     Fixed0 -> do
->       (Run (_,b), _) <- lastRun ys
+>       (run2, _) <- RLE.lastRun ys
+>       let (_, b) = RLE.unRun run2
 >       return b
 >     _ -> return a
 
@@ -164,7 +167,7 @@ A list of spans with $k$ width 2 characters has width $2k$.
 For good measure, some concrete examples to check our intuition about `spanWidth`.
 
 > prop_SpanWidth_examples
->   :: Int -> RunLengthEncoding Span
+>   :: Int -> RLE.RunLengthEncoded Span
 >   -> Int
 >   -> Check
 > prop_SpanWidth_examples tab xs w =
@@ -178,7 +181,7 @@ For good measure, some concrete examples to check our intuition about `spanWidth
 >       (uncurry3 prop_SpanWidth_examples)
 >       [ ( "all width 1"
 >         , ( 5
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (5, Fixed1) ]
 >           , 5
 >           )
@@ -186,7 +189,7 @@ For good measure, some concrete examples to check our intuition about `spanWidth
 > 
 >       , ( "mixed, no tabs"
 >         , ( 5
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (2, Fixed1), (3, Fixed0), (3, Fixed2) ]
 >           , 8
 >           )
@@ -194,7 +197,7 @@ For good measure, some concrete examples to check our intuition about `spanWidth
 > 
 >       , ( "only tabs"
 >         , ( 5
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (4, Stretchy) ]
 >           , 20
 >           )
@@ -202,7 +205,7 @@ For good measure, some concrete examples to check our intuition about `spanWidth
 > 
 >       , ( "interleaved tabs"
 >         , ( 5
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (1, Fixed1), (1, Stretchy)
 >               , (1, Fixed1), (1, Stretchy) ]
 >           , 10
@@ -211,7 +214,7 @@ For good measure, some concrete examples to check our intuition about `spanWidth
 > 
 >       , ( "full width tabs"
 >         , ( 6
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (6, Fixed1), (1, Stretchy)
 >               , (3, Fixed2), (1, Stretchy) ]
 >           , 24
@@ -273,12 +276,12 @@ If `takeChunk` succeeds then the input span width exceeds the screen width.
 > prop_TakeChunk_width_succeeds
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_width_succeeds
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     , ("spanWidth > 0", spanWidth tab xs > 0)
 >     ] $
@@ -296,12 +299,12 @@ The width of the taken chunk is bounded, with the exact bound depending on the l
 > prop_TakeChunk_take_width_bound
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_take_width_bound
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     , ("spanWidth > 0", spanWidth tab xs > 0)
 >     ] $
@@ -324,18 +327,18 @@ If the input is not empty and the width is at least 2, then the taken chunk is n
 > prop_TakeChunk_take_not_empty
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_take_not_empty
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     , ("spanWidth > 0", spanWidth tab xs > 0)
 >     ] $
 >     case takeChunk width tab xs of
 >       Nothing -> True
->       Just (as, _) -> not $ isEmptyRLE as
+>       Just (as, _) -> not $ RLE.isEmpty as
 > 
 > test_TakeChunk_take_not_empty :: TestTree
 > test_TakeChunk_take_not_empty =
@@ -347,7 +350,7 @@ The result of `takeChunk` is a cat factorization of the original list.
 > prop_TakeChunk_cat_factor
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_cat_factor
 >   (Positive width) (Positive tab) xs =
@@ -366,12 +369,12 @@ If `takeChunk` succeeds, then the chunked tail is shorter than the original list
 > prop_TakeChunk_shrink_tail
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_shrink_tail
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     , ("spanWidth > 0", spanWidth tab xs > 0)
 >     ] $
@@ -379,7 +382,7 @@ If `takeChunk` succeeds, then the chunked tail is shorter than the original list
 >     case takeChunk width tab xs of
 >       Nothing -> True
 >       Just (_,bs) ->
->         (runLength $ value bs) < (runLength $ value xs)
+>         (RLE.countItems bs) < (RLE.countItems xs)
 > 
 > test_TakeChunk_shrink_tail :: TestTree
 > test_TakeChunk_shrink_tail =
@@ -391,15 +394,15 @@ If `takeChunk` succeeds, then the chunked tail is shorter than the original list
 > prop_TakeChunk_length
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_length
 >   (Positive width) (Positive tab) xs =
 >   check $
 >     case takeChunk width tab xs of
 >       Nothing -> True
->       Just (as, bs) -> (runLength $ value xs) ==
->         (runLength $ value as) + (runLength $ value bs)
+>       Just (as, bs) -> (RLE.countItems xs) ==
+>         (RLE.countItems as) + (RLE.countItems bs)
 > 
 > test_TakeChunk_length :: TestTree
 > test_TakeChunk_length =
@@ -411,14 +414,14 @@ If the remainder of a chunked list is empty, then the taken chunk should be _ful
 > prop_TakeChunk_rest_empty
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunk_rest_empty
 >   (Positive width) (Positive tab) xs =
 >   check $
 >     case takeChunk width tab xs of
 >       Nothing -> accept
->       Just (as, bs) -> if not $ isEmptyRLE bs
+>       Just (as, bs) -> if not $ RLE.isEmpty bs
 >         then accept
 >         else 
 >           let w = spanWidth tab as in
@@ -435,8 +438,8 @@ If the remainder of a chunked list is empty, then the taken chunk should be _ful
 For good measure, some examples to check our intuition about `takeChunk`.
 
 > prop_TakeChunk_examples
->   :: Int -> Int -> RunLengthEncoding Span
->   -> Maybe (RunLengthEncoding Span, RunLengthEncoding Span)
+>   :: Int -> Int -> RLE.RunLengthEncoded Span
+>   -> Maybe (RLE.RunLengthEncoded Span, RLE.RunLengthEncoded Span)
 >   -> Check
 > prop_TakeChunk_examples w t xs result =
 >   claimEqual result (takeChunk w t xs)
@@ -449,12 +452,12 @@ For good measure, some examples to check our intuition about `takeChunk`.
 >       [ ( "#1"
 >         , ( 2
 >           , 1
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (1,Stretchy), (2,Fixed1) ]
 >           , Just
->             ( fromFreqList
+>             ( RLE.fromRuns
 >                 [(1,Stretchy), (1,Fixed1)]
->             , fromFreqList
+>             , RLE.fromRuns
 >                 [(1,Fixed1)]
 >             )
 >           )
@@ -463,7 +466,7 @@ For good measure, some examples to check our intuition about `takeChunk`.
 >       , ( "#2"
 >         , ( 2
 >           , 1
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (1,Fixed1), (1,Fixed0) ]
 >           , Nothing
 >           )
@@ -472,11 +475,11 @@ For good measure, some examples to check our intuition about `takeChunk`.
 >       , ( "#3"
 >         , ( 3
 >           , 2
->           , fromFreqList
+>           , RLE.fromRuns
 >               [ (5,Stretchy) ]
 >           , Just
->               ( fromFreqList [(2,Stretchy)]
->               , fromFreqList [(3,Stretchy)]
+>               ( RLE.fromRuns [(2,Stretchy)]
+>               , RLE.fromRuns [(3,Stretchy)]
 >               )
 >           )
 >         )
@@ -503,12 +506,12 @@ takeChunks properties
 > prop_TakeChunks_cat_factor
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunks_cat_factor
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     ] $
 >   check $
@@ -525,12 +528,12 @@ The widths of the taken chunks are bounded above.
 > prop_TakeChunks_take_size_upper_bound
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunks_take_size_upper_bound
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     ] $
 >   let (as,_) = takeChunks width tab xs in
@@ -553,12 +556,12 @@ The widths of the taken chunks are bounded below.
 > prop_TakeChunks_take_size_lower_bound
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunks_take_size_lower_bound
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     ] $
 >   let (as,_) = takeChunks width tab xs in
@@ -581,12 +584,12 @@ The width of the remainder is bounded above.
 > prop_TakeChunks_rest_size_upper_bound
 >   :: Positive Int
 >   -> Positive Int
->   -> RunLengthEncoding Span
+>   -> RLE.RunLengthEncoded Span
 >   -> Check
 > prop_TakeChunks_rest_size_upper_bound
 >   (Positive width) (Positive tab) xs =
 >   provisio
->     [ ("input not empty", not $ isEmptyRLE xs)
+>     [ ("input not empty", not $ RLE.isEmpty xs)
 >     , ("width >= 2", width >= 2)
 >     ] $
 >   let
@@ -649,7 +652,7 @@ ScreenOffset is a monoid
 
 > prop_ScreenOffset_applyBlockOffset_examples
 >   :: Int -> Int
->   -> ( RunLengthEncoding Span
+>   -> ( RLE.RunLengthEncoded Span
 >      , (Int, Int)
 >      , (Int, Int)
 >      )
@@ -663,14 +666,14 @@ ScreenOffset is a monoid
 >     [ testKrebCases "8/2"
 >       (prop_ScreenOffset_applyBlockOffset_examples 8 2)
 >       [ ( "#1"
->         , ( fromFreqList [(10,Fixed1)]
+>         , ( RLE.fromRuns [(10,Fixed1)]
 >           , (0,0)
 >           , (2,1)
 >           )
 >         )
 > 
 >       , ( "#2"
->         , ( fromFreqList [(11,Fixed1)]
+>         , ( RLE.fromRuns [(11,Fixed1)]
 >           , (0,0)
 >           , (3,1)
 >           )

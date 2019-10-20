@@ -38,7 +38,7 @@
 >   , "src/struct/Kreb/Struct/OnePointedList.lhs"
 >   , "src/struct/Kreb/Struct/Seq.lhs"
 >   , "src/struct/Kreb/Struct/TwoPointedList.lhs"
->   , "src/struct/Kreb/Struct/RunLengthEncoding.lhs"
+>   , "src/struct/Kreb/Struct/RunLengthEncoded.lhs"
 > 
 >   , "src/text/Kreb/Text.lhs"
 >   , "src/text/Kreb/Text/ScreenOffset.lhs"

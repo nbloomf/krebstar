@@ -18,20 +18,18 @@ title: Two-Pointed Lists
 
 ::: frontmatter
 
-> {-# LANGUAGE
->     MultiParamTypeClasses
->   , ScopedTypeVariables
->   , FlexibleInstances
->   , InstanceSigs
-> #-}
-
+> {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE ScopedTypeVariables #-}
+> {-# LANGUAGE FlexibleInstances #-}
+> {-# LANGUAGE InstanceSigs #-}
+> 
 > module Kreb.Struct.TwoPointedList where
 > 
 > import Data.Foldable
 > import Data.List (unwords)
 > 
-> import Kreb.Check
-> import Kreb.Struct.Valued
+> import           Kreb.Check
+> import           Kreb.Struct.Valued
 > import qualified Kreb.Struct.FingerTree as FT
 
 :::

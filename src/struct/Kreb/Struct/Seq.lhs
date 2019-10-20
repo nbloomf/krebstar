@@ -4,27 +4,16 @@ title: Kreb.Struct.Seq
 
 
 
-Contents
---------
-
-* [Introduction](#introduction)
-* [The Seq Type](#the-seq-type)
-    * [Tape](#tape)
-
-
-
 Introduction
 ============
 
 So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type, and taken its [derivative](src/Ned/Data/OnePointedList.html) to get a linear structure with a distinguished pointer in the middle. We'll use this as the basis for a couple of more specialized structures. The first of these is `Seq`, which uses our existing `Count` monoid to describe a list with efficient indexing.
 
-> {-# LANGUAGE
->     MultiParamTypeClasses
->   , UndecidableInstances
->   , FlexibleInstances
->   , FlexibleContexts
->   , InstanceSigs
-> #-}
+> {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE UndecidableInstances #-}
+> {-# LANGUAGE FlexibleInstances #-}
+> {-# LANGUAGE FlexibleContexts #-}
+> {-# LANGUAGE InstanceSigs #-}
 > 
 > 
 > module Kreb.Struct.Seq (
@@ -39,9 +28,8 @@ So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type
 >   , debugShowSeq
 > ) where
 > 
-> import Kreb.Check (Arb(..), Prune(..))
-> 
-> import Kreb.Struct.Valued
+> import           Kreb.Check
+> import           Kreb.Struct.Valued
 > import qualified Kreb.Struct.OnePointedList as OPL
 
 
@@ -108,96 +96,6 @@ And now the heavy lifting can be offloaded to `OnePointedList`. Note that, since
 
 
 
-> {-
-
-> instance
->   ( Valued Count a
->   ) => Tape Seq a
->   where
->     isEmpty :: Seq a -> Bool
->     isEmpty = isEmptyFTZ . unSeq
-> 
->     mkTape :: [a] -> Seq a
->     mkTape = Seq . mkTapeFTZ
-> 
->     mkTapeFocus :: [a] -> a -> [a] -> Seq a
->     mkTapeFocus as x bs =
->       Seq $ mkTapeFocusFTZ as x bs
-> 
->     unTape :: Seq a -> [a]
->     unTape = toList . unSeq
-> 
->     isAtInit :: Seq a -> Bool
->     isAtInit = isAtInitFTZ . unSeq
-> 
->     isAtLast :: Seq a -> Bool
->     isAtLast = isAtLastFTZ . unSeq
-> 
->     initRead :: Seq a -> Maybe a
->     initRead = initReadFTZ . unSeq
-> 
->     initAlter :: (a -> a) -> Seq a -> Seq a
->     initAlter f =
->       liftSeq $ initAlterFTZ f
-> 
->     initMove :: Seq a -> Seq a
->     initMove =
->       liftSeq $ initMoveFTZ
-> 
->     initInsert :: a -> Seq a -> Seq a
->     initInsert a =
->       liftSeq $ initInsertFTZ a
-> 
->     initDelete :: Seq a -> Seq a
->     initDelete =
->       liftSeq $ initDeleteFTZ
-> 
->     lastRead :: Seq a -> Maybe a
->     lastRead = lastReadFTZ . unSeq
-> 
->     lastAlter :: (a -> a) -> Seq a -> Seq a
->     lastAlter f =
->       liftSeq $ lastAlterFTZ f
-> 
->     lastMove :: Seq a -> Seq a
->     lastMove =
->       liftSeq $ lastMoveFTZ
-> 
->     lastInsert :: a -> Seq a -> Seq a
->     lastInsert a =
->       liftSeq $ lastInsertFTZ a
-> 
->     lastDelete :: Seq a -> Seq a
->     lastDelete =
->       liftSeq $ lastDeleteFTZ
-> 
-
-> 
->     headMoveL :: Seq a -> Seq a
->     headMoveL =
->       liftSeq $ headMoveLFTZ
-> 
->     headMoveR :: Seq a -> Seq a
->     headMoveR =
->       liftSeq $ headMoveRFTZ
-> 
->     headInsertL :: a -> Seq a -> Seq a
->     headInsertL a = 
->       liftSeq $ headInsertLFTZ a
-> 
->     headInsertR :: a -> Seq a -> Seq a
->     headInsertR a =
->       liftSeq $ headInsertRFTZ a
-> 
->     headDeleteL :: Seq a -> Seq a
->     headDeleteL =
->       liftSeq $ headDeleteLFTZ
-> 
->     headDeleteR :: Seq a -> Seq a
->     headDeleteR =
->       liftSeq $ headDeleteRFTZ
-
-> -}
 
 > debugShowSeq
 >   :: ( Valued Count a )

@@ -6,7 +6,7 @@
 > import Kreb.Struct.OnePointedList.Test
 > import Kreb.Struct.TwoPointedList.Test
 > import Kreb.Struct.Seq.Test
-> import Kreb.Struct.RunLengthEncoding.Test
+> import Kreb.Struct.RunLengthEncoded.Test
 
 > kreb_struct_test_suite :: TestTree
 > kreb_struct_test_suite =
@@ -15,5 +15,5 @@
 >     , test_OnePointedList
 >     , test_TwoPointedList
 >     , test_Seq
->     , test_RunLengthEncoding
+>     , test_RunLengthEncoded
 >     ]
