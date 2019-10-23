@@ -48,6 +48,7 @@ title: Finger Trees
 >   , toAnnotatedList
 > 
 >   , concatWithList
+>   , inflateWith
 > 
 >   , splitWithContext
 >   , split
@@ -772,6 +773,19 @@ Now the real `cat` is a specialization of `concatWithList`, and along with `empt
 >  ) => Monoid (FingerTree m a)
 >  where
 >    mempty = empty
+
+We end with a kind of generalized `join` on finger trees. The intuition behind `inflateWith` is that each entry in an input finger tree is expanded to a subsequence.
+
+> inflateWith
+>   :: forall m1 m2 a b
+>    . ( Valued m1 a, Valued m2 b )
+>   => (a -> [b]) -> FingerTree m1 a -> FingerTree m2 b
+> inflateWith f w = inflate w
+>   where
+>     inflate :: FingerTree m1 a -> FingerTree m2 b
+>     inflate w = case uncons w of
+>       Nothing -> mempty
+>       Just (a, as) -> (fromList (f a)) <> inflate as
 
 
 

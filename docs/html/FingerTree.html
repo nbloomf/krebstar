@@ -126,21 +126,22 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb1-28" data-line-number="28">  , toAnnotatedList</a>
 <a class="sourceLine" id="cb1-29" data-line-number="29"></a>
 <a class="sourceLine" id="cb1-30" data-line-number="30">  , concatWithList</a>
-<a class="sourceLine" id="cb1-31" data-line-number="31"></a>
-<a class="sourceLine" id="cb1-32" data-line-number="32">  , splitWithContext</a>
-<a class="sourceLine" id="cb1-33" data-line-number="33">  , split</a>
-<a class="sourceLine" id="cb1-34" data-line-number="34"></a>
-<a class="sourceLine" id="cb1-35" data-line-number="35">  , validate</a>
-<a class="sourceLine" id="cb1-36" data-line-number="36">) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb1-37" data-line-number="37"></a>
-<a class="sourceLine" id="cb1-38" data-line-number="38"><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (reverse)</a>
-<a class="sourceLine" id="cb1-39" data-line-number="39"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Prelude</span> <span class="kw">as</span> <span class="dt">Prelude</span> (reverse)</a>
-<a class="sourceLine" id="cb1-40" data-line-number="40"></a>
-<a class="sourceLine" id="cb1-41" data-line-number="41"><span class="kw">import</span> <span class="dt">GHC.Generics</span></a>
-<a class="sourceLine" id="cb1-42" data-line-number="42"></a>
-<a class="sourceLine" id="cb1-43" data-line-number="43"><span class="kw">import</span> <span class="dt">Data.Monoid</span></a>
-<a class="sourceLine" id="cb1-44" data-line-number="44"><span class="kw">import</span> <span class="dt">Data.Foldable</span></a>
-<a class="sourceLine" id="cb1-45" data-line-number="45"><span class="kw">import</span> <span class="dt">Data.List</span> (unwords)</a></code></pre></div>
+<a class="sourceLine" id="cb1-31" data-line-number="31">  , inflateWith</a>
+<a class="sourceLine" id="cb1-32" data-line-number="32"></a>
+<a class="sourceLine" id="cb1-33" data-line-number="33">  , splitWithContext</a>
+<a class="sourceLine" id="cb1-34" data-line-number="34">  , split</a>
+<a class="sourceLine" id="cb1-35" data-line-number="35"></a>
+<a class="sourceLine" id="cb1-36" data-line-number="36">  , validate</a>
+<a class="sourceLine" id="cb1-37" data-line-number="37">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-38" data-line-number="38"></a>
+<a class="sourceLine" id="cb1-39" data-line-number="39"><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (reverse)</a>
+<a class="sourceLine" id="cb1-40" data-line-number="40"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Prelude</span> <span class="kw">as</span> <span class="dt">Prelude</span> (reverse)</a>
+<a class="sourceLine" id="cb1-41" data-line-number="41"></a>
+<a class="sourceLine" id="cb1-42" data-line-number="42"><span class="kw">import</span> <span class="dt">GHC.Generics</span></a>
+<a class="sourceLine" id="cb1-43" data-line-number="43"></a>
+<a class="sourceLine" id="cb1-44" data-line-number="44"><span class="kw">import</span> <span class="dt">Data.Monoid</span></a>
+<a class="sourceLine" id="cb1-45" data-line-number="45"><span class="kw">import</span> <span class="dt">Data.Foldable</span></a>
+<a class="sourceLine" id="cb1-46" data-line-number="46"><span class="kw">import</span> <span class="dt">Data.List</span> (unwords)</a></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Kreb.Check</span></a>
 <a class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Kreb.Struct.Valued</span></a></code></pre></div>
 </div>
@@ -745,6 +746,17 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb38-9" data-line-number="9"> ) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">FingerTree</span> m a)</a>
 <a class="sourceLine" id="cb38-10" data-line-number="10"> <span class="kw">where</span></a>
 <a class="sourceLine" id="cb38-11" data-line-number="11">   mempty <span class="fu">=</span> empty</a></code></pre></div>
+<p>We end with a kind of generalized <code>join</code> on finger trees. The intuition behind <code>inflateWith</code> is that each entry in an input finger tree is expanded to a subsequence.</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1">inflateWith</a>
+<a class="sourceLine" id="cb39-2" data-line-number="2"><span class="ot">  ::</span> forall m1 m2 a b</a>
+<a class="sourceLine" id="cb39-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">Valued</span> m1 a, <span class="dt">Valued</span> m2 b )</a>
+<a class="sourceLine" id="cb39-4" data-line-number="4">  <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> [b]) <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m1 a <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m2 b</a>
+<a class="sourceLine" id="cb39-5" data-line-number="5">inflateWith f w <span class="fu">=</span> inflate w</a>
+<a class="sourceLine" id="cb39-6" data-line-number="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb39-7" data-line-number="7"><span class="ot">    inflate ::</span> <span class="dt">FingerTree</span> m1 a <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m2 b</a>
+<a class="sourceLine" id="cb39-8" data-line-number="8">    inflate w <span class="fu">=</span> <span class="kw">case</span> uncons w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb39-9" data-line-number="9">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> mempty</a>
+<a class="sourceLine" id="cb39-10" data-line-number="10">      <span class="dt">Just</span> (a, as) <span class="ot">-&gt;</span> (fromList (f a)) <span class="fu">&lt;&gt;</span> inflate as</a></code></pre></div>
 </section>
 <section id="splitting" class="level2">
 <h2>Splitting</h2>
@@ -757,246 +769,246 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p>The internal structure of finger trees allows this to be done efficiently. In general there may be many possible places to break the tree, but with a judicious choice of <code>m</code> and the predicate we can perform some complex operations quickly.</p>
 <p>It’s natural to wonder why this is a useful thing to do. Well, for a judiciously chosen monoid <code>m</code> and predicate <code>p</code>, splitting can do some interesting things. As a simple example, with the <code>Count</code> monoid and a predicate like <span class="math inline">\(p(k) = (k \geq N)\)</span> we can break the finger tree at a specific index. Later on we’ll use it to break a text buffer at a specific line and column position or screen coordinate.</p>
 <p>First we need a version of this operation on the fingers. This is pretty tedious because we’re essentially using brute force to make sure the output satisfies the splitting properties. (<code>splitSome</code> is only used inside this module.) Tedious though it is, note that <code>splitSome</code> has constant complexity.</p>
-<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" data-line-number="1">splitSome</a>
-<a class="sourceLine" id="cb39-2" data-line-number="2"><span class="ot"> ::</span> ( <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb39-3" data-line-number="3"> <span class="ot">=&gt;</span> (m <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> m <span class="ot">-&gt;</span> <span class="dt">Some</span> m a</a>
-<a class="sourceLine" id="cb39-4" data-line-number="4"> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Maybe</span> (<span class="dt">Some</span> m a), a, <span class="dt">Maybe</span> (<span class="dt">Some</span> m a))</a>
-<a class="sourceLine" id="cb39-5" data-line-number="5">splitSome p i w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
-<a class="sourceLine" id="cb39-6" data-line-number="6"> <span class="dt">Only1</span> _ a1 <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb39-7" data-line-number="7">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-8" data-line-number="8">   <span class="kw">if</span> p v1</a>
-<a class="sourceLine" id="cb39-9" data-line-number="9">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Nothing</span>)</a>
-<a class="sourceLine" id="cb39-10" data-line-number="10">     <span class="kw">else</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb39-11" data-line-number="11"> <span class="dt">Only2</span> _ a1 a2 <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb39-12" data-line-number="12">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-13" data-line-number="13">   <span class="kw">if</span> p v1</a>
-<a class="sourceLine" id="cb39-14" data-line-number="14">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Just</span> (only1 a2))</a>
-<a class="sourceLine" id="cb39-15" data-line-number="15">     <span class="kw">else</span></a>
-<a class="sourceLine" id="cb39-16" data-line-number="16">       <span class="kw">let</span> v2 <span class="fu">=</span> v1 <span class="fu">&lt;&gt;</span> (value a2) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-17" data-line-number="17">       <span class="kw">if</span> p v2</a>
-<a class="sourceLine" id="cb39-18" data-line-number="18">         <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only1 a1), a2, <span class="dt">Nothing</span>)</a>
-<a class="sourceLine" id="cb39-19" data-line-number="19">         <span class="kw">else</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb39-20" data-line-number="20"> <span class="dt">Only3</span> _ a1 a2 a3 <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb39-21" data-line-number="21">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-22" data-line-number="22">   <span class="kw">if</span> p v1</a>
-<a class="sourceLine" id="cb39-23" data-line-number="23">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Just</span> (only2 a2 a3))</a>
-<a class="sourceLine" id="cb39-24" data-line-number="24">     <span class="kw">else</span></a>
-<a class="sourceLine" id="cb39-25" data-line-number="25">       <span class="kw">let</span> v2 <span class="fu">=</span> v1 <span class="fu">&lt;&gt;</span> (value a2) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-26" data-line-number="26">       <span class="kw">if</span> p v2</a>
-<a class="sourceLine" id="cb39-27" data-line-number="27">         <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only1 a1), a2, <span class="dt">Just</span> (only1 a3))</a>
-<a class="sourceLine" id="cb39-28" data-line-number="28">         <span class="kw">else</span></a>
-<a class="sourceLine" id="cb39-29" data-line-number="29">           <span class="kw">let</span> v3 <span class="fu">=</span> v2 <span class="fu">&lt;&gt;</span> (value a3) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-30" data-line-number="30">           <span class="kw">if</span> p v3</a>
-<a class="sourceLine" id="cb39-31" data-line-number="31">             <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only2 a1 a2), a3, <span class="dt">Nothing</span>)</a>
-<a class="sourceLine" id="cb39-32" data-line-number="32">             <span class="kw">else</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb39-33" data-line-number="33"> <span class="dt">Only4</span> _ a1 a2 a3 a4 <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb39-34" data-line-number="34">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-35" data-line-number="35">   <span class="kw">if</span> p v1</a>
-<a class="sourceLine" id="cb39-36" data-line-number="36">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Just</span> (only3 a2 a3 a4))</a>
-<a class="sourceLine" id="cb39-37" data-line-number="37">     <span class="kw">else</span></a>
-<a class="sourceLine" id="cb39-38" data-line-number="38">       <span class="kw">let</span> v2 <span class="fu">=</span> v1 <span class="fu">&lt;&gt;</span> (value a2) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-39" data-line-number="39">         <span class="kw">if</span> p v2</a>
-<a class="sourceLine" id="cb39-40" data-line-number="40">           <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only1 a1), a2, <span class="dt">Just</span> (only2 a3 a4))</a>
-<a class="sourceLine" id="cb39-41" data-line-number="41">           <span class="kw">else</span></a>
-<a class="sourceLine" id="cb39-42" data-line-number="42">             <span class="kw">let</span> v3 <span class="fu">=</span> v2 <span class="fu">&lt;&gt;</span> (value a3) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-43" data-line-number="43">               <span class="kw">if</span> p v3</a>
-<a class="sourceLine" id="cb39-44" data-line-number="44">                 <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only2 a1 a2), a3, <span class="dt">Just</span> (only1 a4))</a>
-<a class="sourceLine" id="cb39-45" data-line-number="45">                 <span class="kw">else</span></a>
-<a class="sourceLine" id="cb39-46" data-line-number="46">                   <span class="kw">let</span> v4 <span class="fu">=</span> v3 <span class="fu">&lt;&gt;</span> (value a4) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb39-47" data-line-number="47">                     <span class="kw">if</span> p v4</a>
-<a class="sourceLine" id="cb39-48" data-line-number="48">                       <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only3 a1 a2 a3), a4, <span class="dt">Nothing</span>)</a>
-<a class="sourceLine" id="cb39-49" data-line-number="49">                       <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" data-line-number="1">splitSome</a>
+<a class="sourceLine" id="cb40-2" data-line-number="2"><span class="ot"> ::</span> ( <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb40-3" data-line-number="3"> <span class="ot">=&gt;</span> (m <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> m <span class="ot">-&gt;</span> <span class="dt">Some</span> m a</a>
+<a class="sourceLine" id="cb40-4" data-line-number="4"> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Maybe</span> (<span class="dt">Some</span> m a), a, <span class="dt">Maybe</span> (<span class="dt">Some</span> m a))</a>
+<a class="sourceLine" id="cb40-5" data-line-number="5">splitSome p i w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb40-6" data-line-number="6"> <span class="dt">Only1</span> _ a1 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb40-7" data-line-number="7">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-8" data-line-number="8">   <span class="kw">if</span> p v1</a>
+<a class="sourceLine" id="cb40-9" data-line-number="9">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Nothing</span>)</a>
+<a class="sourceLine" id="cb40-10" data-line-number="10">     <span class="kw">else</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb40-11" data-line-number="11"> <span class="dt">Only2</span> _ a1 a2 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb40-12" data-line-number="12">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-13" data-line-number="13">   <span class="kw">if</span> p v1</a>
+<a class="sourceLine" id="cb40-14" data-line-number="14">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Just</span> (only1 a2))</a>
+<a class="sourceLine" id="cb40-15" data-line-number="15">     <span class="kw">else</span></a>
+<a class="sourceLine" id="cb40-16" data-line-number="16">       <span class="kw">let</span> v2 <span class="fu">=</span> v1 <span class="fu">&lt;&gt;</span> (value a2) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-17" data-line-number="17">       <span class="kw">if</span> p v2</a>
+<a class="sourceLine" id="cb40-18" data-line-number="18">         <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only1 a1), a2, <span class="dt">Nothing</span>)</a>
+<a class="sourceLine" id="cb40-19" data-line-number="19">         <span class="kw">else</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb40-20" data-line-number="20"> <span class="dt">Only3</span> _ a1 a2 a3 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb40-21" data-line-number="21">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-22" data-line-number="22">   <span class="kw">if</span> p v1</a>
+<a class="sourceLine" id="cb40-23" data-line-number="23">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Just</span> (only2 a2 a3))</a>
+<a class="sourceLine" id="cb40-24" data-line-number="24">     <span class="kw">else</span></a>
+<a class="sourceLine" id="cb40-25" data-line-number="25">       <span class="kw">let</span> v2 <span class="fu">=</span> v1 <span class="fu">&lt;&gt;</span> (value a2) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-26" data-line-number="26">       <span class="kw">if</span> p v2</a>
+<a class="sourceLine" id="cb40-27" data-line-number="27">         <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only1 a1), a2, <span class="dt">Just</span> (only1 a3))</a>
+<a class="sourceLine" id="cb40-28" data-line-number="28">         <span class="kw">else</span></a>
+<a class="sourceLine" id="cb40-29" data-line-number="29">           <span class="kw">let</span> v3 <span class="fu">=</span> v2 <span class="fu">&lt;&gt;</span> (value a3) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-30" data-line-number="30">           <span class="kw">if</span> p v3</a>
+<a class="sourceLine" id="cb40-31" data-line-number="31">             <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only2 a1 a2), a3, <span class="dt">Nothing</span>)</a>
+<a class="sourceLine" id="cb40-32" data-line-number="32">             <span class="kw">else</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb40-33" data-line-number="33"> <span class="dt">Only4</span> _ a1 a2 a3 a4 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb40-34" data-line-number="34">   <span class="kw">let</span> v1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a1) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-35" data-line-number="35">   <span class="kw">if</span> p v1</a>
+<a class="sourceLine" id="cb40-36" data-line-number="36">     <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Nothing</span>, a1, <span class="dt">Just</span> (only3 a2 a3 a4))</a>
+<a class="sourceLine" id="cb40-37" data-line-number="37">     <span class="kw">else</span></a>
+<a class="sourceLine" id="cb40-38" data-line-number="38">       <span class="kw">let</span> v2 <span class="fu">=</span> v1 <span class="fu">&lt;&gt;</span> (value a2) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-39" data-line-number="39">         <span class="kw">if</span> p v2</a>
+<a class="sourceLine" id="cb40-40" data-line-number="40">           <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only1 a1), a2, <span class="dt">Just</span> (only2 a3 a4))</a>
+<a class="sourceLine" id="cb40-41" data-line-number="41">           <span class="kw">else</span></a>
+<a class="sourceLine" id="cb40-42" data-line-number="42">             <span class="kw">let</span> v3 <span class="fu">=</span> v2 <span class="fu">&lt;&gt;</span> (value a3) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-43" data-line-number="43">               <span class="kw">if</span> p v3</a>
+<a class="sourceLine" id="cb40-44" data-line-number="44">                 <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only2 a1 a2), a3, <span class="dt">Just</span> (only1 a4))</a>
+<a class="sourceLine" id="cb40-45" data-line-number="45">                 <span class="kw">else</span></a>
+<a class="sourceLine" id="cb40-46" data-line-number="46">                   <span class="kw">let</span> v4 <span class="fu">=</span> v3 <span class="fu">&lt;&gt;</span> (value a4) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb40-47" data-line-number="47">                     <span class="kw">if</span> p v4</a>
+<a class="sourceLine" id="cb40-48" data-line-number="48">                       <span class="kw">then</span> <span class="dt">Just</span> (<span class="dt">Just</span> (only3 a1 a2 a3), a4, <span class="dt">Nothing</span>)</a>
+<a class="sourceLine" id="cb40-49" data-line-number="49">                       <span class="kw">else</span> <span class="dt">Nothing</span></a></code></pre></div>
 <p>Next we define a version of split that prepends a given monoid value on the left before searching. This is a stepping stone toward our main splitting function, but is also useful in its own right; the extra <code>m</code> parameter acts like a kind of value context.</p>
 <p>We use the cached value at each node to decide whether to continue the search down a given branch or ignore it. In the complexity analysis of this algorithm (available in the Hinze and Paterson paper) this, with the branching factor of the tree, is where the efficiency comes from.</p>
 <p>Note also that the input to <code>splitWithContext</code> needs to satisfy a precondition: the value of the entire finger tree should be true. This is (I think) what guarantees that the search will succeed.</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" data-line-number="1">splitWithContext</a>
-<a class="sourceLine" id="cb40-2" data-line-number="2"><span class="ot"> ::</span> ( <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb40-3" data-line-number="3"> <span class="ot">=&gt;</span> m <span class="ot">-&gt;</span> (m <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m a</a>
-<a class="sourceLine" id="cb40-4" data-line-number="4"> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">FingerTree</span> m a, a, <span class="dt">FingerTree</span> m a)</a>
-<a class="sourceLine" id="cb40-5" data-line-number="5">splitWithContext i p w <span class="fu">=</span></a>
-<a class="sourceLine" id="cb40-6" data-line-number="6">  <span class="kw">if</span> p i</a>
-<a class="sourceLine" id="cb40-7" data-line-number="7">    <span class="kw">then</span> <span class="kw">case</span> uncons w <span class="kw">of</span></a>
-<a class="sourceLine" id="cb40-8" data-line-number="8">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb40-9" data-line-number="9">      <span class="dt">Just</span> (x,bs) <span class="ot">-&gt;</span> <span class="dt">Just</span> (mempty, x, bs)</a>
-<a class="sourceLine" id="cb40-10" data-line-number="10">    <span class="kw">else</span> <span class="kw">case</span> w <span class="kw">of</span></a>
-<a class="sourceLine" id="cb40-11" data-line-number="11">      <span class="dt">Stump</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb40-12" data-line-number="12">      <span class="dt">Leaf</span> _ a <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb40-13" data-line-number="13">        <span class="kw">let</span> va <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb40-14" data-line-number="14">        <span class="kw">if</span> p va</a>
-<a class="sourceLine" id="cb40-15" data-line-number="15">          <span class="kw">then</span> <span class="dt">Just</span> (stump, a, stump)</a>
-<a class="sourceLine" id="cb40-16" data-line-number="16">          <span class="kw">else</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb40-17" data-line-number="17">      <span class="dt">Branch</span> _ as1 as2 as3 <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb40-18" data-line-number="18">        <span class="kw">let</span> vas1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value as1) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb40-19" data-line-number="19">        <span class="kw">if</span> p vas1</a>
-<a class="sourceLine" id="cb40-20" data-line-number="20">          <span class="co">-- there&#39;s a match in the left fingers</span></a>
-<a class="sourceLine" id="cb40-21" data-line-number="21">          <span class="kw">then</span> <span class="kw">case</span> (splitSome p i as1) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb40-22" data-line-number="22">            <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (1)&quot;</span></a>
-<a class="sourceLine" id="cb40-23" data-line-number="23">            <span class="dt">Just</span> (ds1, x, ds3) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb40-24" data-line-number="24">              <span class="kw">let</span></a>
-<a class="sourceLine" id="cb40-25" data-line-number="25">                bs1 <span class="fu">=</span> maybeSomeToFingerTree ds1</a>
-<a class="sourceLine" id="cb40-26" data-line-number="26">                bs3 <span class="fu">=</span> borrowL ds3 as2 as3</a>
-<a class="sourceLine" id="cb40-27" data-line-number="27">              <span class="kw">in</span> <span class="dt">Just</span> (bs1, x, bs3)</a>
-<a class="sourceLine" id="cb40-28" data-line-number="28">          <span class="kw">else</span></a>
-<a class="sourceLine" id="cb40-29" data-line-number="29">            <span class="kw">let</span> vas2 <span class="fu">=</span> vas1 <span class="fu">&lt;&gt;</span> (value as2) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb40-30" data-line-number="30">            <span class="kw">if</span> p vas2</a>
-<a class="sourceLine" id="cb40-31" data-line-number="31">              <span class="co">-- there&#39;s a match in the spine</span></a>
-<a class="sourceLine" id="cb40-32" data-line-number="32">              <span class="kw">then</span> <span class="kw">case</span> splitWithContext vas1 p as2 <span class="kw">of</span></a>
-<a class="sourceLine" id="cb40-33" data-line-number="33">                <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (2)&quot;</span></a>
-<a class="sourceLine" id="cb40-34" data-line-number="34">                <span class="dt">Just</span> (cs1, xs, cs3) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb40-35" data-line-number="35">                  <span class="kw">let</span> vs <span class="fu">=</span> vas1 <span class="fu">&lt;&gt;</span> (value cs1) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb40-36" data-line-number="36">                  <span class="kw">case</span> splitSome p vs (toSome xs) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb40-37" data-line-number="37">                    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (3)&quot;</span></a>
-<a class="sourceLine" id="cb40-38" data-line-number="38">                    <span class="dt">Just</span> (ds1, x, ds3) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb40-39" data-line-number="39">                      <span class="kw">let</span></a>
-<a class="sourceLine" id="cb40-40" data-line-number="40">                        bs1 <span class="fu">=</span> borrowR as1 cs1 ds1</a>
-<a class="sourceLine" id="cb40-41" data-line-number="41">                        bs3 <span class="fu">=</span> borrowL ds3 cs3 as3</a>
-<a class="sourceLine" id="cb40-42" data-line-number="42">                      <span class="kw">in</span> <span class="dt">Just</span> (bs1, x, bs3)</a>
-<a class="sourceLine" id="cb40-43" data-line-number="43">              <span class="kw">else</span></a>
-<a class="sourceLine" id="cb40-44" data-line-number="44">                <span class="kw">let</span> vas3 <span class="fu">=</span> vas2 <span class="fu">&lt;&gt;</span> (value as3) <span class="kw">in</span></a>
-<a class="sourceLine" id="cb40-45" data-line-number="45">                <span class="kw">if</span> p vas3</a>
-<a class="sourceLine" id="cb40-46" data-line-number="46">                  <span class="co">-- there&#39;s a match in the right fingers</span></a>
-<a class="sourceLine" id="cb40-47" data-line-number="47">                  <span class="kw">then</span> <span class="kw">case</span> (splitSome p vas2 as3) <span class="kw">of</span></a>
-<a class="sourceLine" id="cb40-48" data-line-number="48">                    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (4)&quot;</span></a>
-<a class="sourceLine" id="cb40-49" data-line-number="49">                    <span class="dt">Just</span> (ds1, x, ds3) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb40-50" data-line-number="50">                      <span class="kw">let</span></a>
-<a class="sourceLine" id="cb40-51" data-line-number="51">                        bs1 <span class="fu">=</span> borrowR as1 as2 ds1</a>
-<a class="sourceLine" id="cb40-52" data-line-number="52">                        bs3 <span class="fu">=</span> maybeSomeToFingerTree ds3</a>
-<a class="sourceLine" id="cb40-53" data-line-number="53">                      <span class="kw">in</span> <span class="dt">Just</span> (bs1, x, bs3)</a>
-<a class="sourceLine" id="cb40-54" data-line-number="54">                  <span class="kw">else</span> <span class="dt">Nothing</span> <span class="co">-- precondition violated</span></a></code></pre></div>
-<p>Now the general <code>split</code> function just specializes <code>splitWithContext</code> to the identity.</p>
-<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" data-line-number="1">split</a>
+<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" data-line-number="1">splitWithContext</a>
 <a class="sourceLine" id="cb41-2" data-line-number="2"><span class="ot"> ::</span> ( <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb41-3" data-line-number="3"> <span class="ot">=&gt;</span> (m <span class="ot">-&gt;</span> <span class="dt">Bool</span>)</a>
-<a class="sourceLine" id="cb41-4" data-line-number="4"> <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m a</a>
-<a class="sourceLine" id="cb41-5" data-line-number="5"> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">FingerTree</span> m a, a, <span class="dt">FingerTree</span> m a)</a>
-<a class="sourceLine" id="cb41-6" data-line-number="6">split p w <span class="fu">=</span> splitWithContext mempty p w</a></code></pre></div>
+<a class="sourceLine" id="cb41-3" data-line-number="3"> <span class="ot">=&gt;</span> m <span class="ot">-&gt;</span> (m <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m a</a>
+<a class="sourceLine" id="cb41-4" data-line-number="4"> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">FingerTree</span> m a, a, <span class="dt">FingerTree</span> m a)</a>
+<a class="sourceLine" id="cb41-5" data-line-number="5">splitWithContext i p w <span class="fu">=</span></a>
+<a class="sourceLine" id="cb41-6" data-line-number="6">  <span class="kw">if</span> p i</a>
+<a class="sourceLine" id="cb41-7" data-line-number="7">    <span class="kw">then</span> <span class="kw">case</span> uncons w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-8" data-line-number="8">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb41-9" data-line-number="9">      <span class="dt">Just</span> (x,bs) <span class="ot">-&gt;</span> <span class="dt">Just</span> (mempty, x, bs)</a>
+<a class="sourceLine" id="cb41-10" data-line-number="10">    <span class="kw">else</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-11" data-line-number="11">      <span class="dt">Stump</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb41-12" data-line-number="12">      <span class="dt">Leaf</span> _ a <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb41-13" data-line-number="13">        <span class="kw">let</span> va <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value a) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb41-14" data-line-number="14">        <span class="kw">if</span> p va</a>
+<a class="sourceLine" id="cb41-15" data-line-number="15">          <span class="kw">then</span> <span class="dt">Just</span> (stump, a, stump)</a>
+<a class="sourceLine" id="cb41-16" data-line-number="16">          <span class="kw">else</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb41-17" data-line-number="17">      <span class="dt">Branch</span> _ as1 as2 as3 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb41-18" data-line-number="18">        <span class="kw">let</span> vas1 <span class="fu">=</span> i <span class="fu">&lt;&gt;</span> (value as1) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb41-19" data-line-number="19">        <span class="kw">if</span> p vas1</a>
+<a class="sourceLine" id="cb41-20" data-line-number="20">          <span class="co">-- there&#39;s a match in the left fingers</span></a>
+<a class="sourceLine" id="cb41-21" data-line-number="21">          <span class="kw">then</span> <span class="kw">case</span> (splitSome p i as1) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-22" data-line-number="22">            <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (1)&quot;</span></a>
+<a class="sourceLine" id="cb41-23" data-line-number="23">            <span class="dt">Just</span> (ds1, x, ds3) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb41-24" data-line-number="24">              <span class="kw">let</span></a>
+<a class="sourceLine" id="cb41-25" data-line-number="25">                bs1 <span class="fu">=</span> maybeSomeToFingerTree ds1</a>
+<a class="sourceLine" id="cb41-26" data-line-number="26">                bs3 <span class="fu">=</span> borrowL ds3 as2 as3</a>
+<a class="sourceLine" id="cb41-27" data-line-number="27">              <span class="kw">in</span> <span class="dt">Just</span> (bs1, x, bs3)</a>
+<a class="sourceLine" id="cb41-28" data-line-number="28">          <span class="kw">else</span></a>
+<a class="sourceLine" id="cb41-29" data-line-number="29">            <span class="kw">let</span> vas2 <span class="fu">=</span> vas1 <span class="fu">&lt;&gt;</span> (value as2) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb41-30" data-line-number="30">            <span class="kw">if</span> p vas2</a>
+<a class="sourceLine" id="cb41-31" data-line-number="31">              <span class="co">-- there&#39;s a match in the spine</span></a>
+<a class="sourceLine" id="cb41-32" data-line-number="32">              <span class="kw">then</span> <span class="kw">case</span> splitWithContext vas1 p as2 <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-33" data-line-number="33">                <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (2)&quot;</span></a>
+<a class="sourceLine" id="cb41-34" data-line-number="34">                <span class="dt">Just</span> (cs1, xs, cs3) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb41-35" data-line-number="35">                  <span class="kw">let</span> vs <span class="fu">=</span> vas1 <span class="fu">&lt;&gt;</span> (value cs1) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb41-36" data-line-number="36">                  <span class="kw">case</span> splitSome p vs (toSome xs) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-37" data-line-number="37">                    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (3)&quot;</span></a>
+<a class="sourceLine" id="cb41-38" data-line-number="38">                    <span class="dt">Just</span> (ds1, x, ds3) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb41-39" data-line-number="39">                      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb41-40" data-line-number="40">                        bs1 <span class="fu">=</span> borrowR as1 cs1 ds1</a>
+<a class="sourceLine" id="cb41-41" data-line-number="41">                        bs3 <span class="fu">=</span> borrowL ds3 cs3 as3</a>
+<a class="sourceLine" id="cb41-42" data-line-number="42">                      <span class="kw">in</span> <span class="dt">Just</span> (bs1, x, bs3)</a>
+<a class="sourceLine" id="cb41-43" data-line-number="43">              <span class="kw">else</span></a>
+<a class="sourceLine" id="cb41-44" data-line-number="44">                <span class="kw">let</span> vas3 <span class="fu">=</span> vas2 <span class="fu">&lt;&gt;</span> (value as3) <span class="kw">in</span></a>
+<a class="sourceLine" id="cb41-45" data-line-number="45">                <span class="kw">if</span> p vas3</a>
+<a class="sourceLine" id="cb41-46" data-line-number="46">                  <span class="co">-- there&#39;s a match in the right fingers</span></a>
+<a class="sourceLine" id="cb41-47" data-line-number="47">                  <span class="kw">then</span> <span class="kw">case</span> (splitSome p vas2 as3) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-48" data-line-number="48">                    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> error <span class="st">&quot;split: panic (4)&quot;</span></a>
+<a class="sourceLine" id="cb41-49" data-line-number="49">                    <span class="dt">Just</span> (ds1, x, ds3) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb41-50" data-line-number="50">                      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb41-51" data-line-number="51">                        bs1 <span class="fu">=</span> borrowR as1 as2 ds1</a>
+<a class="sourceLine" id="cb41-52" data-line-number="52">                        bs3 <span class="fu">=</span> maybeSomeToFingerTree ds3</a>
+<a class="sourceLine" id="cb41-53" data-line-number="53">                      <span class="kw">in</span> <span class="dt">Just</span> (bs1, x, bs3)</a>
+<a class="sourceLine" id="cb41-54" data-line-number="54">                  <span class="kw">else</span> <span class="dt">Nothing</span> <span class="co">-- precondition violated</span></a></code></pre></div>
+<p>Now the general <code>split</code> function just specializes <code>splitWithContext</code> to the identity.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" data-line-number="1">split</a>
+<a class="sourceLine" id="cb42-2" data-line-number="2"><span class="ot"> ::</span> ( <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb42-3" data-line-number="3"> <span class="ot">=&gt;</span> (m <span class="ot">-&gt;</span> <span class="dt">Bool</span>)</a>
+<a class="sourceLine" id="cb42-4" data-line-number="4"> <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m a</a>
+<a class="sourceLine" id="cb42-5" data-line-number="5"> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">FingerTree</span> m a, a, <span class="dt">FingerTree</span> m a)</a>
+<a class="sourceLine" id="cb42-6" data-line-number="6">split p w <span class="fu">=</span> splitWithContext mempty p w</a></code></pre></div>
 <p>Now’s a good time for some examples.</p>
 <div class="doctest">
-<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" data-line-number="1"><span class="co">-- $</span></a>
-<a class="sourceLine" id="cb42-2" data-line-number="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
-<a class="sourceLine" id="cb42-3" data-line-number="3"><span class="co">-- let</span></a>
-<a class="sourceLine" id="cb42-4" data-line-number="4"><span class="co">--   x :: FingerTree Count Char</span></a>
-<a class="sourceLine" id="cb42-5" data-line-number="5"><span class="co">--   x = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;,&#39;d&#39;,&#39;e&#39;]</span></a>
-<a class="sourceLine" id="cb42-6" data-line-number="6"><span class="co">--   --</span></a>
-<a class="sourceLine" id="cb42-7" data-line-number="7"><span class="co">--   us, vs :: FingerTree Count Char</span></a>
-<a class="sourceLine" id="cb42-8" data-line-number="8"><span class="co">--   us = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;]</span></a>
-<a class="sourceLine" id="cb42-9" data-line-number="9"><span class="co">--   vs = fromList [&#39;e&#39;]</span></a>
-<a class="sourceLine" id="cb42-10" data-line-number="10"><span class="co">--   --</span></a>
-<a class="sourceLine" id="cb42-11" data-line-number="11"><span class="co">--   p :: Count -&gt; Bool</span></a>
-<a class="sourceLine" id="cb42-12" data-line-number="12"><span class="co">--   p (Count k) = k &gt; 3</span></a>
-<a class="sourceLine" id="cb42-13" data-line-number="13"><span class="co">-- in Just (us, &#39;d&#39;, vs) == split p x</span></a>
-<a class="sourceLine" id="cb42-14" data-line-number="14"><span class="co">-- :}</span></a>
-<a class="sourceLine" id="cb42-15" data-line-number="15"><span class="co">-- True</span></a>
-<a class="sourceLine" id="cb42-16" data-line-number="16"><span class="co">--</span></a>
-<a class="sourceLine" id="cb42-17" data-line-number="17"><span class="co">-- &gt;&gt;&gt; :{</span></a>
-<a class="sourceLine" id="cb42-18" data-line-number="18"><span class="co">-- let</span></a>
-<a class="sourceLine" id="cb42-19" data-line-number="19"><span class="co">--   x :: FingerTree Count Char</span></a>
-<a class="sourceLine" id="cb42-20" data-line-number="20"><span class="co">--   x = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;,&#39;d&#39;]</span></a>
-<a class="sourceLine" id="cb42-21" data-line-number="21"><span class="co">--   --</span></a>
-<a class="sourceLine" id="cb42-22" data-line-number="22"><span class="co">--   us, vs :: FingerTree Count Char</span></a>
-<a class="sourceLine" id="cb42-23" data-line-number="23"><span class="co">--   us = fromList [&#39;a&#39;]</span></a>
-<a class="sourceLine" id="cb42-24" data-line-number="24"><span class="co">--   vs = fromList [&#39;c&#39;,&#39;d&#39;]</span></a>
-<a class="sourceLine" id="cb42-25" data-line-number="25"><span class="co">--   --</span></a>
-<a class="sourceLine" id="cb42-26" data-line-number="26"><span class="co">--   p :: Count -&gt; Bool</span></a>
-<a class="sourceLine" id="cb42-27" data-line-number="27"><span class="co">--   p (Count k) = k &gt;= 2</span></a>
-<a class="sourceLine" id="cb42-28" data-line-number="28"><span class="co">-- in Just (us, &#39;b&#39;, vs) == split p x</span></a>
-<a class="sourceLine" id="cb42-29" data-line-number="29"><span class="co">-- :}</span></a>
-<a class="sourceLine" id="cb42-30" data-line-number="30"><span class="co">-- True</span></a>
-<a class="sourceLine" id="cb42-31" data-line-number="31"><span class="co">--</span></a>
-<a class="sourceLine" id="cb42-32" data-line-number="32"><span class="co">-- &gt;&gt;&gt; :{</span></a>
-<a class="sourceLine" id="cb42-33" data-line-number="33"><span class="co">-- let</span></a>
-<a class="sourceLine" id="cb42-34" data-line-number="34"><span class="co">--   x :: FingerTree Count Char</span></a>
-<a class="sourceLine" id="cb42-35" data-line-number="35"><span class="co">--   x = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;,&#39;d&#39;]</span></a>
-<a class="sourceLine" id="cb42-36" data-line-number="36"><span class="co">--   --</span></a>
-<a class="sourceLine" id="cb42-37" data-line-number="37"><span class="co">--   p :: Count -&gt; Bool</span></a>
-<a class="sourceLine" id="cb42-38" data-line-number="38"><span class="co">--   p (Count k) = k &gt;= 7</span></a>
-<a class="sourceLine" id="cb42-39" data-line-number="39"><span class="co">-- in split p x</span></a>
-<a class="sourceLine" id="cb42-40" data-line-number="40"><span class="co">-- :}</span></a>
-<a class="sourceLine" id="cb42-41" data-line-number="41"><span class="co">-- Nothing</span></a></code></pre></div>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb43-2" data-line-number="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb43-3" data-line-number="3"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb43-4" data-line-number="4"><span class="co">--   x :: FingerTree Count Char</span></a>
+<a class="sourceLine" id="cb43-5" data-line-number="5"><span class="co">--   x = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;,&#39;d&#39;,&#39;e&#39;]</span></a>
+<a class="sourceLine" id="cb43-6" data-line-number="6"><span class="co">--   --</span></a>
+<a class="sourceLine" id="cb43-7" data-line-number="7"><span class="co">--   us, vs :: FingerTree Count Char</span></a>
+<a class="sourceLine" id="cb43-8" data-line-number="8"><span class="co">--   us = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb43-9" data-line-number="9"><span class="co">--   vs = fromList [&#39;e&#39;]</span></a>
+<a class="sourceLine" id="cb43-10" data-line-number="10"><span class="co">--   --</span></a>
+<a class="sourceLine" id="cb43-11" data-line-number="11"><span class="co">--   p :: Count -&gt; Bool</span></a>
+<a class="sourceLine" id="cb43-12" data-line-number="12"><span class="co">--   p (Count k) = k &gt; 3</span></a>
+<a class="sourceLine" id="cb43-13" data-line-number="13"><span class="co">-- in Just (us, &#39;d&#39;, vs) == split p x</span></a>
+<a class="sourceLine" id="cb43-14" data-line-number="14"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb43-15" data-line-number="15"><span class="co">-- True</span></a>
+<a class="sourceLine" id="cb43-16" data-line-number="16"><span class="co">--</span></a>
+<a class="sourceLine" id="cb43-17" data-line-number="17"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb43-18" data-line-number="18"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb43-19" data-line-number="19"><span class="co">--   x :: FingerTree Count Char</span></a>
+<a class="sourceLine" id="cb43-20" data-line-number="20"><span class="co">--   x = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;,&#39;d&#39;]</span></a>
+<a class="sourceLine" id="cb43-21" data-line-number="21"><span class="co">--   --</span></a>
+<a class="sourceLine" id="cb43-22" data-line-number="22"><span class="co">--   us, vs :: FingerTree Count Char</span></a>
+<a class="sourceLine" id="cb43-23" data-line-number="23"><span class="co">--   us = fromList [&#39;a&#39;]</span></a>
+<a class="sourceLine" id="cb43-24" data-line-number="24"><span class="co">--   vs = fromList [&#39;c&#39;,&#39;d&#39;]</span></a>
+<a class="sourceLine" id="cb43-25" data-line-number="25"><span class="co">--   --</span></a>
+<a class="sourceLine" id="cb43-26" data-line-number="26"><span class="co">--   p :: Count -&gt; Bool</span></a>
+<a class="sourceLine" id="cb43-27" data-line-number="27"><span class="co">--   p (Count k) = k &gt;= 2</span></a>
+<a class="sourceLine" id="cb43-28" data-line-number="28"><span class="co">-- in Just (us, &#39;b&#39;, vs) == split p x</span></a>
+<a class="sourceLine" id="cb43-29" data-line-number="29"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb43-30" data-line-number="30"><span class="co">-- True</span></a>
+<a class="sourceLine" id="cb43-31" data-line-number="31"><span class="co">--</span></a>
+<a class="sourceLine" id="cb43-32" data-line-number="32"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb43-33" data-line-number="33"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb43-34" data-line-number="34"><span class="co">--   x :: FingerTree Count Char</span></a>
+<a class="sourceLine" id="cb43-35" data-line-number="35"><span class="co">--   x = fromList [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;,&#39;d&#39;]</span></a>
+<a class="sourceLine" id="cb43-36" data-line-number="36"><span class="co">--   --</span></a>
+<a class="sourceLine" id="cb43-37" data-line-number="37"><span class="co">--   p :: Count -&gt; Bool</span></a>
+<a class="sourceLine" id="cb43-38" data-line-number="38"><span class="co">--   p (Count k) = k &gt;= 7</span></a>
+<a class="sourceLine" id="cb43-39" data-line-number="39"><span class="co">-- in split p x</span></a>
+<a class="sourceLine" id="cb43-40" data-line-number="40"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb43-41" data-line-number="41"><span class="co">-- Nothing</span></a></code></pre></div>
 </div>
 </section>
 <section id="testing-and-debugging" class="level2">
 <h2>Testing and Debugging</h2>
 <p>Finally we define some utilities to help with testing. First, to interoperate with our testing framework, we need <code>FingerTree</code> to be an instance of some type classes.</p>
-<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" data-line-number="1"><span class="kw">instance</span></a>
-<a class="sourceLine" id="cb43-2" data-line-number="2">  ( <span class="dt">Arb</span> a, <span class="dt">Valued</span> m a</a>
-<a class="sourceLine" id="cb43-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Arb</span> (<span class="dt">FingerTree</span> m a)</a>
-<a class="sourceLine" id="cb43-4" data-line-number="4">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb43-5" data-line-number="5">    arb <span class="fu">=</span> fromList <span class="fu">&lt;$&gt;</span> arb</a>
-<a class="sourceLine" id="cb43-6" data-line-number="6"></a>
-<a class="sourceLine" id="cb43-7" data-line-number="7"><span class="kw">instance</span></a>
-<a class="sourceLine" id="cb43-8" data-line-number="8">  ( <span class="dt">Prune</span> a, <span class="dt">Valued</span> m a</a>
-<a class="sourceLine" id="cb43-9" data-line-number="9">  ) <span class="ot">=&gt;</span> <span class="dt">Prune</span> (<span class="dt">FingerTree</span> m a)</a>
-<a class="sourceLine" id="cb43-10" data-line-number="10">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb43-11" data-line-number="11">    prune <span class="fu">=</span></a>
-<a class="sourceLine" id="cb43-12" data-line-number="12">      map fromList <span class="fu">.</span> prune <span class="fu">.</span> toList</a>
-<a class="sourceLine" id="cb43-13" data-line-number="13"></a>
-<a class="sourceLine" id="cb43-14" data-line-number="14"><span class="kw">instance</span></a>
-<a class="sourceLine" id="cb43-15" data-line-number="15">  ( <span class="dt">CoArb</span> a, <span class="dt">Valued</span> m a</a>
-<a class="sourceLine" id="cb43-16" data-line-number="16">  ) <span class="ot">=&gt;</span> <span class="dt">CoArb</span> (<span class="dt">FingerTree</span> m a)</a>
-<a class="sourceLine" id="cb43-17" data-line-number="17">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb43-18" data-line-number="18">    coarb x <span class="fu">=</span> coarb (toList x)</a>
-<a class="sourceLine" id="cb43-19" data-line-number="19"></a>
-<a class="sourceLine" id="cb43-20" data-line-number="20"><span class="kw">instance</span></a>
-<a class="sourceLine" id="cb43-21" data-line-number="21">  ( <span class="dt">MakeTo</span> a, <span class="dt">Valued</span> m a</a>
-<a class="sourceLine" id="cb43-22" data-line-number="22">  ) <span class="ot">=&gt;</span> <span class="dt">MakeTo</span> (<span class="dt">FingerTree</span> m a)</a>
-<a class="sourceLine" id="cb43-23" data-line-number="23">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb43-24" data-line-number="24">    makeTo <span class="fu">=</span> makeToExtendWith</a>
-<a class="sourceLine" id="cb43-25" data-line-number="25">      makeTo toList fromList</a></code></pre></div>
+<div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb44-2" data-line-number="2">  ( <span class="dt">Arb</span> a, <span class="dt">Valued</span> m a</a>
+<a class="sourceLine" id="cb44-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Arb</span> (<span class="dt">FingerTree</span> m a)</a>
+<a class="sourceLine" id="cb44-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-5" data-line-number="5">    arb <span class="fu">=</span> fromList <span class="fu">&lt;$&gt;</span> arb</a>
+<a class="sourceLine" id="cb44-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb44-7" data-line-number="7"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb44-8" data-line-number="8">  ( <span class="dt">Prune</span> a, <span class="dt">Valued</span> m a</a>
+<a class="sourceLine" id="cb44-9" data-line-number="9">  ) <span class="ot">=&gt;</span> <span class="dt">Prune</span> (<span class="dt">FingerTree</span> m a)</a>
+<a class="sourceLine" id="cb44-10" data-line-number="10">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-11" data-line-number="11">    prune <span class="fu">=</span></a>
+<a class="sourceLine" id="cb44-12" data-line-number="12">      map fromList <span class="fu">.</span> prune <span class="fu">.</span> toList</a>
+<a class="sourceLine" id="cb44-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb44-14" data-line-number="14"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb44-15" data-line-number="15">  ( <span class="dt">CoArb</span> a, <span class="dt">Valued</span> m a</a>
+<a class="sourceLine" id="cb44-16" data-line-number="16">  ) <span class="ot">=&gt;</span> <span class="dt">CoArb</span> (<span class="dt">FingerTree</span> m a)</a>
+<a class="sourceLine" id="cb44-17" data-line-number="17">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-18" data-line-number="18">    coarb x <span class="fu">=</span> coarb (toList x)</a>
+<a class="sourceLine" id="cb44-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb44-20" data-line-number="20"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb44-21" data-line-number="21">  ( <span class="dt">MakeTo</span> a, <span class="dt">Valued</span> m a</a>
+<a class="sourceLine" id="cb44-22" data-line-number="22">  ) <span class="ot">=&gt;</span> <span class="dt">MakeTo</span> (<span class="dt">FingerTree</span> m a)</a>
+<a class="sourceLine" id="cb44-23" data-line-number="23">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-24" data-line-number="24">    makeTo <span class="fu">=</span> makeToExtendWith</a>
+<a class="sourceLine" id="cb44-25" data-line-number="25">      makeTo toList fromList</a></code></pre></div>
 <p>Next, recall that our finger tree type has an internal invariant that needs to be maintained in order for the complexity and correctness proofs of our algorithms to hold. Namely, the cached monoidal value at each node must be the product of the monoidal values of the node’s contents. We introduce a function (only used for testing) to check this. Note how polymorphic recursion makes this a little tricky.</p>
-<div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" data-line-number="1">validate</a>
-<a class="sourceLine" id="cb44-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb44-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">FingerTree</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb44-4" data-line-number="4">validate <span class="fu">=</span> validateNested (const <span class="dt">True</span>)</a>
-<a class="sourceLine" id="cb44-5" data-line-number="5">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb44-6" data-line-number="6">    validateNested</a>
-<a class="sourceLine" id="cb44-7" data-line-number="7"><span class="ot">      ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb44-8" data-line-number="8">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb44-9" data-line-number="9">    validateNested valid xs <span class="fu">=</span> <span class="kw">case</span> xs <span class="kw">of</span></a>
-<a class="sourceLine" id="cb44-10" data-line-number="10">      <span class="dt">Stump</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb44-11" data-line-number="11">        <span class="dt">True</span></a>
-<a class="sourceLine" id="cb44-12" data-line-number="12">      <span class="dt">Leaf</span> m a <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb44-13" data-line-number="13">        m <span class="fu">==</span> value a</a>
-<a class="sourceLine" id="cb44-14" data-line-number="14">      <span class="dt">Branch</span> m as x bs <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-15" data-line-number="15">        [ validateSome valid as</a>
-<a class="sourceLine" id="cb44-16" data-line-number="16">        , validateNested (validateNode valid) x</a>
-<a class="sourceLine" id="cb44-17" data-line-number="17">        , validateSome valid bs</a>
-<a class="sourceLine" id="cb44-18" data-line-number="18">        , m <span class="fu">==</span> mconcat [ value as, value x, value bs ]</a>
-<a class="sourceLine" id="cb44-19" data-line-number="19">        ]</a>
-<a class="sourceLine" id="cb44-20" data-line-number="20"></a>
-<a class="sourceLine" id="cb44-21" data-line-number="21">    validateSome</a>
-<a class="sourceLine" id="cb44-22" data-line-number="22"><span class="ot">      ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb44-23" data-line-number="23">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">Some</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb44-24" data-line-number="24">    validateSome valid x <span class="fu">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
-<a class="sourceLine" id="cb44-25" data-line-number="25">      <span class="dt">Only1</span> m a1 <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-26" data-line-number="26">        [ m <span class="fu">==</span> value a1</a>
-<a class="sourceLine" id="cb44-27" data-line-number="27">        , valid a1</a>
-<a class="sourceLine" id="cb44-28" data-line-number="28">        ]</a>
-<a class="sourceLine" id="cb44-29" data-line-number="29">      <span class="dt">Only2</span> m a1 a2 <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-30" data-line-number="30">        [ m <span class="fu">==</span> mconcat [ value a1, value a2 ]</a>
-<a class="sourceLine" id="cb44-31" data-line-number="31">        , valid a1, valid a2</a>
-<a class="sourceLine" id="cb44-32" data-line-number="32">        ]</a>
-<a class="sourceLine" id="cb44-33" data-line-number="33">      <span class="dt">Only3</span> m a1 a2 a3 <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-34" data-line-number="34">        [ m <span class="fu">==</span> mconcat [ value a1, value a2, value a3 ]</a>
-<a class="sourceLine" id="cb44-35" data-line-number="35">        , valid a1, valid a2, valid a3</a>
-<a class="sourceLine" id="cb44-36" data-line-number="36">        ]</a>
-<a class="sourceLine" id="cb44-37" data-line-number="37">      <span class="dt">Only4</span> m a1 a2 a3 a4 <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-38" data-line-number="38">        [ m <span class="fu">==</span> mconcat [ value a1, value a2, value a3, value a4 ]</a>
-<a class="sourceLine" id="cb44-39" data-line-number="39">        , valid a1, valid a2, valid a3, valid a4</a>
-<a class="sourceLine" id="cb44-40" data-line-number="40">        ]</a>
-<a class="sourceLine" id="cb44-41" data-line-number="41"></a>
-<a class="sourceLine" id="cb44-42" data-line-number="42">    validateNode</a>
-<a class="sourceLine" id="cb44-43" data-line-number="43"><span class="ot">      ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
-<a class="sourceLine" id="cb44-44" data-line-number="44">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">Node</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb44-45" data-line-number="45">    validateNode valid x <span class="fu">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
-<a class="sourceLine" id="cb44-46" data-line-number="46">      <span class="dt">Node2</span> m a1 a2 <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-47" data-line-number="47">        [ m <span class="fu">==</span> mconcat [ value a1, value a2 ]</a>
-<a class="sourceLine" id="cb44-48" data-line-number="48">        , valid a1, valid a2</a>
-<a class="sourceLine" id="cb44-49" data-line-number="49">        ]</a>
-<a class="sourceLine" id="cb44-50" data-line-number="50">      <span class="dt">Node3</span> m a1 a2 a3 <span class="ot">-&gt;</span> and</a>
-<a class="sourceLine" id="cb44-51" data-line-number="51">        [ m <span class="fu">==</span> mconcat [ value a1, value a2, value a3 ]</a>
-<a class="sourceLine" id="cb44-52" data-line-number="52">        , valid a1, valid a2, valid a3</a>
-<a class="sourceLine" id="cb44-53" data-line-number="53">        ]</a></code></pre></div>
+<div class="sourceCode" id="cb45"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb45-1" data-line-number="1">validate</a>
+<a class="sourceLine" id="cb45-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb45-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">FingerTree</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb45-4" data-line-number="4">validate <span class="fu">=</span> validateNested (const <span class="dt">True</span>)</a>
+<a class="sourceLine" id="cb45-5" data-line-number="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb45-6" data-line-number="6">    validateNested</a>
+<a class="sourceLine" id="cb45-7" data-line-number="7"><span class="ot">      ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb45-8" data-line-number="8">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">FingerTree</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb45-9" data-line-number="9">    validateNested valid xs <span class="fu">=</span> <span class="kw">case</span> xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb45-10" data-line-number="10">      <span class="dt">Stump</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb45-11" data-line-number="11">        <span class="dt">True</span></a>
+<a class="sourceLine" id="cb45-12" data-line-number="12">      <span class="dt">Leaf</span> m a <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb45-13" data-line-number="13">        m <span class="fu">==</span> value a</a>
+<a class="sourceLine" id="cb45-14" data-line-number="14">      <span class="dt">Branch</span> m as x bs <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-15" data-line-number="15">        [ validateSome valid as</a>
+<a class="sourceLine" id="cb45-16" data-line-number="16">        , validateNested (validateNode valid) x</a>
+<a class="sourceLine" id="cb45-17" data-line-number="17">        , validateSome valid bs</a>
+<a class="sourceLine" id="cb45-18" data-line-number="18">        , m <span class="fu">==</span> mconcat [ value as, value x, value bs ]</a>
+<a class="sourceLine" id="cb45-19" data-line-number="19">        ]</a>
+<a class="sourceLine" id="cb45-20" data-line-number="20"></a>
+<a class="sourceLine" id="cb45-21" data-line-number="21">    validateSome</a>
+<a class="sourceLine" id="cb45-22" data-line-number="22"><span class="ot">      ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb45-23" data-line-number="23">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">Some</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb45-24" data-line-number="24">    validateSome valid x <span class="fu">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb45-25" data-line-number="25">      <span class="dt">Only1</span> m a1 <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-26" data-line-number="26">        [ m <span class="fu">==</span> value a1</a>
+<a class="sourceLine" id="cb45-27" data-line-number="27">        , valid a1</a>
+<a class="sourceLine" id="cb45-28" data-line-number="28">        ]</a>
+<a class="sourceLine" id="cb45-29" data-line-number="29">      <span class="dt">Only2</span> m a1 a2 <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-30" data-line-number="30">        [ m <span class="fu">==</span> mconcat [ value a1, value a2 ]</a>
+<a class="sourceLine" id="cb45-31" data-line-number="31">        , valid a1, valid a2</a>
+<a class="sourceLine" id="cb45-32" data-line-number="32">        ]</a>
+<a class="sourceLine" id="cb45-33" data-line-number="33">      <span class="dt">Only3</span> m a1 a2 a3 <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-34" data-line-number="34">        [ m <span class="fu">==</span> mconcat [ value a1, value a2, value a3 ]</a>
+<a class="sourceLine" id="cb45-35" data-line-number="35">        , valid a1, valid a2, valid a3</a>
+<a class="sourceLine" id="cb45-36" data-line-number="36">        ]</a>
+<a class="sourceLine" id="cb45-37" data-line-number="37">      <span class="dt">Only4</span> m a1 a2 a3 a4 <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-38" data-line-number="38">        [ m <span class="fu">==</span> mconcat [ value a1, value a2, value a3, value a4 ]</a>
+<a class="sourceLine" id="cb45-39" data-line-number="39">        , valid a1, valid a2, valid a3, valid a4</a>
+<a class="sourceLine" id="cb45-40" data-line-number="40">        ]</a>
+<a class="sourceLine" id="cb45-41" data-line-number="41"></a>
+<a class="sourceLine" id="cb45-42" data-line-number="42">    validateNode</a>
+<a class="sourceLine" id="cb45-43" data-line-number="43"><span class="ot">      ::</span> ( <span class="dt">Eq</span> m, <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb45-44" data-line-number="44">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> <span class="dt">Node</span> m a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb45-45" data-line-number="45">    validateNode valid x <span class="fu">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb45-46" data-line-number="46">      <span class="dt">Node2</span> m a1 a2 <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-47" data-line-number="47">        [ m <span class="fu">==</span> mconcat [ value a1, value a2 ]</a>
+<a class="sourceLine" id="cb45-48" data-line-number="48">        , valid a1, valid a2</a>
+<a class="sourceLine" id="cb45-49" data-line-number="49">        ]</a>
+<a class="sourceLine" id="cb45-50" data-line-number="50">      <span class="dt">Node3</span> m a1 a2 a3 <span class="ot">-&gt;</span> and</a>
+<a class="sourceLine" id="cb45-51" data-line-number="51">        [ m <span class="fu">==</span> mconcat [ value a1, value a2, value a3 ]</a>
+<a class="sourceLine" id="cb45-52" data-line-number="52">        , valid a1, valid a2, valid a3</a>
+<a class="sourceLine" id="cb45-53" data-line-number="53">        ]</a></code></pre></div>
 <div class="epigraph">
 <blockquote>
 <p>I can whistle with my fingers, especially if I have a whistle.</p>

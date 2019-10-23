@@ -19,10 +19,11 @@ title: Kreb.Struct.TwoPointedList.Test
 > 
 > import Test.Tasty
 > 
-> import Kreb.Check
-> import Kreb.Struct.Valued
-> import Kreb.Struct.TwoPointedList
-> import Kreb.Struct.FingerTree.Test
+> import           Kreb.Check
+> import           Kreb.Struct.Valued
+> import qualified Kreb.Struct.FingerTree as FT
+> import           Kreb.Struct.TwoPointedList
+> import           Kreb.Struct.FingerTree.Test
 
 
 > test_TwoPointedList :: TestTree
@@ -74,6 +75,20 @@ title: Kreb.Struct.TwoPointedList.Test
 >           claimEqual
 >             (movePointToEnd (movePointToEnd as))
 >             (movePointToEnd as)
+> 
+>     , testKreb
+>         "moveMarkToStart (moveMarkToStart as) == moveMarkToStart as" $
+>         \(as :: TwoPointedList m a) ->
+>           claimEqual
+>             (moveMarkToStart (moveMarkToStart as))
+>             (moveMarkToStart as)
+> 
+>     , testKreb
+>         "moveMarkToEnd (moveMarkToEnd as) == moveMarkToEnd as" $
+>         \(as :: TwoPointedList m a) ->
+>           claimEqual
+>             (moveMarkToEnd (moveMarkToEnd as))
+>             (moveMarkToEnd as)
 > 
 >     , testKreb
 >         "(isPointAtEnd as) || (as == movePointLeft (movePointRight as))" $
@@ -434,4 +449,42 @@ title: Kreb.Struct.TwoPointedList.Test
 >                 (readPoint as)
 >                 (readPoint (insertAtEnd u as))
 >             ]
+> 
+>     , testKreb
+>         "isSingleton (singleton a)" $
+>         \(a :: a) ->
+>           let as = singleton a :: TwoPointedList m a
+>           in claimTrue (isSingleton as)
+> 
+>     , testKreb
+>         "Just (a, as) == viewAtStart (insertAtStart a as)" $
+>         \(a :: a) (as :: TwoPointedList m a) ->
+>           claimEqual
+>             (Just (a, as))
+>             (viewAtStart (insertAtStart a as))
+> 
+>     , testKreb
+>         "Just (a, as) == viewAtEnd (insertAtEnd a as)" $
+>         \(a :: a) (as :: TwoPointedList m a) ->
+>           claimEqual
+>             (Just (a, as))
+>             (viewAtEnd (insertAtEnd a as))
+> 
+>     , testKreb
+>         "(isEmpty us) || (isEmpty as) || (Just (us, clearMark as) == cutRegionL (insertRegionL us (clearMark as)))" $
+>         \(us :: FT.FingerTree m a) (as :: TwoPointedList m a) ->
+>           claimAny
+>             [ claimTrue (FT.isEmpty us)
+>             , claimTrue (isEmpty as)
+>             , claimEqual
+>                 (Just (us, clearMark as))
+>                 (cutRegionL (insertRegionL us (clearMark as)))
+>             ]
+> 
+>     , testKreb
+>         "fst <$> cutRegionL as == copyRegionL as" $
+>         \(as :: TwoPointedList m a) ->
+>           claimEqual
+>             (fst <$> cutRegionL as)
+>             (copyRegionL as)
 >     ]

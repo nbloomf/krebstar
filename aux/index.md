@@ -33,7 +33,7 @@ Design and Implementation
 1. [Project Rationale](html/Rationale.html)
 1. The Editor Core
     1. [The Read-Eval-Print Loop](html/ReplT.html)
-    1. Buffers
+    1. [Buffers](html/Buffer.html)
     1. Text Boxes
 1. The Language
     1. Virtual Machine

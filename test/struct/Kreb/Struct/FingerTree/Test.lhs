@@ -86,7 +86,7 @@ These instances are only needed locally. Can we get rid of them?
 > test_FingerTree_properties
 >   :: forall m a
 >    . ( Eq a, Show a, Arb a, Prune a, MakeTo a, Eq m, CoArb a
->      , Show m, MakeTo m, CoArb m, Prune m, Valued m a )
+>      , Show m, MakeTo m, CoArb m, Prune m, Valued m a, Valued m [a] )
 >   => String -> Proxy a -> Proxy m -> TestTree
 > test_FingerTree_properties label _ _ =
 >   let title = "FingerTree (" ++ label ++ ")"
@@ -337,4 +337,19 @@ These instances are only needed locally. Can we get rid of them?
 >           claimEqual
 >             (fmapFT ((apFun g) . (apFun f)) as :: FingerTree m a)
 >             (fmapFT (apFun g) (fmapFT (apFun f) as :: FingerTree m a))
+> 
+>     , testKreb
+>         "inflateWith id (fmapFT (:[]) as) == as" $
+>         \(as :: FingerTree m a) ->
+>           claimEqual
+>             (as)
+>             (inflateWith id (fmapFT (:[]) as :: FingerTree m [a]))
+> 
+>     , testKreb
+>         "inflateWith id (singleton xs) == fromList xs" $
+>         \(xs :: [a]) ->
+>           let as = singleton xs :: FingerTree m [a]
+>           in claimEqual
+>             (inflateWith id as :: FingerTree m a)
+>             (fromList xs)
 >     ]

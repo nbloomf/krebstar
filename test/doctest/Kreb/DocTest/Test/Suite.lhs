@@ -46,5 +46,6 @@
 >   , "src/text/Kreb/Text/Glyph.hs"
 >   , "src/text/Kreb/Text/Cell.lhs"
 >   , "src/text/Kreb/Text/Buffer.lhs"
+>   , "src/text/Kreb/Text/SizedBuffer.lhs"
 >   , "src/text/Kreb/Text/TextBox.lhs"
 >   ]

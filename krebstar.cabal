@@ -192,6 +192,7 @@ library kreb-text
     , Kreb.Text.Glyph
     , Kreb.Text.Cell
     , Kreb.Text.Buffer
+    , Kreb.Text.SizedBuffer
     , Kreb.Text.TextBox
   build-depends:
       base >=4.7 && <5

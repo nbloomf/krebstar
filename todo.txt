@@ -1,6 +1,13 @@
 0.0.1 Checklist
 ===============
+- buffer: move mark to linecol/screenpos/screenline
+- adjustRegion :: (FT a -> FT a) -> Buffer a -> Buffer a
+- ScreenCoords: make a custom type, rather than (Int, Int)
+- concatenation for two-pointed lists; need both left and right biased versions
+  - test for this
+  - biased == which point/mark is preserved
 - rename Seq to Sequence
+- rename makeFromList to fromList (OPL and TPL)
 - When a region loses focus the selection should highlight to a dimmer color
 - replace 'normal mode' with 'debug mode' (not sure about this idea)
   - record input events to interaction log
@@ -29,7 +36,6 @@
 Refactoring
 - rewrite Tape tests for Seq
 - make TextBox and Editor tests active again
-- Move sizedbuffer to own module
 
 - Arrow up and down should 'remember' x coordinate
 - page up and down, home and end

@@ -102,6 +102,9 @@ Now lets define a concrete monoid and `Valued` instance for testing. Note that w
 > instance Monoid Tup where
 >   mempty = Tup 0 0
 > 
+> instance (Valued Tup a) => Valued Tup [a] where
+>   value = mconcat . map value
+> 
 > instance Valued Tup Bool where
 >   value p = if p
 >     then Tup 0 1

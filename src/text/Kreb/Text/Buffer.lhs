@@ -1,96 +1,105 @@
 ---
-title: Kreb.Text.Buffer
+title: Buffers
 ---
 
-
-
-Contents
---------
-
-* [Introduction](#introduction)
-* [Exposed API](#exposed-api)
-* [Cell](#cell)
-* [Buffers](#buffers)
-    * [Constructors and destructors](#constructors-and-destructors)
-    * [Queries](#queries)
-    * [Splitting](#splitting)
-    * [Rendering](#rendering)
-* [Sized buffers](#sized-buffers)
+::: contents
+* [Introduction](#introduction): The problem we're solving
+* [Point Manipulation](#point-manipulation): Moving the read heads around
+* [Basic Mutation](#basic-mutation): Cut, copy, alter, insert
+* [Queries](#queries): Learning things about buffers
+* [Splitting](#splitting): Moving the read heads around (again)
+:::
 
 
 
-Introduction
-============
+::: frontmatter
 
-> {-# LANGUAGE
->     ExistentialQuantification
->   , MultiParamTypeClasses
->   , QuantifiedConstraints
->   , UndecidableInstances
->   , ScopedTypeVariables
->   , FlexibleInstances
->   , FlexibleContexts
->   , InstanceSigs
->   , Rank2Types
-> #-}
-
-
-
-Exposed API
-===========
-
+> {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE UndecidableInstances #-}
+> {-# LANGUAGE ScopedTypeVariables #-}
+> {-# LANGUAGE FlexibleInstances #-}
+> {-# LANGUAGE FlexibleContexts #-}
+> {-# LANGUAGE InstanceSigs #-}
+> 
 > module Kreb.Text.Buffer (
->   -- * Buffers
->     Buffer(..)
->   , Cell()
->   , eof
->   , cell
->   , unCells
-> 
->   -- * Constructors
+>     Buffer()
 >   , empty
->   , makeListBuffer
-
->   , defBuffer
+>   , singleton
+>   , fromList
+>   , fromFingerTree
+>   , toList
+>   , isEmpty
+>   , isSingleton
 > 
->   , charBuffer
->   , charBufferFocus
-
->   , clearMark
->   , leaveMarkBuffer
->   , readPoint
+>   , isPointAtStart
+>   , isPointAtEnd
+>   , hasMark
+>   , isMarkAtStart
+>   , isMarkAtEnd
+>   , movePointToStart
+>   , movePointToEnd
+>   , moveMarkToStart
+>   , moveMarkToEnd
 >   , movePointLeft
 >   , movePointRight
->   , movePointToStart
->   , insertPointLeftBuffer
->   , deletePointLeftBuffer
+>   , moveMarkLeft
+>   , moveMarkRight
+>   , clearMark
+>   , leaveMark
 > 
->   -- * Queries
->   , isEmpty
->   , isPointAtEnd
+>   , readPoint
+>   , insertPointLeft
+>   , deletePointLeft
+>   , copyRegion
+>   , cutRegion
+>   , insertRegion
+>   , alterRegion
+>   , insertAtStart
+>   , viewAtStart
+>   , deleteAtStart
+>   , insertAtEnd
+>   , viewAtEnd
+>   , deleteAtEnd
+>   , mapBuffer
+>   , mapRegion
 > 
 >   , getBufferWidth
 >   , getBufferTabStop
->   , getBufferBytes
+>   , getBufferCharCount
+>   , getBufferByteCount
 >   , getBufferLineCol
 >   , getBufferScreenCoords
->   , getBufferString
+>   , getPointCharCount
+>   , getPointByteCount
+>   , getPointLineCol
+>   , getPointScreenCoords
+>   , getMarkCharCount
+>   , getMarkByteCount
+>   , getMarkLineCol
+>   , getMarkScreenCoords
+> 
+>   , movePointToLineCol
+>   , movePointToScreenCoords
+>   , movePointToScreenLine
+>   , atOrAfterLineCol
+>   , atOrAfterScreenCoords
+>   , atOrAfterScreenLine
+
+
+
+
+>   -- * Constructors
+> 
+>   , defBuffer
+
+>   , adjustBuffer
+>   , resizeBuffer
+
+>   -- * Queries
 > 
 >   , seekScreenCoords
 > 
->   , getBufferHeadLineCol
->   , getBufferHeadScreenCoords
-> 
->   -- * Navigation
->   , splitBufferAtLineCol
->   , splitBufferAtScreenCoords
->   , splitBufferAtScreenLine
-> 
->   , atScreenLine
->   , atLineCol
->   , atScreenCoords
 
->   , toAnnotatedList
 > 
 >   -- * Rendering
 >   , BufferRenderSettings(..)
@@ -101,41 +110,27 @@ Exposed API
 >   , getLineNumbers
 >   , renderBuffer
 > 
->   -- * Sized Buffers
->   , SizedBuffer(..)
->   , emptySizedBuffer
->   , makeSizedBuffer
->   , shapeSizedBuffer
->   , alterSizedBuffer
->   , alterSizedBufferF
->   , querySizedBuffer
-> 
 >   -- * Debugging
 >   , makePointOnlyBuffer
 >   , makeCoincideBuffer
 >   , makePointMarkBuffer
 >   , makeMarkPointBuffer
+
+>   , toAnnotatedList
 > 
->   , rawVacant
->   , rawPointOnly
->   , rawCoincide
->   , rawPointMark
->   , rawMarkPoint
-> 
->   , validateBuffer
->   , mkFT
+>   , validate
 > ) where
 > 
 > import Data.Proxy
-> import Data.Foldable
+> import qualified Data.Foldable as Fold
 > import Data.List (groupBy)
 > import qualified Data.Map.Strict as M
 > import Control.Monad (join)
 > import Debug.Trace
 > 
-> import Kreb.Check
-> import Kreb.Reflect
-> import Kreb.Struct.Valued
+> import           Kreb.Check
+> import           Kreb.Reflect
+> import           Kreb.Struct.Valued
 > import qualified Kreb.Struct.FingerTree as FT
 > import qualified Kreb.Struct.TwoPointedList as TPL
 > 
@@ -144,41 +139,34 @@ Exposed API
 > import Kreb.Text.Glyph
 > import Kreb.Text.Cell
 
+:::
 
 
 
+Introduction
+------------
 
+Our primary data structure for representing and manipulating text is the _buffer_. At the semantic level we can treat buffers like lists of characters, although under the hood they use a more complex representation to make some important operations more efficient. The buffer also has one and possibly two distinguished positions, called the _point_ and the _mark_, which are used to specify where edits take effect.
 
-
-
-Buffers
-=======
-
-A _buffer_ is just a zipped finger tree with value monoid `MeasureText w t` for some width paramter `w` and tab stop parameter `t`.
+The actual definition of buffers builds on two other abstractions: two-pointed lists and our text measurement type. However these details aren't exposed to client code.
 
 > newtype Buffer w t a = Buffer
 >   { unBuffer :: TPL.TwoPointedList (MeasureText w t) (Cell a)
 >   } deriving Eq
-> 
+
+Note that `MeasureText` takes two type parameters, `w` and `t`. These are type level representations of the width of the screen in cells and the tab stop width, respectively. Our underlying finger tree implementation makes it necessary that these be type parameters; essentially they are required by the monoid instance on text measurements. Later on we'll wrap buffers inside an existential type to partially hide this detail while maintaining type safety.
+
+We also impose one invariant on buffers that can't be represented in the type: the final item in the list of characters must be a special end-of-file sigil. This simplifies the usual insert and delete operations on text by making it possible to assert that the "cursor" is at the left edge of a cell. We will have to be careful that our operations on buffers maintain this invariant (only in this module; client code shouldn't need to worry about that).
+
+Because buffers are "just" two pointed lists, they inherit the API of two pointed lists, giving us a decent amount of code nearly for free (modulo maintaining the eof invariant). We can measure the entire buffer:
+
 > instance
 >   ( IsWidth w, IsTab t, Valued (MeasureText w t) a
 >   ) => Valued (MeasureText w t) (Buffer w t a)
 >   where
 >     value = value . TPL.integrate . unBuffer
-> 
-> instance
->   ( IsWidth w, IsTab t, IsChar a, Eq a
->   , Arb a, Valued (MeasureText w t) a
->   ) => Arb (Buffer w t a)
->   where
->     arb = Buffer <$> arb
-> 
-> instance
->   ( IsWidth w, IsTab t, IsChar a, Eq a
->   , Prune a, Valued (MeasureText w t) a
->   ) => Prune (Buffer w t a)
->   where
->     prune (Buffer x) = Buffer <$> prune x
+
+We also get the usual `empty` and `singleton` constructors.
 
 > empty
 >   :: forall w t a
@@ -186,205 +174,518 @@ A _buffer_ is just a zipped finger tree with value monoid `MeasureText w t` for 
 >   => Buffer w t a
 > empty = Buffer $
 >   TPL.singleton (eof :: Cell a)
+> 
+> singleton
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => a -> Buffer w t a
+> singleton a = Buffer $
+>   TPL.makeFromList [ Cell a, eof ]
+
+More generally, we can convert lists to buffers (and back again).
+
+> fromList
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => [a] -> Buffer w t a
+> fromList xs = Buffer $ TPL.makeFromList $ concat
+>   [ map Cell xs, [ eof :: Cell a ] ]
+> 
+> fromFingerTree
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => FT.FingerTree (MeasureText w t) a -> Buffer w t a
+> fromFingerTree xs = Buffer $ TPL.fromFingerTree $
+>   FT.snoc (eof :: Cell a) (FT.fmapFT Cell xs)
+> 
+> toList
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> [a]
+> toList (Buffer w) =
+>   unCells $ Fold.toList w
+
+Due to the EOF sigil, detecting when a buffer is empty or a singleton is a little more involved.
+
+> isEmpty
+>   :: forall w t a
+>    . ( Eq a, IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Bool
+> isEmpty (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "isEmpty: panic (expected eof)"
+>     Just (a, as) ->
+>       (a == (eof :: Cell a)) && (TPL.isEmpty as)
+> 
+> isSingleton
+>   :: forall w t a
+>    . ( Eq a, IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Bool
+> isSingleton (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "isSingleton: panic (expected eof)"
+>     Just (a, as) ->
+>       (a == (eof :: Cell a)) && (TPL.isSingleton as)
 
 
 
+Point Manipulation
+------------------
 
+The point and mark of a buffer represent the read head, and moving them around is one of the most important and common tasks our code needs to handle. We inherit a decent API for this from two-pointed lists which we can basically re-expose. First some queries on the point and mark:
 
+> isPointAtStart
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Bool
+> isPointAtStart =
+>   TPL.isPointAtStart . unBuffer
+> 
 > isPointAtEnd
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Bool
-> isPointAtEnd (Buffer w) =
->   TPL.isPointAtEnd w
-
-> movePointLeft
+> isPointAtEnd =
+>   TPL.isPointAtEnd . unBuffer
+> 
+> hasMark
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> Buffer w t a
-> movePointLeft (Buffer w) =
->   Buffer $ TPL.movePointLeft w
-
-> movePointRight
+>   => Buffer w t a -> Bool
+> hasMark =
+>   TPL.hasMark . unBuffer
+> 
+> isMarkAtStart
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> Buffer w t a
-> movePointRight (Buffer w) =
->   Buffer $ TPL.movePointRight w
+>   => Buffer w t a -> Bool
+> isMarkAtStart =
+>   TPL.isMarkAtStart . unBuffer
+> 
+> isMarkAtEnd
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Bool
+> isMarkAtEnd =
+>   TPL.isMarkAtEnd . unBuffer
+
+Next some basic operators for moving either the point or the mark to one of the ends of the buffer.
 
 > movePointToStart
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Buffer w t a
 > movePointToStart (Buffer w) =
 >   Buffer $ TPL.movePointToStart w
-
+> 
 > movePointToEnd
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Buffer w t a
 > movePointToEnd (Buffer w) =
 >   Buffer $ TPL.movePointToEnd w
-
-> fmapRegionL
+> 
+> moveMarkToStart
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => (Cell a -> Cell a) -> Buffer w t a -> Buffer w t a
-> fmapRegionL f =
->   Buffer . TPL.fmapRegionL f . unBuffer
+>   => Buffer w t a -> Buffer w t a
+> moveMarkToStart (Buffer w) =
+>   Buffer $ TPL.moveMarkToStart w
+> 
+> moveMarkToEnd
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> moveMarkToEnd (Buffer w) =
+>   Buffer $ TPL.moveMarkToEnd w
+
+We also have operators for moving the point and mark one cell to the left or right.
+
+> movePointLeft
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> movePointLeft (Buffer w) =
+>   Buffer $ TPL.movePointLeft w
+> 
+> movePointRight
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> movePointRight (Buffer w) =
+>   Buffer $ TPL.movePointRight w
+> 
+> moveMarkLeft
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> moveMarkLeft (Buffer w) =
+>   Buffer $ TPL.moveMarkLeft w
+> 
+> moveMarkRight
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> moveMarkRight (Buffer w) =
+>   Buffer $ TPL.moveMarkRight w
+
+We also have utilities for setting and clearing the mark. Recall that both `clearMark` and `leaveMark` leave the point unchanged; `clearMark` removes the mark, and `leaveMark` sets or resets it to coincide with the point.
 
 > clearMark
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Buffer w t a
 > clearMark (Buffer w) =
 >   Buffer $ TPL.clearMark w
-
-> leaveMarkBuffer
+> 
+> leaveMark
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Buffer w t a
-> leaveMarkBuffer =
+> leaveMark =
 >   Buffer . TPL.leaveMark . unBuffer
+
+
+
+Basic Mutation
+--------------
+
+Next we need buffer versions of the region operators. We can read the character at the point:
 
 > readPoint
 >   :: Buffer w t a -> Maybe (Cell a)
 > readPoint (Buffer w) =
 >   TPL.readPoint w
 
-> insertPointLeftBuffer
+And we need left-biased insert and delete at the point.
+
+> insertPointLeft
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => a -> Buffer w t a -> Buffer w t a
-> insertPointLeftBuffer a (Buffer w) =
+> insertPointLeft a (Buffer w) =
 >   Buffer $ TPL.insertPointLeft (Cell a) w
-
-> deletePointLeftBuffer
+> 
+> deletePointLeft
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> Buffer w t a
-> deletePointLeftBuffer (Buffer w) =
+> deletePointLeft (Buffer w) =
 >   Buffer $ TPL.deletePointLeft w
 
-> isEmpty
+As well we have versions of `copy`, `cut`, and `insert`.
+
+> copyRegion
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Maybe (Buffer w t a)
+> copyRegion (Buffer w) =
+>   fmap (fromFingerTree . FT.inflateWith listCell)
+>     $ TPL.copyRegionL w
+> 
+> cutRegion
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Maybe (Buffer w t a, Buffer w t a)
+> cutRegion (Buffer w) = do
+>   (region, rest) <- TPL.cutRegionL w
+>   return
+>     ( fromFingerTree $ FT.inflateWith listCell region
+>     , Buffer rest )
+> 
+> insertRegion
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a -> Buffer w t a
+> insertRegion (Buffer snippet) (Buffer w) =
+>   Buffer $ TPL.insertRegionL (TPL.integrate snippet) w
+> 
+> alterRegion
 >   :: forall w t a
->    . ( Eq a, IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> Bool
-> isEmpty (Buffer w) = TPL.isEmpty w
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => (a -> a) -> Buffer w t a -> Buffer w t a
+> alterRegion f =
+>   Buffer . TPL.alterRegionL g . unBuffer
+>   where
+>     g :: Cell a -> Cell a
+>     g x = case x of
+>       Cell a -> Cell (f a)
+>       _ -> x
+
+We can also efficiently manipulate the start and end of the buffer.
+
+> insertAtStart
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => a -> Buffer w t a -> Buffer w t a
+> insertAtStart a =
+>   Buffer . TPL.insertAtStart (Cell a) . unBuffer
+> 
+> viewAtStart
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Maybe (Cell a, Buffer w t a)
+> viewAtStart (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "viewAtStart: panic (empty buffer)"
+>     Just (u, us) -> do
+>       (a, as) <- TPL.viewAtStart us
+>       return (a, Buffer $ TPL.insertAtEnd u as)
+> 
+> deleteAtStart
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> deleteAtStart (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "deleteAtStart: panic (empty buffer)"
+>     Just (u, us) ->
+>       Buffer $ TPL.insertAtEnd u $ TPL.deleteAtStart us
+> 
+> insertAtEnd
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => a -> Buffer w t a -> Buffer w t a
+> insertAtEnd a (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "insertAtEnd: panic (empty buffer)"
+>     Just (u, us) -> Buffer $ TPL.insertAtEnd u $
+>       TPL.insertAtEnd (Cell a) us
+> 
+> viewAtEnd
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Maybe (Cell a, Buffer w t a)
+> viewAtEnd (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "viewAtEnd: panic (empty buffer)"
+>     Just (u, us) -> do
+>       (a, as) <- TPL.viewAtEnd us
+>       return (a, Buffer $ TPL.insertAtEnd u as)
+> 
+> deleteAtEnd
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Buffer w t a
+> deleteAtEnd (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing -> error "deleteAtEnd: panic (empty buffer)"
+>     Just (u, us) ->
+>       Buffer $ TPL.insertAtEnd u $ TPL.deleteAtEnd us
+
+We can also map over the entries in a buffer.
+
+> mapBuffer
+>   :: ( IsWidth w, IsTab t
+>      , Valued (MeasureText w t) a1
+>      , Valued (MeasureText w t) a2 )
+>   => (a1 -> a2) -> Buffer w t a1 -> Buffer w t a2
+> mapBuffer f =
+>   Buffer . TPL.fmapList (fmap f) . unBuffer
+> 
+> mapRegion
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => (a -> a) -> Buffer w t a -> Buffer w t a
+> mapRegion f =
+>   Buffer . TPL.alterRegionL (fmap f) . unBuffer
+
+
+
+Queries
+-------
+
+More than any of the data structures we've seen so far, buffers have _properties_. We now define an interface through which other modules can query these properties; for consistency's sake these all start with `get`. First some functions for reifying the type level parameters: width and tab stop.
+
+> getBufferWidth
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getBufferWidth _ = toWidth (Proxy :: Proxy w)
+> 
+> getBufferTabStop
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getBufferTabStop _ = toTab (Proxy :: Proxy t)
+
+Next we have queries on the measure of the entire buffer.
+
+> getBufferCharCount
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getBufferCharCount (Buffer buf) =
+>   let m = value buf :: MeasureText w t in
+>   charCount m
+> 
+> getBufferByteCount
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getBufferByteCount (Buffer buf) =
+>   let m = value buf :: MeasureText w t in
+>   byteCount m
+> 
+> getBufferLineCol
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> LineCol
+> getBufferLineCol (Buffer buf) =
+>   let m = value buf :: MeasureText w t in
+>   logicalOffset m
+> 
+> getBufferScreenCoords
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> (Int, Int)
+> getBufferScreenCoords (Buffer buf) =
+>   let m = value buf :: MeasureText w t in
+>   applyScreenOffset (screenCoords m) (0,0)
+
+Likewise we can query the value at the point.
+
+> getPointCharCount
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getPointCharCount (Buffer w) =
+>   case TPL.valueUpToPoint w of
+>     Nothing -> 0
+>     Just m -> charCount m
+> 
+> getPointByteCount
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getPointByteCount (Buffer w) =
+>   case TPL.valueUpToPoint w of
+>     Nothing -> 0
+>     Just m -> byteCount m
+> 
+> getPointLineCol
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> LineCol
+> getPointLineCol (Buffer w) =
+>   case TPL.valueUpToPoint w of
+>     Nothing -> mempty
+>     Just m -> logicalOffset m
+>  
+> getPointScreenCoords
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> (Int, Int)
+> getPointScreenCoords (Buffer w) =
+>   case TPL.valueUpToPoint w of
+>     Nothing -> (0,0)
+>     Just m -> applyScreenOffset (screenCoords m) (0,0)
+
+And for good measure, at the mark as well.
+
+> getMarkCharCount
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getMarkCharCount (Buffer w) =
+>   case TPL.valueUpToMark w of
+>     Nothing -> 0
+>     Just m -> charCount m
+> 
+> getMarkByteCount
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Int
+> getMarkByteCount (Buffer w) =
+>   case TPL.valueUpToMark w of
+>     Nothing -> 0
+>     Just m -> byteCount m
+> 
+> getMarkLineCol
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> LineCol
+> getMarkLineCol (Buffer w) =
+>   case TPL.valueUpToMark w of
+>     Nothing -> mempty
+>     Just m -> logicalOffset m
+>  
+> getMarkScreenCoords
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> (Int, Int)
+> getMarkScreenCoords (Buffer w) =
+>   case TPL.valueUpToMark w of
+>     Nothing -> (0,0)
+>     Just m -> applyScreenOffset (screenCoords m) (0,0)
+
+
+
+Splitting
+---------
+
+Recall that finger trees, the structure underlying our buffers, admits an efficient _splitting_ operation, which we can take advantage of to move the point and mark to specific locations in the buffer. First we define a utility function, not exposed outside this module, that attempts to split a buffer on an arbitrary predicate.
+
+> splitPoint
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => (MeasureText w t -> Bool)
+>   -> Buffer w t a -> Maybe (Buffer w t a)
+> splitPoint pointP (Buffer w) =
+>   Buffer <$> TPL.splitPoint pointP w
+
+For ergonomics' sake we'll expose specialized splitting functions. First at a given line and column position:
+
+> movePointToLineCol
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
+>   => LineCol -> Buffer w t a -> Buffer w t a
+> movePointToLineCol lc buf =
+>   case splitPoint (atOrAfterLineCol lc) buf of
+>     Nothing -> movePointToEnd buf
+>     Just xs -> xs
+> 
+> atOrAfterLineCol
+>   :: LineCol -> MeasureText w t -> Bool
+> atOrAfterLineCol lc m =
+>   lc <= logicalCoords m
+
+Next at a given pair of screen coordinates:
+
+> movePointToScreenCoords
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
+>   => (Int, Int) -> Buffer w t a -> Buffer w t a
+> movePointToScreenCoords pos buf =
+>   case splitPoint (atOrAfterScreenCoords pos) buf of
+>     Nothing -> movePointToEnd buf
+>     Just xs -> if pos == (getPointScreenCoords xs)
+>       then xs
+>       else movePointLeft xs
+> 
+> atOrAfterScreenCoords
+>   :: forall w t
+>    . ( IsWidth w, IsTab t )
+>   => (Int, Int) -> MeasureText w t -> Bool
+> atOrAfterScreenCoords (u,v) m =
+>   let
+>     (h,k) = applyScreenOffset (screenCoords m) (0,0)
+>   in (v < k) || ((v == k) && (u <= h))
+
+And then at a given screen line.
+
+> movePointToScreenLine
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
+>   => Int -> Buffer w t a -> Maybe (Buffer w t a)
+> movePointToScreenLine k buf =
+>   if k == 0
+>     then Just $ movePointToStart buf
+>     else splitPoint (atOrAfterScreenLine k) buf
+> 
+> atOrAfterScreenLine
+>   :: forall w t
+>    . ( IsWidth w, IsTab t )
+>   => Int -> MeasureText w t -> Bool
+> atOrAfterScreenLine k m =
+>   let
+>     offset = screenCoords m
+>     (_,v) = applyScreenOffset offset (0,0)
+>   in v >= k
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 Constructors and destructors
 ----------------------------
 
-Our buffer constructors come in two flavors: constructors prefixed with `def` take the type parameters as inputs, while those prefixed with `mk` do not.
 
-
-
-> makeListBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => [a] -> Buffer w t a
-> makeListBuffer xs = Buffer $ TPL.makeFromList $ concat
->   [ map Cell xs, [ eof :: Cell a ] ]
-
-Constructing buffers with a specific structure for testing.
-
-> makePointOnlyBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> Buffer w t a
-> makePointOnlyBuffer _ _ as x bs =
->   Buffer $ TPL.makePointOnly
->     (map Cell as) (Cell x) (map Cell bs ++ [eof])
-> 
-> makeCoincideBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> Buffer w t a
-> makeCoincideBuffer _ _ as x bs =
->   Buffer $ TPL.makeCoincide
->     (map Cell as) (Cell x) (map Cell bs ++ [eof])
-> 
-> makePointMarkBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
-> makePointMarkBuffer _ _ as x bs y cs =
->   Buffer $ TPL.makePointMark
->     (map Cell as) (Cell x) (map Cell bs)
->     (Cell y) (map Cell cs ++ [eof])
-> 
-> makeMarkPointBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
-> makeMarkPointBuffer _ _ as x bs y cs =
->   Buffer $ TPL.makeMarkPoint
->     (map Cell as) (Cell x) (map Cell bs)
->     (Cell y) (map Cell cs ++ [eof])
-
-> rawVacant
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> Buffer w t a
-> rawVacant _ _ =
->   Buffer TPL.Vacant
-> 
-> rawPointOnly
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [Cell a] -> Cell a -> [Cell a]
->   -> Buffer w t a
-> rawPointOnly _ _ as x bs =
->   Buffer $ TPL.makePointOnly as x bs
-> 
-> rawCoincide
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [Cell a] -> Cell a -> [Cell a]
->   -> Buffer w t a
-> rawCoincide _ _ as x bs =
->   Buffer $ TPL.makeCoincide as x bs
-> 
-> rawPointMark
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [Cell a] -> Cell a -> [Cell a] -> Cell a -> [Cell a]
->   -> Buffer w t a
-> rawPointMark _ _ as x bs y cs =
->   Buffer $ TPL.makePointMark as x bs y cs
-> 
-> rawMarkPoint
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [Cell a] -> Cell a -> [Cell a] -> Cell a -> [Cell a]
->   -> Buffer w t a
-> rawMarkPoint _ _ as x bs y cs =
->   Buffer $ TPL.makeMarkPoint as x bs y cs
-
-
-
-> toAnnotatedList
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> [(Cell a, MeasureText w t)]
-> toAnnotatedList = TPL.toAnnotatedList . unBuffer
-
-
-The `def` variants will mostly be used for testing or in the shell.
-
-
-> 
 > defBuffer
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => Proxy w -> Proxy t -> [a] -> Buffer w t a
-> defBuffer _ _ = makeListBuffer
+> defBuffer _ _ = fromList
 
 > charBuffer
 >   :: ( IsWidth w, IsTab t
 >      , Valued (MeasureText w t) a, IsChar a, Eq a )
 >   => Proxy w -> Proxy t -> [Char]
 >   -> Buffer w t a
-> charBuffer _ _ as = makeListBuffer (map fromChar as)
+> charBuffer _ _ as = mapBuffer fromChar $ fromList as
 
 > charBufferFocus
 >   :: ( IsWidth w, IsTab t
@@ -409,122 +710,39 @@ And we can give a handy `Show` instance:
 >         TPL.PointOnly (as, x, bs) -> concat
 >           [ "rawPointOnly "
 >           , wid, " ", tab, " "
->           , show $ toList as, " "
+>           , show $ Fold.toList as, " "
 >           , show x, " "
->           , show $ toList bs
+>           , show $ Fold.toList bs
 >           ]
 >         TPL.Coincide (as, x, bs) -> concat
 >           [ "rawCoincide "
 >           , wid, " ", tab, " "
->           , show $ toList as, " "
+>           , show $ Fold.toList as, " "
 >           , show x, " "
->           , show $ toList bs
+>           , show $ Fold.toList bs
 >           ]
 >         TPL.PointMark (as, x, bs, y, cs) -> concat
 >           [ "rawPointMark "
 >           , wid, " ", tab, " "
->           , show $ toList as, " "
+>           , show $ Fold.toList as, " "
 >           , show x, " "
->           , show $ toList bs, " "
+>           , show $ Fold.toList bs, " "
 >           , show y, " "
->           , show $ toList cs
+>           , show $ Fold.toList cs
 >           ]
 >         TPL.MarkPoint (as, x, bs, y, cs) -> concat
 >           [ "rawMarkPoint "
 >           , wid, " ", tab, " "
->           , show $ toList as, " "
+>           , show $ Fold.toList as, " "
 >           , show x, " "
->           , show $ toList bs, " "
+>           , show $ Fold.toList bs, " "
 >           , show y, " "
->           , show $ toList cs
+>           , show $ Fold.toList cs
 >           ]
 
 
 
 
-
-
-Queries
--------
-
-Functions for getting the basic parameters of a buffer:
-
-> getBufferWidth
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> Int
-> getBufferWidth _ = toWidth (Proxy :: Proxy w)
-> 
-> getBufferTabStop
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> Int
-> getBufferTabStop _ = toTab (Proxy :: Proxy t)
-> 
-> getBufferBytes
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> Int
-> getBufferBytes (Buffer buf) =
->   let m = value buf :: MeasureText w t in
->   byteCount m
-> 
-> getBufferScreenCoords
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> (Int, Int)
-> getBufferScreenCoords (Buffer buf) =
->   let m = value buf :: MeasureText w t in
->   applyScreenOffset (screenCoords m) (0,0)
-> 
-> getBufferLineCol
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> LineCol
-> getBufferLineCol (Buffer buf) =
->   let m = value buf :: MeasureText w t in
->   logicalOffset m
-> 
-> getBufferString
->   :: ( IsWidth w, IsTab t, Eq a, IsChar a, Valued (MeasureText w t) a )
->   => Buffer w t a -> String
-> getBufferString (Buffer w) =
->   map toChar $ unCells $ toList w
-
-
-
-> getBufferHeadPosition
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> MeasureText w t
-> getBufferHeadPosition (Buffer w) =
->   case TPL.valueAtPoint w of
->     Nothing -> mempty
->     Just val -> val
-> 
-> getBufferHeadLineCol
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> LineCol
-> getBufferHeadLineCol =
->   logicalCoords . getBufferHeadPosition
-> 
-> getBufferHeadScreenCoords
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> (Int, Int)
-> getBufferHeadScreenCoords buf =
->   let offset = screenCoords $ getBufferHeadPosition buf in
->   applyScreenOffset offset (0,0)
-
-
-
-> -- Find coordinates "nearest" to a given pair that are
-> -- present in the buffer.
-> seekScreenCoords
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
->   => (Int, Int) -> Buffer w t a -> (Int, Int)
-> seekScreenCoords z =
->   getBufferHeadScreenCoords . splitBufferAtScreenCoords z
 
 
 It will also be handy to be able to resize the buffer in two different ways, depending on whether we want to specify the new parameters statically or dynamically.
@@ -546,166 +764,19 @@ It will also be handy to be able to resize the buffer in two different ways, dep
 
 
 
-Sized Buffers
-=============
-
-The `Buffer` type is parameterized by two type level natural numbers. This is necessary to make the monoid instance for `MeasureText` work out nicely (and statically), but will be cumbersome once we're juggling several text buffers at once. Consumers of this code need to know that a buffer has a well defined width and tab stop, but don't really want to care about the _types_ used to express this.
-
-What we want is to be able to hide the `w` and `t` type parameters. We can do this with the following _existential type_, `SizedBuffer`.
-
-> data SizedBuffer a = forall w t.
->   ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->   ) => SizedBuffer (Buffer w t a)
-
-Note that the type variables `w` and `t` are bound on the right hand side of the definition, so they cannot "leak out". Code consuming `SizedBuffers` cannot know about or do anything with `w` and `t` beyond what is allowed by the `IsWidth` and `IsTab` constraints. This is really powerful! `Buffer` gets the benefits of very expressive types, and `SizedBuffer` acts like a guard giving the outside world the ability to ignore those types.
-
-> instance
->   ( Eq a, IsChar a
->   , forall w t. (IsWidth w, IsTab t)
->       => Valued (MeasureText w t) a
->   ) => Eq (SizedBuffer a)
->   where
->     (SizedBuffer b1) == (SizedBuffer b2) = and
->       [ (getBufferWidth b1)
->           == (getBufferWidth b2)
->       , (getBufferTabStop b1)
->           == (getBufferTabStop b2)
->       , (adjustBuffer nat8 nat2 b1)
->           == (adjustBuffer nat8 nat2 b2)
->       ]
-> 
-> instance
->   ( Show a, IsChar a
->   ) => Show (SizedBuffer a)
->   where
->     show (SizedBuffer buf) = 
->       "SizedBuffer (" ++ show buf ++ ")"
-
-> emptySizedBuffer
->   :: Int -> Int -> SizedBuffer Glyph
-> emptySizedBuffer width tab =
->   withWidth width $ \(_ :: Proxy w) ->
->     withTab tab $ \(_ :: Proxy t) ->
->       SizedBuffer (empty :: Buffer w t Glyph)
-> 
-> makeSizedBuffer
->   :: Int -> Int -> String -> SizedBuffer Glyph
-> makeSizedBuffer width tab str =
->   withWidth width $ \(_ :: Proxy w) ->
->     withTab tab $ \(_ :: Proxy t) ->
->       SizedBuffer (makeListBuffer (map fromChar str) :: Buffer w t Glyph)
-> 
-> shapeSizedBuffer
->   :: Int -> Int
->   -> SizedBuffer Glyph
->   -> SizedBuffer Glyph
-> shapeSizedBuffer width tab (SizedBuffer buf) =
->   withWidth width $ \(_ :: Proxy w) ->
->     withTab tab $ \(_ :: Proxy t) ->
->       SizedBuffer (resizeBuffer buf :: Buffer w t Glyph)
-> 
-> alterSizedBuffer
->   :: (forall w t. (IsWidth w, IsTab t, Valued (MeasureText w t) a)
->       => Buffer w t a -> Buffer w t a)
->   -> SizedBuffer a
->   -> SizedBuffer a
-> alterSizedBuffer f (SizedBuffer buf) = SizedBuffer (f buf)
-> 
-> alterSizedBufferF
->   :: ( Functor f )
->   => (forall w t. (IsWidth w, IsTab t, Valued (MeasureText w t) a)
->       => Buffer w t a -> f (Buffer w t a))
->   -> SizedBuffer a
->   -> f (SizedBuffer a)
-> alterSizedBufferF f (SizedBuffer buf) = SizedBuffer <$> (f buf)
-> 
-> querySizedBuffer
->   :: (forall w t. (IsWidth w, IsTab t, Valued (MeasureText w t) a)
->       => Buffer w t a -> b)
->   -> SizedBuffer a
->   -> b
-> querySizedBuffer f (SizedBuffer buf) = f buf
 
 
 
 
 
-Splitting
-=========
 
-> splitBuffer
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => (MeasureText w t -> Bool)
->   -> Buffer w t a -> Maybe (Buffer w t a)
-> splitBuffer pointP (Buffer w) =
->   Buffer <$> TPL.splitPoint pointP w
-
-
-
-> splitBufferAtLineCol
+> -- Find coordinates "nearest" to a given pair that are
+> -- present in the buffer.
+> seekScreenCoords
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
->   => LineCol -> Buffer w t a -> Buffer w t a
-> splitBufferAtLineCol lc buf =
->   case splitBuffer (atLineCol lc) buf of
->     Nothing -> movePointToEnd buf
->     Just xs -> xs
-> 
-> atLineCol
->   :: LineCol -> MeasureText w t -> Bool
-> atLineCol lc m =
->   lc <= logicalCoords m
-
-
-
-> splitBufferAtScreenCoords
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
->   => (Int, Int) -> Buffer w t a -> Buffer w t a
-> splitBufferAtScreenCoords pos buf =
->   case splitBuffer (atScreenCoords pos) buf of
->     Nothing -> movePointToEnd buf
->     Just xs ->
->       let
->         offset = screenCoords $ getBufferHeadPosition xs
->         pos' = applyScreenOffset offset (0,0)
->       in
->         if pos == pos'
->           then xs
->           else movePointLeft xs
-> 
-> atScreenCoords
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => (Int, Int) -> MeasureText w t -> Bool
-> atScreenCoords (u,v) m =
->   let
->     (h,k) = applyScreenOffset (screenCoords m) (0,0)
->   in (v < k) || ((v == k) && (u <= h))
-
-
-
-
-> splitBufferAtScreenLine
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
->   => Int -> Buffer w t a -> Maybe (Buffer w t a)
-> splitBufferAtScreenLine k buf =
->   if k == 0
->     then Just $ movePointToStart buf
->     else splitBuffer (atScreenLine k) buf
-> 
-> atScreenLine
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => Int -> MeasureText w t -> Bool
-> atScreenLine k m =
->   let
->     offset = screenCoords m
->     (_,v) = applyScreenOffset offset (0,0)
->   in v >= k
-
-
-
-
+>   => (Int, Int) -> Buffer w t a -> (Int, Int)
+> seekScreenCoords z =
+>   getPointScreenCoords . movePointToScreenCoords z
 
 
 > data BufferRenderSettings
@@ -735,7 +806,7 @@ Rendering
 > takeLine xs =
 >   if FT.isEmpty xs
 >     then Nothing
->     else case FT.split (atScreenLine 1) xs of
+>     else case FT.split (atOrAfterScreenLine 1) xs of
 >       Nothing -> Just (xs, mempty)
 >       Just (as, x, bs) ->
 >         if FT.isEmpty bs
@@ -788,7 +859,7 @@ Rendering
 >      , [ FT.FingerTree (MeasureText w t) (Cell a) ]
 >      , FT.FingerTree (MeasureText w t) (Cell a) )
 > splitLines t h buf =
->   case splitBufferAtScreenLine t buf of
+>   case movePointToScreenLine t buf of
 >     Nothing ->
 >       let Buffer w = buf
 >       in (TPL.integrate w, [], mempty)
@@ -846,13 +917,13 @@ Rendering
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
 >      , IsChar a, Eq a )
 >   => BufferRenderSettings
->   -> (Cell a -> Cell a)
+>   -> (a -> a)
 >   -> Int -- top screen line
 >   -> Int -- view height
 >   -> Buffer w t a
 >   -> ([Maybe Int], [[(a, Int)]])
 > renderBuffer _ f t h buf =
->   let (as, xs, _) = splitLines t h $ fmapRegionL f buf
+>   let (as, xs, _) = splitLines t h $ alterRegion f buf
 >   in
 >     unzip $
 >       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ FT.toAnnotatedList z)) $
@@ -860,16 +931,79 @@ Rendering
 
 
 
-Testing and debugging
-=====================
+Testing and Debugging
+---------------------
 
-> mkFT
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
->   => Proxy w -> Proxy t -> Proxy a
->   -> [Cell Char] -> FT.FingerTree (MeasureText w t) (Cell a)
-> mkFT _ _ _ = FT.fromList . map (fmap fromChar)
-
-> validateBuffer
+> toAnnotatedList
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> [(Cell a, MeasureText w t)]
+> toAnnotatedList = TPL.toAnnotatedList . unBuffer
+
+> instance
+>   ( IsWidth w, IsTab t, IsChar a, Eq a
+>   , Arb a, Valued (MeasureText w t) a
+>   ) => Arb (Buffer w t a)
+>   where
+>     arb = do
+>       xs <- arb
+>       return $ Buffer (TPL.insertAtEnd (eof :: Cell a) xs)
+> 
+> instance
+>   ( IsWidth w, IsTab t, IsChar a, Eq a
+>   , Prune a, Valued (MeasureText w t) a
+>   ) => Prune (Buffer w t a)
+>   where
+>     prune (Buffer x) =
+>       case TPL.viewAtEnd x of
+>         Nothing -> error "prune: panic (expected eof)"
+>         Just (c, cs) ->
+>           [Buffer (TPL.insertAtEnd c z) | z <- prune cs]
+
+> makePointOnlyBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> Buffer w t a
+> makePointOnlyBuffer _ _ as x bs =
+>   Buffer $ TPL.makePointOnly
+>     (map Cell as) (Cell x) (map Cell bs ++ [eof])
+> 
+> makeCoincideBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> Buffer w t a
+> makeCoincideBuffer _ _ as x bs =
+>   Buffer $ TPL.makeCoincide
+>     (map Cell as) (Cell x) (map Cell bs ++ [eof])
+> 
+> makePointMarkBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
+> makePointMarkBuffer _ _ as x bs y cs =
+>   Buffer $ TPL.makePointMark
+>     (map Cell as) (Cell x) (map Cell bs)
+>     (Cell y) (map Cell cs ++ [eof])
+> 
+> makeMarkPointBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
+> makeMarkPointBuffer _ _ as x bs y cs =
+>   Buffer $ TPL.makeMarkPoint
+>     (map Cell as) (Cell x) (map Cell bs)
+>     (Cell y) (map Cell cs ++ [eof])
+
+
+> validate
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => Buffer w t a -> Bool
-> validateBuffer = TPL.validate . unBuffer
+> validate (Buffer w) =
+>   case TPL.viewAtEnd w of
+>     Nothing ->
+>       False
+>     Just (u, _) -> 
+>       (u == eof) && (TPL.validate w)

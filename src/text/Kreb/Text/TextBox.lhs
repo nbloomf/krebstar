@@ -66,6 +66,7 @@ Introduction
 > import Kreb.Text.Buffer
 > import Kreb.Text.Glyph
 > import Kreb.Text.Cell
+> import Kreb.Text.SizedBuffer
 
 
 
@@ -117,7 +118,7 @@ Queries
 > getTextBoxBytes
 >   :: TextBox -> Int
 > getTextBoxBytes box =
->   querySizedBuffer getBufferBytes
+>   querySizedBuffer getBufferByteCount
 >     $ textboxBuffer box
 > 
 > getTextBoxLineCol
@@ -135,7 +136,7 @@ Queries
 > getTextBoxString
 >   :: TextBox -> String
 > getTextBoxString box =
->   querySizedBuffer getBufferString
+>   querySizedBuffer (map toChar . toList)
 >     $ textboxBuffer box
 > 
 > getTextBoxHeight
@@ -161,13 +162,13 @@ Queries
 > getTextBoxFocusLineCol
 >   :: TextBox -> LineCol
 > getTextBoxFocusLineCol box =
->   querySizedBuffer getBufferHeadLineCol
+>   querySizedBuffer getPointLineCol
 >     $ textboxBuffer box
 > 
 > getTextBoxFocusScreenCoords
 >   :: TextBox -> (Int, Int)
 > getTextBoxFocusScreenCoords box =
->   querySizedBuffer getBufferHeadScreenCoords
+>   querySizedBuffer getPointScreenCoords
 >     $ textboxBuffer box
 
 
@@ -197,10 +198,9 @@ Queries
 
 
 > highlightRegion
->   :: Cell Glyph -> Cell Glyph
+>   :: Glyph -> Glyph
 > highlightRegion z = case z of
->   EOF -> Cell (Glyph ' ' (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessVivid))
->   Cell (Glyph c f _) -> Cell (Glyph c (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessVivid))
+>   Glyph c f _ -> Glyph c (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessVivid)
 
 
 > renderTextBox
@@ -427,7 +427,7 @@ Queries
 > textboxLeaveMark box =
 >   let
 >     buf =
->       alterSizedBuffer (leaveMarkBuffer) $
+>       alterSizedBuffer (leaveMark) $
 >       textboxBuffer box
 >   in box
 >     { textboxBuffer = buf
@@ -455,12 +455,12 @@ Queries
 >     h = textboxHeight box
 > 
 >     buf =
->       alterSizedBuffer (insertPointLeftBuffer c) $
->       alterSizedBuffer (splitBufferAtScreenCoords (x, y+l)) $
+>       alterSizedBuffer (insertPointLeft c) $
+>       alterSizedBuffer (movePointToScreenCoords (x, y+l)) $
 >       textboxBuffer box
 > 
 >     (u,v) =
->       querySizedBuffer getBufferHeadScreenCoords $
+>       querySizedBuffer getPointScreenCoords $
 >       buf
 > 
 >     (v', l') = if v >= l+h
@@ -487,12 +487,12 @@ Queries
 >     l = textboxOffset box
 > 
 >     buf =
->       alterSizedBuffer deletePointLeftBuffer $
->       alterSizedBuffer (splitBufferAtScreenCoords (x, y+l)) $
+>       alterSizedBuffer deletePointLeft $
+>       alterSizedBuffer (movePointToScreenCoords (x, y+l)) $
 >       textboxBuffer box
 >     
 >     (u,v) =
->       querySizedBuffer getBufferHeadScreenCoords $
+>       querySizedBuffer getPointScreenCoords $
 >       buf
 > 
 >     (v', l') =
@@ -521,10 +521,10 @@ Queries
 >     h <- readSt getTextBoxHeight
 > 
 >     editSt $ editTextBoxBuffer $ alterSizedBuffer $
->       splitBufferAtScreenCoords (x,y+l+1)
+>       movePointToScreenCoords (x,y+l+1)
 > 
 >     (u,v) <- readSt $
->       querySizedBuffer getBufferHeadScreenCoords
+>       querySizedBuffer getPointScreenCoords
 >         . getTextBoxBuffer
 > 
 >     (_,q) <- readSt $
@@ -550,10 +550,10 @@ Queries
 >     l <- readSt getTextBoxOffset
 > 
 >     editSt $ editTextBoxBuffer $ alterSizedBuffer $
->       splitBufferAtScreenCoords (x,y+l-1)
+>       movePointToScreenCoords (x,y+l-1)
 > 
 >     (u,v) <- readSt $
->       querySizedBuffer getBufferHeadScreenCoords
+>       querySizedBuffer getPointScreenCoords
 >         . getTextBoxBuffer
 > 
 >     let
@@ -576,7 +576,7 @@ Queries
 >         textboxBuffer box
 >     
 >     (u,v) =
->       querySizedBuffer getBufferHeadScreenCoords $
+>       querySizedBuffer getPointScreenCoords $
 >       buf
 > 
 >     (v', l') =
@@ -602,7 +602,7 @@ Queries
 >     h <- readSt getTextBoxHeight
 > 
 >     (u,v) <- readSt $
->       querySizedBuffer getBufferHeadScreenCoords
+>       querySizedBuffer getPointScreenCoords
 >         . getTextBoxBuffer
 > 
 >     let
@@ -621,7 +621,7 @@ Resizing should not change the logical coordinates of the focus.
 > textboxResize (w, h) box =
 >   localSt box $ do
 >     pos <- readSt $
->       querySizedBuffer getBufferHeadLineCol
+>       querySizedBuffer getPointLineCol
 >         . getTextBoxBuffer
 > 
 >     (_,v3) <- readSt getTextBoxCursor
@@ -631,11 +631,11 @@ Resizing should not change the logical coordinates of the focus.
 >         . getTextBoxBuffer
 > 
 >     editSt $ editTextBoxBuffer $
->       alterSizedBuffer (splitBufferAtLineCol pos)
+>       alterSizedBuffer (movePointToLineCol pos)
 >         . shapeSizedBuffer w t
 > 
 >     (u2,v2) <- readSt $
->       querySizedBuffer getBufferHeadScreenCoords
+>       querySizedBuffer getPointScreenCoords
 >         . getTextBoxBuffer
 > 
 >     let

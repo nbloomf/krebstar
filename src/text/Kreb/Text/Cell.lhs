@@ -5,6 +5,8 @@
 
 > module Kreb.Text.Cell where
 
+> import Data.Foldable
+
 > import Kreb.Check
 > 
 > import Kreb.Struct.Valued
@@ -16,6 +18,11 @@
 >   = Cell a
 >   | EOF
 >   deriving Eq
+> 
+> listCell :: Cell a -> [a]
+> listCell x = case x of
+>   Cell a -> [a]
+>   EOF -> []
 > 
 > instance Functor Cell where
 >   fmap f x = case x of
@@ -76,9 +83,9 @@
 >       EOF -> MeasureText
 >         { charCount          = 0
 >         , byteCount          = 0
->         , logicalOffset      = LineCol 0 1
+>         , logicalOffset      = LineCol 0 0 -- 1
 >         , logicalCoords      = LineCol 0 0
->         , screenOffset       = mkNoNewlines [(1, Fixed1)]
+>         , screenOffset       = mkNoNewlines [] -- [(1, Fixed1)]
 >         , screenCoords       = mkNoNewlines []
 >         , hasEOF             = True
 >         , hasTrailingNewline = False

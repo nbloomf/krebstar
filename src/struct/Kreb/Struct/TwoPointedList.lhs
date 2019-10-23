@@ -9,6 +9,7 @@ title: Two-Pointed Lists
 * [Queries](#queries): Extracting value from a two-pointed list
 * [Navigation](#navigation): Moving the point and mark
 * [Mutation](#mutation): Altering state
+* [Region Operations](#region-operations): Read, delete, and alter the region
 * [Measurement](#measurement): Working with value annotations
 * [Splitting](#splitting): Breaking and searching
 * [Testing and Debugging](#testing-and-debugging): For when things go wrong
@@ -78,15 +79,23 @@ Next we define some constructors for this type. We have the usual `empty` and `s
 > singleton a =
 >   PointOnly (mempty, a, mempty)
 
-We can also convert a list into a two-pointed list. This is analogous to `makeFromList` on one-pointed lists; the head of the input list becomes the point, and the tail the right context.
+We can also convert a list into a two-pointed list. This is analogous to `makeFromList` on one-pointed lists; the head of the input list becomes the point, and the tail the right context. We'll also implement a version of this constructor for finger trees.
 
 > makeFromList
 >   :: ( Valued m a )
 >   => [a] -> TwoPointedList m a
 > makeFromList xs =
->   case FT.uncons $ FT.fromList xs of
+>   case xs of
+>     [] -> Vacant
+>     u:us -> PointOnly (mempty, u, FT.fromList us)
+> 
+> fromFingerTree
+>   :: ( Valued m a )
+>   => FT.FingerTree m a -> TwoPointedList m a
+> fromFingerTree as =
+>   case FT.uncons as of
 >     Nothing -> Vacant
->     Just (a, as) -> PointOnly (mempty, a, as)
+>     Just (u, us) -> PointOnly (mempty, u, us)
 
 For testing purposes it will be handy to have constructors which allow precise placement of the point and the mark. In principle these should not be used in real code, although there's no harm in it.
 
@@ -184,39 +193,6 @@ We'd also like `TwoPointedList` to be a functor. But as was the case with `OnePo
 >   MarkPoint (as, x, bs, y, cs) ->
 >     MarkPoint (FT.fmapFT f as, f x, FT.fmapFT f bs, f y, FT.fmapFT f cs)
 
-We'll also provide a restricted form of `fmapList` that only takes effect between the mark and the point. Note that this function is _left-biased_ -- 'between' includes the left endpoint but not the right. This is because eventually we'll use two-pointed lists to model text buffers, and we'll think of the cursor (point or mark) as existing _between_ characters in the buffer, specifically at the left edge of each cell.
-
-> fmapRegionL
->   :: forall m a
->    . ( Valued m a )
->   => (a -> a) -> TwoPointedList m a -> TwoPointedList m a
-> fmapRegionL f w = case w of
->   Vacant -> Vacant
->   PointOnly (as, x, bs) ->
->     PointOnly (as, f x, bs)
->   Coincide (as, x, bs) ->
->     Coincide (as, f x, bs)
->   PointMark (as, x, bs, y, cs) ->
->     PointMark (as, f x, FT.fmapFT f bs, y, cs)
->   MarkPoint (as, x, bs, y, cs) ->
->     MarkPoint (as, f x, FT.fmapFT f bs, y, cs)
-
-An example of `fmapRegionL` is useful here.
-
-::: doctest
-
-> -- $
-> -- >>> :{
-> -- let
-> --   x, y :: TwoPointedList Count Char
-> --   x = makeMarkPoint ['a'] 'b' ['c','d'] 'e' ['f']
-> --   y = makeMarkPoint ['a'] 'z' ['z','z'] 'e' ['f']
-> -- in y == fmapRegionL (const 'z') x
-> -- :}
-> -- True
-
-:::
-
 
 
 Queries
@@ -235,6 +211,18 @@ Next we define some helper functions for extracting information from a two-point
 > hasMark w = case w of
 >   PointOnly _ -> False
 >   _ -> True
+
+It will also be useful to detect when a two-pointed list has exactly one item in it.
+
+> isSingleton
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Bool
+> isSingleton w = case w of
+>   PointOnly (as, _, bs) ->
+>     (FT.isEmpty as) && (FT.isEmpty bs)
+>   Coincide (as, _, bs) ->
+>     (FT.isEmpty as) && (FT.isEmpty bs)
+>   _ -> False
 
 We can also detect when the point is at the first or last position in the list.
 
@@ -524,7 +512,7 @@ The second primitive clears the mark by resorbing it into the rest of the list.
 >   MarkPoint (as, x, bs, y, cs) ->
 >     PointOnly (as <> (FT.cons x bs), y, cs)
 
-And of course we have efficient operations for insertion and deletion. First at the start and end:
+And of course we have efficient operations for insertion and deletion. First at the start and end -- these are analogous to `cons/snoc` and `uncons/unsnoc` on ordinary lists, but we give them different names.
 
 > insertAtStart
 >   :: ( Valued m a )
@@ -540,6 +528,32 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     PointMark (FT.cons u as, x, bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->
 >     MarkPoint (FT.cons u as, x, bs, y, cs)
+> 
+> viewAtStart
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe (a, TwoPointedList m a)
+> viewAtStart w = case w of
+>   Vacant -> Nothing
+>   PointOnly (as, x, bs) -> Just $ case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing -> (x, empty)
+>       Just (b, bs') -> (x, PointOnly (mempty, b, bs'))
+>     Just (a, as') -> (a, PointOnly (as', x, bs))
+>   Coincide (as, x, bs) -> Just $ case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing -> (x, empty)
+>       Just (b, bs') -> (x, Coincide (mempty, b, bs))
+>     Just (a, as') -> (a, Coincide (as', x, bs))
+>   PointMark (as, x, bs, y, cs) -> Just $ case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing -> (x, Coincide (mempty, y, cs))
+>       Just (b, bs') -> (x, PointMark (mempty, b, bs', y, cs))
+>     Just (a, as') -> (a, PointMark (as', x, bs, y, cs))
+>   MarkPoint (as, x, bs, y, cs) -> Just $ case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing -> (x, Coincide (mempty, y, cs))
+>       Just (b, bs') -> (x, MarkPoint (mempty, b, bs', y, cs))
+>     Just (a, as') -> (a, MarkPoint (as', x, bs, y, cs))
 > 
 > deleteAtStart
 >   :: ( Valued m a )
@@ -581,6 +595,32 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     PointMark (as, x, bs, y, FT.snoc u cs)
 >   MarkPoint (as, x, bs, y, cs) ->
 >     MarkPoint (as, x, bs, y, FT.snoc u cs)
+> 
+> viewAtEnd
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe (a, TwoPointedList m a)
+> viewAtEnd w = case w of
+>   Vacant -> Nothing
+>   PointOnly (as, x, bs) -> Just $ case FT.unsnoc bs of
+>     Nothing -> case FT.unsnoc as of
+>       Nothing -> (x, empty)
+>       Just (a, as') -> (x, PointOnly (as', a, mempty))
+>     Just (b, bs') -> (b, PointOnly (as, x, bs'))
+>   Coincide (as, x, bs) -> Just $ case FT.unsnoc bs of
+>     Nothing -> case FT.unsnoc as of
+>       Nothing -> (x, empty)
+>       Just (a, as') -> (x, Coincide (as', a, mempty))
+>     Just (b, bs') -> (b, Coincide (as, x, bs'))
+>   PointMark (as, x, bs, y, cs) -> Just $ case FT.unsnoc cs of
+>     Nothing -> case FT.unsnoc bs of
+>       Nothing -> (y, Coincide (as, x, mempty))
+>       Just (b, bs') -> (y, PointMark (as, x, bs', b, mempty))
+>     Just (c, cs') -> (c, PointMark (as, x, bs, y, cs'))
+>   MarkPoint (as, x, bs, y, cs) -> Just $ case FT.unsnoc cs of
+>     Nothing -> case FT.unsnoc bs of
+>       Nothing -> (y, Coincide (as, x, mempty))
+>       Just (b, bs') -> (y, MarkPoint (as, x, bs', b, mempty))
+>     Just (c, cs') -> (c, MarkPoint (as, x, bs, y, cs'))
 > 
 > deleteAtEnd
 >   :: ( Valued m a )
@@ -680,6 +720,151 @@ And next to the left and the right of the point.
 
 
 
+Region Operations
+-----------------
+
+Our goal is to use two-pointed lists to represent buffers of text. With that in mind, it will also be useful to have operations for working with the _region_ -- the portion of the list between the point and the mark. The main operations are, in rough terms, _copy_, _cut_, and _alter_.
+
+It's important to be careful and consistent here about exactly what "between the point and the mark" means. In particular, are either the point or the mark themselves included? I can think of a few ways to resolve this:
+
+* Include the point but not the mark;
+* Include the mark but not the point;
+* Include both the mark and the point;
+* Include neither the mark nor the point;
+* Include the right endpoint but not the left (whether it's the point or the mark); or
+* Include the left endpoint but not the left (whether it's the point or the mark).
+
+I can certainly imagine scenarios where any of these interpretations would make sense. However the last one in particular jumps out as more "natural" for the purpose of text editing. To see why, consider the way terminals work when the cursor symbol is set to a block character. In this setting, usually the insertion point acts as if it is at the _left edge_ of the highlighted cursor block.
+
+So our region editing operations will all be _left biased_, affecting the left endpoint of the region but not the right, regardless of which is the point and which the mark.
+
+To start, here's a left-biased region version of `fmap`.
+
+> alterRegionL
+>   :: forall m a
+>    . ( Valued m a )
+>   => (a -> a) -> TwoPointedList m a -> TwoPointedList m a
+> alterRegionL f w = case w of
+>   Vacant -> Vacant
+>   PointOnly (as, x, bs) ->
+>     PointOnly (as, f x, bs)
+>   Coincide (as, x, bs) ->
+>     Coincide (as, f x, bs)
+>   PointMark (as, x, bs, y, cs) ->
+>     PointMark (as, f x, FT.fmapFT f bs, y, cs)
+>   MarkPoint (as, x, bs, y, cs) ->
+>     MarkPoint (as, f x, FT.fmapFT f bs, y, cs)
+
+An example of `alterRegionL` is useful here.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y :: TwoPointedList Count Char
+> --   x = makeMarkPoint ['a'] 'b' ['c','d'] 'e' ['f']
+> --   y = makeMarkPoint ['a'] 'z' ['z','z'] 'e' ['f']
+> -- in y == alterRegionL (const 'z') x
+> -- :}
+> -- True
+
+:::
+
+The next simplest operation simply extracts the region.
+
+> copyRegionL
+>   :: forall m a
+>    . ( Valued m a )
+>   => TwoPointedList m a
+>   -> Maybe (FT.FingerTree m a)
+> copyRegionL w = case w of
+>   Vacant -> Nothing
+>   PointOnly _ -> Nothing
+>   Coincide (_, x, _) -> Just (FT.singleton x)
+>   PointMark (_, x, bs, _, _) -> Just (FT.cons x bs)
+>   MarkPoint (_, x, bs, _, _) -> Just (FT.cons x bs)
+
+Our next region operation is _cut_. This removes the region, returning it along with the remainder of the list spliced together. Notably, after a cut operation the remaining list no longer has a mark set. The only tricky case is when the point and mark coincide with each other.
+
+> cutRegionL
+>   :: forall m a
+>    . ( Valued m a )
+>   => TwoPointedList m a
+>   -> Maybe (FT.FingerTree m a, TwoPointedList m a)
+> cutRegionL w = case w of
+>   Vacant -> Nothing
+>   PointOnly _ -> Nothing
+>   Coincide (as, x, bs) -> Just $ case FT.uncons bs of
+>     Just (b, bs') ->
+>       (FT.singleton x, PointOnly (as, b, bs'))
+>     Nothing -> case FT.unsnoc as of
+>       Just (a, as') ->
+>         (FT.singleton x, PointOnly (as', a, mempty))
+>       Nothing -> (FT.singleton x, Vacant)
+>   PointMark (as, x, bs, y, cs) ->
+>     Just (FT.cons x bs, PointOnly (as, y, cs))
+>   MarkPoint (as, x, bs, y, cs) ->
+>     Just (FT.cons x bs, PointOnly (as, y, cs))
+
+Finally, we have _insert_. We'd like insert and cut to be as close to inverses of each other as possible, although this is tricky; I think the best we can hope for is that cut is a left inverse of insert "up to a clearing of the mark".
+
+> insertRegionL
+>   :: forall m a
+>    . ( Valued m a )
+>   => FT.FingerTree m a -> TwoPointedList m a -> TwoPointedList m a
+> insertRegionL us w = case FT.uncons us of
+>   Nothing -> w
+>   Just (u, us') -> case w of
+>     Vacant -> case FT.unsnoc us' of
+>       Nothing -> Coincide (mempty, u, mempty)
+>       Just (v, us'') -> MarkPoint (mempty, u, us', v, mempty)
+>     PointOnly (as, x, bs) -> MarkPoint (as, u, us', x, bs)
+>     Coincide (as, x, bs) -> case FT.unsnoc us' of
+>       Nothing -> Coincide (as, u, bs)
+>       Just (v, us'') -> MarkPoint (as, u, us'', v, bs)
+>     PointMark (as, _, _, y, cs) ->
+>       MarkPoint (as, u, us', y, cs)
+>     MarkPoint (as, _, _, y, cs) ->
+>       MarkPoint (as, u, us', y, cs)
+
+Cut an insert are complicated enough that some examples would be helpful.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: TwoPointedList Count Char
+> --   x = makePointMark ['a','b'] 'c' ['d'] 'e' ['f']
+> --   --
+> --   y :: FT.FingerTree Count Char
+> --   y = FT.fromList ['x','y','z']
+> --   --
+> --   z :: TwoPointedList Count Char
+> --   z = makeMarkPoint ['a','b'] 'x' ['y','z'] 'e' ['f']
+> -- in z == insertRegionL y x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x :: TwoPointedList Count Char
+> --   x = makePointMark ['a','b'] 'c' ['d'] 'e' ['f']
+> --   --
+> --   y :: TwoPointedList Count Char
+> --   y = makePointOnly ['a','b'] 'e' ['f']
+> --   --
+> --   z :: FT.FingerTree Count Char
+> --   z = FT.fromList ['c','d']
+> -- in Just (z, y) == cutRegionL x
+> -- :}
+> -- True
+
+:::
+
+
+
 Measurement
 -----------
 
@@ -702,35 +887,62 @@ As with one-pointed lists, it will be handy to have access to the accumulated va
 
 We can also extract the accumulated value at the point and the mark. These return a `Maybe` to account for the case where the mark (or point!) is not set.
 
+> valueUpToPoint
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe m
+> valueUpToPoint w = case w of
+>   Vacant ->
+>     Nothing
+>   PointOnly (as, _, _) ->
+>     Just (value as)
+>   Coincide (as, _, _) ->
+>     Just (value as)
+>   PointMark (as, _, _, _, _) ->
+>     Just (value as)
+>   MarkPoint (as, x, bs, _, _) ->
+>     Just (value as <> value x <> value bs)
+> 
 > valueAtPoint
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> Maybe m
 > valueAtPoint w = case w of
+>   Vacant -> Nothing
+>   PointOnly (_, x, _) ->
+>     Just (value x)
+>   Coincide (_, x, _) ->
+>     Just (value x)
+>   PointMark (_, x, _, _, _) ->
+>     Just (value x)
+>   MarkPoint (_, _, _, y, _) ->
+>     Just (value y)
+> 
+> valueUpToMark
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe m
+> valueUpToMark w = case w of
 >   Vacant ->
 >     Nothing
->   PointOnly (as, x, _) ->
->     Just (value as <> value x)
->   Coincide (as, x, _) ->
->     Just (value as <> value x)
->   PointMark (as, x, _, _, _) ->
->     Just (value as <> value x)
->   MarkPoint (as, x, bs, y, _) ->
->     Just (value as <> value x <> value bs <> value y)
+>   PointOnly _ ->
+>     Nothing
+>   Coincide (as, _, _) ->
+>     Just (value as)
+>   PointMark (as, x, bs, _, _) ->
+>     Just (value as <> value x <> value bs)
+>   MarkPoint (as, _, _, _, _) ->
+>     Just (value as)
 > 
 > valueAtMark
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> Maybe m
 > valueAtMark w = case w of
->   Vacant ->
->     Nothing
->   PointOnly (as, x, _) ->
->     Just (value as <> value x)
->   Coincide (as, x, _) ->
->     Just (value as <> value x)
->   PointMark (as, x, bs, y, _) ->
->     Just (value as <> value x <> value bs <> value y)
->   MarkPoint (as, x, _, _, _) ->
->     Just (value as <> value x)
+>   Vacant -> Nothing
+>   PointOnly _ -> Nothing
+>   Coincide (_, x, _) ->
+>     Just (value x)
+>   PointMark (_, _, _, y, _) ->
+>     Just (value y)
+>   MarkPoint (_, x, _, _, _) ->
+>     Just (value x)
 
 Finally, we can remeasure a two-pointed list. This will be especially useful for working with text buffers, where the value will encode type level parameters.
 
