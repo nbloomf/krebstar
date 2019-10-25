@@ -877,10 +877,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb27-13" data-line-number="13">      <span class="dt">MarkPoint</span> (as, x, bs, y, cs) <span class="ot">-&gt;</span> mconcat</a>
 <a class="sourceLine" id="cb27-14" data-line-number="14">        [value as, value x, value bs, value y, value cs]</a></code></pre></div>
 <p>We can also extract the accumulated value at the point and the mark. These return a <code>Maybe</code> to account for the case where the mark (or point!) is not set.</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1">valueUpToPoint</a>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1">valueBeforePoint</a>
 <a class="sourceLine" id="cb28-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
 <a class="sourceLine" id="cb28-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">TwoPointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> m</a>
-<a class="sourceLine" id="cb28-4" data-line-number="4">valueUpToPoint w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-4" data-line-number="4">valueBeforePoint w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
 <a class="sourceLine" id="cb28-5" data-line-number="5">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb28-6" data-line-number="6">    <span class="dt">Nothing</span></a>
 <a class="sourceLine" id="cb28-7" data-line-number="7">  <span class="dt">PointOnly</span> (as, _, _) <span class="ot">-&gt;</span></a>
@@ -906,33 +906,48 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb28-27" data-line-number="27">  <span class="dt">MarkPoint</span> (_, _, _, y, _) <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb28-28" data-line-number="28">    <span class="dt">Just</span> (value y)</a>
 <a class="sourceLine" id="cb28-29" data-line-number="29"></a>
-<a class="sourceLine" id="cb28-30" data-line-number="30">valueUpToMark</a>
+<a class="sourceLine" id="cb28-30" data-line-number="30">valueUpToPoint</a>
 <a class="sourceLine" id="cb28-31" data-line-number="31"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
 <a class="sourceLine" id="cb28-32" data-line-number="32">  <span class="ot">=&gt;</span> <span class="dt">TwoPointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> m</a>
-<a class="sourceLine" id="cb28-33" data-line-number="33">valueUpToMark w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-33" data-line-number="33">valueUpToPoint w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
 <a class="sourceLine" id="cb28-34" data-line-number="34">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb28-35" data-line-number="35">    <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb28-36" data-line-number="36">  <span class="dt">PointOnly</span> _ <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-37" data-line-number="37">    <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb28-38" data-line-number="38">  <span class="dt">Coincide</span> (as, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-39" data-line-number="39">    <span class="dt">Just</span> (value as)</a>
-<a class="sourceLine" id="cb28-40" data-line-number="40">  <span class="dt">PointMark</span> (as, x, bs, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-41" data-line-number="41">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x <span class="fu">&lt;&gt;</span> value bs)</a>
-<a class="sourceLine" id="cb28-42" data-line-number="42">  <span class="dt">MarkPoint</span> (as, _, _, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-43" data-line-number="43">    <span class="dt">Just</span> (value as)</a>
+<a class="sourceLine" id="cb28-36" data-line-number="36">  <span class="dt">PointOnly</span> (as, x, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-37" data-line-number="37">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x)</a>
+<a class="sourceLine" id="cb28-38" data-line-number="38">  <span class="dt">Coincide</span> (as, x, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-39" data-line-number="39">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x)</a>
+<a class="sourceLine" id="cb28-40" data-line-number="40">  <span class="dt">PointMark</span> (as, x, _, _, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-41" data-line-number="41">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x)</a>
+<a class="sourceLine" id="cb28-42" data-line-number="42">  <span class="dt">MarkPoint</span> (as, x, bs, y, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-43" data-line-number="43">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x <span class="fu">&lt;&gt;</span> value bs <span class="fu">&lt;&gt;</span> value y)</a>
 <a class="sourceLine" id="cb28-44" data-line-number="44"></a>
-<a class="sourceLine" id="cb28-45" data-line-number="45">valueAtMark</a>
+<a class="sourceLine" id="cb28-45" data-line-number="45">valueUpToMark</a>
 <a class="sourceLine" id="cb28-46" data-line-number="46"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
 <a class="sourceLine" id="cb28-47" data-line-number="47">  <span class="ot">=&gt;</span> <span class="dt">TwoPointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> m</a>
-<a class="sourceLine" id="cb28-48" data-line-number="48">valueAtMark w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
-<a class="sourceLine" id="cb28-49" data-line-number="49">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb28-50" data-line-number="50">  <span class="dt">PointOnly</span> _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb28-51" data-line-number="51">  <span class="dt">Coincide</span> (_, x, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-52" data-line-number="52">    <span class="dt">Just</span> (value x)</a>
-<a class="sourceLine" id="cb28-53" data-line-number="53">  <span class="dt">PointMark</span> (_, _, _, y, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-54" data-line-number="54">    <span class="dt">Just</span> (value y)</a>
-<a class="sourceLine" id="cb28-55" data-line-number="55">  <span class="dt">MarkPoint</span> (_, x, _, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-56" data-line-number="56">    <span class="dt">Just</span> (value x)</a></code></pre></div>
+<a class="sourceLine" id="cb28-48" data-line-number="48">valueUpToMark w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-49" data-line-number="49">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-50" data-line-number="50">    <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb28-51" data-line-number="51">  <span class="dt">PointOnly</span> _ <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-52" data-line-number="52">    <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb28-53" data-line-number="53">  <span class="dt">Coincide</span> (as, _, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-54" data-line-number="54">    <span class="dt">Just</span> (value as)</a>
+<a class="sourceLine" id="cb28-55" data-line-number="55">  <span class="dt">PointMark</span> (as, x, bs, _, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-56" data-line-number="56">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x <span class="fu">&lt;&gt;</span> value bs)</a>
+<a class="sourceLine" id="cb28-57" data-line-number="57">  <span class="dt">MarkPoint</span> (as, _, _, _, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-58" data-line-number="58">    <span class="dt">Just</span> (value as)</a>
+<a class="sourceLine" id="cb28-59" data-line-number="59"></a>
+<a class="sourceLine" id="cb28-60" data-line-number="60">valueAtMark</a>
+<a class="sourceLine" id="cb28-61" data-line-number="61"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb28-62" data-line-number="62">  <span class="ot">=&gt;</span> <span class="dt">TwoPointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> m</a>
+<a class="sourceLine" id="cb28-63" data-line-number="63">valueAtMark w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-64" data-line-number="64">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb28-65" data-line-number="65">  <span class="dt">PointOnly</span> _ <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb28-66" data-line-number="66">  <span class="dt">Coincide</span> (_, x, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-67" data-line-number="67">    <span class="dt">Just</span> (value x)</a>
+<a class="sourceLine" id="cb28-68" data-line-number="68">  <span class="dt">PointMark</span> (_, _, _, y, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-69" data-line-number="69">    <span class="dt">Just</span> (value y)</a>
+<a class="sourceLine" id="cb28-70" data-line-number="70">  <span class="dt">MarkPoint</span> (_, x, _, _, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-71" data-line-number="71">    <span class="dt">Just</span> (value x)</a></code></pre></div>
 <p>Finally, we can remeasure a two-pointed list. This will be especially useful for working with text buffers, where the value will encode type level parameters.</p>
 <div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1">remeasure</a>
 <a class="sourceLine" id="cb29-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m1 a, <span class="dt">Valued</span> m2 a )</a>
@@ -998,25 +1013,27 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb32-11" data-line-number="11">      <span class="dt">Just</span> (us, y, vs) <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb32-12" data-line-number="12">        <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointOnly</span> (us, y, vs)</a>
 <a class="sourceLine" id="cb32-13" data-line-number="13">  <span class="dt">Coincide</span> (as, x, bs) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb32-14" data-line-number="14">    <span class="kw">case</span> FT.split pointP as <span class="kw">of</span></a>
-<a class="sourceLine" id="cb32-15" data-line-number="15">      <span class="dt">Just</span> (us, y, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointMark</span> (us, y, vs, x, bs)</a>
-<a class="sourceLine" id="cb32-16" data-line-number="16">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">case</span> FT.splitWithContext (value as <span class="fu">&lt;&gt;</span> value x) pointP bs <span class="kw">of</span></a>
-<a class="sourceLine" id="cb32-17" data-line-number="17">        <span class="dt">Just</span> (us, y, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">MarkPoint</span> (as, x, us, y, vs)</a>
-<a class="sourceLine" id="cb32-18" data-line-number="18">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb32-19" data-line-number="19">  <span class="dt">PointMark</span> (as, x, bs, y, cs) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb32-20" data-line-number="20">    <span class="kw">let</span> ds <span class="fu">=</span> as <span class="fu">&lt;&gt;</span> FT.cons x bs</a>
-<a class="sourceLine" id="cb32-21" data-line-number="21">    <span class="kw">in</span> <span class="kw">case</span> FT.split pointP ds <span class="kw">of</span></a>
-<a class="sourceLine" id="cb32-22" data-line-number="22">      <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointMark</span> (us, z, vs, y, cs)</a>
-<a class="sourceLine" id="cb32-23" data-line-number="23">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">case</span> FT.splitWithContext (value ds <span class="fu">&lt;&gt;</span> value y) pointP cs <span class="kw">of</span></a>
-<a class="sourceLine" id="cb32-24" data-line-number="24">        <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">MarkPoint</span> (ds, y, us, z, vs )</a>
-<a class="sourceLine" id="cb32-25" data-line-number="25">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb32-26" data-line-number="26">  <span class="dt">MarkPoint</span> (as, x, bs, y, cs) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb32-27" data-line-number="27">    <span class="kw">let</span> ds <span class="fu">=</span> bs <span class="fu">&lt;&gt;</span> FT.cons y cs</a>
-<a class="sourceLine" id="cb32-28" data-line-number="28">    <span class="kw">in</span> <span class="kw">case</span> FT.split pointP as <span class="kw">of</span></a>
-<a class="sourceLine" id="cb32-29" data-line-number="29">      <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointMark</span> (us, z, vs, x, ds)</a>
-<a class="sourceLine" id="cb32-30" data-line-number="30">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">case</span> FT.splitWithContext (value as <span class="fu">&lt;&gt;</span> value x) pointP ds <span class="kw">of</span></a>
-<a class="sourceLine" id="cb32-31" data-line-number="31">        <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">MarkPoint</span> (as, x, us, z, vs)</a>
-<a class="sourceLine" id="cb32-32" data-line-number="32">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
+<a class="sourceLine" id="cb32-14" data-line-number="14">    <span class="kw">if</span> (not (pointP (value as))) <span class="fu">&amp;&amp;</span> (pointP (value as <span class="fu">&lt;&gt;</span> value x))</a>
+<a class="sourceLine" id="cb32-15" data-line-number="15">      <span class="kw">then</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">Coincide</span> (as, x, bs)</a>
+<a class="sourceLine" id="cb32-16" data-line-number="16">      <span class="kw">else</span> <span class="kw">case</span> FT.split pointP as <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-17" data-line-number="17">        <span class="dt">Just</span> (us, y, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointMark</span> (us, y, vs, x, bs)</a>
+<a class="sourceLine" id="cb32-18" data-line-number="18">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">case</span> FT.splitWithContext (value as <span class="fu">&lt;&gt;</span> value x) pointP bs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-19" data-line-number="19">          <span class="dt">Just</span> (us, y, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">MarkPoint</span> (as, x, us, y, vs)</a>
+<a class="sourceLine" id="cb32-20" data-line-number="20">          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb32-21" data-line-number="21">  <span class="dt">PointMark</span> (as, x, bs, y, cs) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb32-22" data-line-number="22">    <span class="kw">let</span> ds <span class="fu">=</span> as <span class="fu">&lt;&gt;</span> FT.cons x bs</a>
+<a class="sourceLine" id="cb32-23" data-line-number="23">    <span class="kw">in</span> <span class="kw">case</span> FT.split pointP ds <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-24" data-line-number="24">      <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointMark</span> (us, z, vs, y, cs)</a>
+<a class="sourceLine" id="cb32-25" data-line-number="25">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">case</span> FT.splitWithContext (value ds <span class="fu">&lt;&gt;</span> value y) pointP cs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-26" data-line-number="26">        <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">MarkPoint</span> (ds, y, us, z, vs )</a>
+<a class="sourceLine" id="cb32-27" data-line-number="27">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb32-28" data-line-number="28">  <span class="dt">MarkPoint</span> (as, x, bs, y, cs) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb32-29" data-line-number="29">    <span class="kw">let</span> ds <span class="fu">=</span> bs <span class="fu">&lt;&gt;</span> FT.cons y cs</a>
+<a class="sourceLine" id="cb32-30" data-line-number="30">    <span class="kw">in</span> <span class="kw">case</span> FT.split pointP as <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-31" data-line-number="31">      <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">PointMark</span> (us, z, vs, x, ds)</a>
+<a class="sourceLine" id="cb32-32" data-line-number="32">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">case</span> FT.splitWithContext (value as <span class="fu">&lt;&gt;</span> value x) pointP ds <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-33" data-line-number="33">        <span class="dt">Just</span> (us, z, vs) <span class="ot">-&gt;</span> <span class="dt">Just</span> <span class="fu">$</span> <span class="dt">MarkPoint</span> (as, x, us, z, vs)</a>
+<a class="sourceLine" id="cb32-34" data-line-number="34">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
 <p>Some examples:</p>
 <div class="doctest">
 <div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" data-line-number="1"><span class="co">-- $</span></a>

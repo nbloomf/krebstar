@@ -8,6 +8,8 @@ title: Buffers
 * [Basic Mutation](#basic-mutation): Cut, copy, alter, insert
 * [Queries](#queries): Learning things about buffers
 * [Splitting](#splitting): Moving the read heads around (again)
+
+* [Testing and Debugging](#testing-and-debugging): For when things go wrong
 :::
 
 
@@ -22,7 +24,7 @@ title: Buffers
 > {-# LANGUAGE InstanceSigs #-}
 > 
 > module Kreb.Text.Buffer (
->     Buffer()
+>     Buffer(..)
 >   , empty
 >   , singleton
 >   , fromList
@@ -90,7 +92,6 @@ title: Buffers
 
 >   -- * Constructors
 > 
->   , defBuffer
 
 >   , adjustBuffer
 >   , resizeBuffer
@@ -225,6 +226,46 @@ Due to the EOF sigil, detecting when a buffer is empty or a singleton is a littl
 >     Nothing -> error "isSingleton: panic (expected eof)"
 >     Just (a, as) ->
 >       (a == (eof :: Cell a)) && (TPL.isSingleton as)
+
+We'll also go ahead and define some special constructors for building buffers of a very specific structure. These should only be used for testing and debugging, but we need to define them early in the module so we can use them in examples as we go. These correspond to the nontrivial constructors of two-pointed lists.
+
+> makePointOnlyBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> Buffer w t a
+> makePointOnlyBuffer _ _ as x bs =
+>   Buffer $ TPL.makePointOnly
+>     (map Cell as) (Cell x) (map Cell bs ++ [eof])
+> 
+> makeCoincideBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> Buffer w t a
+> makeCoincideBuffer _ _ as x bs =
+>   Buffer $ TPL.makeCoincide
+>     (map Cell as) (Cell x) (map Cell bs ++ [eof])
+> 
+> makePointMarkBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
+> makePointMarkBuffer _ _ as x bs y cs =
+>   Buffer $ TPL.makePointMark
+>     (map Cell as) (Cell x) (map Cell bs)
+>     (Cell y) (map Cell cs ++ [eof])
+> 
+> makeMarkPointBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t
+>   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
+> makeMarkPointBuffer _ _ as x bs y cs =
+>   Buffer $ TPL.makeMarkPoint
+>     (map Cell as) (Cell x) (map Cell bs)
+>     (Cell y) (map Cell cs ++ [eof])
 
 
 
@@ -503,9 +544,9 @@ Next we have queries on the measure of the entire buffer.
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> LineCol
-> getBufferLineCol (Buffer buf) =
+> getBufferLineCol buf =
 >   let m = value buf :: MeasureText w t in
->   logicalOffset m
+>   logicalCoords m
 > 
 > getBufferScreenCoords
 >   :: forall w t a
@@ -540,7 +581,7 @@ Likewise we can query the value at the point.
 > getPointLineCol (Buffer w) =
 >   case TPL.valueUpToPoint w of
 >     Nothing -> mempty
->     Just m -> logicalOffset m
+>     Just m -> logicalCoords m
 >  
 > getPointScreenCoords
 >   :: forall w t a
@@ -576,7 +617,7 @@ And for good measure, at the mark as well.
 > getMarkLineCol (Buffer w) =
 >   case TPL.valueUpToMark w of
 >     Nothing -> mempty
->     Just m -> logicalOffset m
+>     Just m -> logicalCoords m
 >  
 > getMarkScreenCoords
 >   :: forall w t a
@@ -592,7 +633,7 @@ And for good measure, at the mark as well.
 Splitting
 ---------
 
-Recall that finger trees, the structure underlying our buffers, admits an efficient _splitting_ operation, which we can take advantage of to move the point and mark to specific locations in the buffer. First we define a utility function, not exposed outside this module, that attempts to split a buffer on an arbitrary predicate.
+Recall that finger trees, the structure underlying our buffers, admit an efficient _splitting_ operation, which we can take advantage of to move the point and mark to specific locations in the buffer. First we define a utility function, not exposed outside this module, that attempts to split a buffer on an arbitrary predicate.
 
 > splitPoint
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
@@ -614,19 +655,57 @@ For ergonomics' sake we'll expose specialized splitting functions. First at a gi
 > atOrAfterLineCol
 >   :: LineCol -> MeasureText w t -> Bool
 > atOrAfterLineCol lc m =
->   lc <= logicalCoords m
+>   lc < (logicalCoords m) <> (logicalOffset m)
 
-Next at a given pair of screen coordinates:
+We should also test some simple cases to make sure we understand how this splitting works.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\nghi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "bc\ndef\nghi"
+> -- in y == movePointToLineCol (LineCol 0 0) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\nghi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abc\ndef\ng" 'h' "i"
+> -- in y == movePointToLineCol (LineCol 2 1) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\nghi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abc" '\n' "def\nghi"
+> -- in y == movePointToLineCol (LineCol 0 4) x
+> -- :}
+> -- True
+
+:::
+
+Next we'd like to split at a given pair of screen coordinates. It's straightforward how this should work if we try to split at a pair of coordinates corresponding to a character in the buffer (split there). It's also (slightly less but still fairly) straightforward how to handle coordinates that fall off the end of the buffer; we'll just clamp them to the EOF sigil. But there's a universe of pairs whose $y$ coordinates correspond to _lines_ on the screen, but whose $x$ coordinates march off the right edge. What should these do?
+
+One option is to just fail. But I think a better option is to try our best to return a reasonable result: in this case, to move the point to the last position on the screen line. In some sense that is "as close as we can get" in this case.
 
 > movePointToScreenCoords
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => (Int, Int) -> Buffer w t a -> Buffer w t a
 > movePointToScreenCoords pos buf =
 >   case splitPoint (atOrAfterScreenCoords pos) buf of
 >     Nothing -> movePointToEnd buf
->     Just xs -> if pos == (getPointScreenCoords xs)
->       then xs
->       else movePointLeft xs
+>     Just xs -> xs
 > 
 > atOrAfterScreenCoords
 >   :: forall w t
@@ -634,19 +713,107 @@ Next at a given pair of screen coordinates:
 >   => (Int, Int) -> MeasureText w t -> Bool
 > atOrAfterScreenCoords (u,v) m =
 >   let
->     (h,k) = applyScreenOffset (screenCoords m) (0,0)
->   in (v < k) || ((v == k) && (u <= h))
+>     (h,k) = applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
+>   in (v < k) || ((v == k) && (u < h))
 
-And then at a given screen line.
+We can test our understanding with some examples.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde" 'f' "\nghi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "bc\ndef\nghi"
+> -- in y == movePointToScreenCoords (0,0) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde" 'f' "\nghi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "a" 'b' "c\ndef\nghi"
+> -- in y == movePointToScreenCoords (1,0) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\ndefg" 'h' "i\njkl"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde" 'f' "ghi\njkl"
+> -- in y == movePointToScreenCoords (2,1) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "ab" 'c' "defgh"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abcdefg" 'h' ""
+> -- in y == movePointToScreenCoords (7,0) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde\nf" 'g' "h"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde" '\n' "fgh"
+> -- in y == movePointToScreenCoords (5,1) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abcdefghijklmn" 'o' "pqrst"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abcdefg" 'h' "ijklmnopqrst"
+> -- in y == movePointToScreenCoords (10,0) x
+> -- :}
+> -- True
+
+:::
+
+Next we define a utility which moves the point to the first character of a given screen line -- which is crucial for rendering buffers to the screen. This is a little trickier than moving to a specific line and character or pair of screen coordinates, because it involves a _relative_ position and nailing down exactly what it means to say that a character is at the start of a new screen line.
+
+Suppose the final screen coordinate in the buffer is $(W,H)$ and we want to move to the first position of screen line $y$. If $y$ is in the interval $[0,H]$, then some character has screen coordinate $(0,y)$ and we can find it with an ordinary split. Similarly simple, if $y$ is at least $H+2$ then no such character exists, and the EOF sigil can't help us. The delicate case is when we want to move to the first position of screen line $H+1$. This case depends on (1) the final character in the buffer and (2) the width of the final screen line in the buffer (that is, $W$). If the final character is a newline, we'd like to consider the EOF sigil to be the start of the next screen line. If the final character is not a newline, then we consider the EOF sigil to be on the last line (not the start of the next line) _unless_ the final character's effective width plus $W$ exceeds the screen width.
+
+That's a mouthful!
 
 > movePointToScreenLine
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => Int -> Buffer w t a -> Maybe (Buffer w t a)
 > movePointToScreenLine k buf =
->   if k == 0
->     then Just $ movePointToStart buf
->     else splitPoint (atOrAfterScreenLine k) buf
+>   let (w,h) = getBufferScreenCoords buf
+>   in if k > 1 + h
+>     then Nothing
+>     else if k <= 0
+>       then Just $ movePointToStart buf
+>       else do
+>         z <- splitPoint (atOrAfterScreenLine k) buf
+>         if k < 1 + h
+>           then return z
+>           else case fmap (fmap toChar) (readPoint buf) of
+>             Nothing -> error "movePointToScreenLine: panic (expected eof)"
+>             Just (Cell '\n') -> Just $ movePointRight z
+>             Just (Cell c) ->
+>               let
+>                 offset :: ScreenOffset w t
+>                 offset = screenOffset $ value c
+>                 (_,h1) = applyScreenOffset offset (w,h)
+>               in if (h1 == 1 + h)
+>                 then Just $ movePointRight z
+>                 else Nothing
 > 
 > atOrAfterScreenLine
 >   :: forall w t
@@ -656,7 +823,97 @@ And then at a given screen line.
 >   let
 >     offset = screenCoords m
 >     (_,v) = applyScreenOffset offset (0,0)
->   in v >= k
+>   in (v >= k) || (hasEOF m)
+
+And some example cases:
+
+::: doctest
+
+> -- $
+> -- Split at line 0 < h
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde" 'f' "\nghi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "bc\ndef\nghi"
+> -- in Just y == movePointToScreenLine 0 x
+> -- :}
+> -- True
+> --
+> -- Split at line 1 < h
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde\nf" 'g' "h"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abc\n" 'd' "e\nfgh"
+> -- in Just y == movePointToScreenLine 1 x
+> -- :}
+> -- True
+> --
+> -- Split at line 2 < h
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\n" 'd' "e\nfgh"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abc\nde\n" 'f' "gh"
+> -- in Just y == movePointToScreenLine 2 x
+> -- :}
+> -- True
+> --
+> -- Split at line h+1 (last cell is an interior char)
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' ""
+> -- in Nothing == movePointToScreenLine 1 x
+> -- :}
+> -- True
+> --
+> -- Split at line h+1 (last cell is a newline)
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" '\n' ""
+> --   y = movePointToEnd x
+> -- in Just y == movePointToScreenLine 1 x
+> -- :}
+> -- True
+> --
+> -- Split at line h+1 (last cell is an end char)
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "aaaaaaa"
+> --   y = movePointToEnd x
+> -- in Just y == movePointToScreenLine 1 x
+> -- :}
+> -- True
+> --
+> -- Split at line h+1 (last cell is an end tab)
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" '\t' "\t\t\t"
+> --   y = movePointToEnd x
+> -- in Just y == movePointToScreenLine 1 x
+> -- :}
+> -- True
+> --
+> -- Split at line 1 == h (last cell is a newline)
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" '\n' "\n"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "\n" '\n' ""
+> -- in Just y == movePointToScreenLine 1 x
+> -- :}
+> -- True
+
+:::
 
 
 
@@ -668,34 +925,6 @@ And then at a given screen line.
 
 
 
-
-
-
-Constructors and destructors
-----------------------------
-
-
-> defBuffer
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
->   => Proxy w -> Proxy t -> [a] -> Buffer w t a
-> defBuffer _ _ = fromList
-
-> charBuffer
->   :: ( IsWidth w, IsTab t
->      , Valued (MeasureText w t) a, IsChar a, Eq a )
->   => Proxy w -> Proxy t -> [Char]
->   -> Buffer w t a
-> charBuffer _ _ as = mapBuffer fromChar $ fromList as
-
-> charBufferFocus
->   :: ( IsWidth w, IsTab t
->      , Valued (MeasureText w t) a, IsChar a, Eq a )
->   => Proxy w -> Proxy t -> Proxy a -> [Char] -> Char -> [Char]
->   -> Buffer w t a
-> charBufferFocus pw pt _ as x bs = makePointOnlyBuffer pw pt
->   (map fromChar as) (fromChar x) (map fromChar bs)
-
-And we can give a handy `Show` instance:
 
 > instance
 >   ( Show a, IsWidth w, IsTab t, IsChar a
@@ -931,13 +1160,16 @@ Rendering
 
 
 
+
+
+
+
+
+
 Testing and Debugging
 ---------------------
 
-> toAnnotatedList
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Buffer w t a -> [(Cell a, MeasureText w t)]
-> toAnnotatedList = TPL.toAnnotatedList . unBuffer
+As usual, we wrap up this module with some helper code for writing tests. First we need class instances for working with our property testing library.
 
 > instance
 >   ( IsWidth w, IsTab t, IsChar a, Eq a
@@ -959,44 +1191,7 @@ Testing and Debugging
 >         Just (c, cs) ->
 >           [Buffer (TPL.insertAtEnd c z) | z <- prune cs]
 
-> makePointOnlyBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> Buffer w t a
-> makePointOnlyBuffer _ _ as x bs =
->   Buffer $ TPL.makePointOnly
->     (map Cell as) (Cell x) (map Cell bs ++ [eof])
-> 
-> makeCoincideBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> Buffer w t a
-> makeCoincideBuffer _ _ as x bs =
->   Buffer $ TPL.makeCoincide
->     (map Cell as) (Cell x) (map Cell bs ++ [eof])
-> 
-> makePointMarkBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
-> makePointMarkBuffer _ _ as x bs y cs =
->   Buffer $ TPL.makePointMark
->     (map Cell as) (Cell x) (map Cell bs)
->     (Cell y) (map Cell cs ++ [eof])
-> 
-> makeMarkPointBuffer
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t
->   -> [a] -> a -> [a] -> a -> [a] -> Buffer w t a
-> makeMarkPointBuffer _ _ as x bs y cs =
->   Buffer $ TPL.makeMarkPoint
->     (map Cell as) (Cell x) (map Cell bs)
->     (Cell y) (map Cell cs ++ [eof])
-
+Next, recall that buffers need to satisfy some invariants: first of all they are built on finger trees, which have invariants of their own, but moreover the buffer must end with an EOF sigil. We expose a helper to check for this.
 
 > validate
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
@@ -1007,3 +1202,10 @@ Testing and Debugging
 >       False
 >     Just (u, _) -> 
 >       (u == eof) && (TPL.validate w)
+
+And lastly we expose a function that converts a buffer into a list with all the gritty value details exposed.
+
+> toAnnotatedList
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> [(Cell a, MeasureText w t)]
+> toAnnotatedList = TPL.toAnnotatedList . unBuffer

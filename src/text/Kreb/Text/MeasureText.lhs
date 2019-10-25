@@ -148,7 +148,7 @@ Note that for both logical and screen positions we maintain _offsets_ and _coord
 >           else logicalOffset m2
 >     , logicalCoords =
 >         if (mempty == logicalOffset m2) && (mempty == logicalCoords m2)
->           then logicalCoords m1
+>           then (logicalCoords m1)
 >           else (logicalCoords m1) <> (logicalOffset m1) <> (logicalCoords m2)
 >     , screenOffset =
 >         if (mempty == screenOffset m2) && (mempty == screenCoords m2)
@@ -156,12 +156,11 @@ Note that for both logical and screen positions we maintain _offsets_ and _coord
 >           else screenOffset m2
 >     , screenCoords =
 >         if (mempty == screenOffset m2) && (mempty == screenCoords m2)
->           then screenCoords m1
+>           then (screenCoords m1)
 >           else (screenCoords m1) <> (screenOffset m1) <> (screenCoords m2)
->     , hasEOF =
->         (hasEOF m1) || (hasEOF m2)
+>     , hasEOF = (hasEOF m1) || (hasEOF m2)
 >     , hasTrailingNewline =
->         hasTrailingNewline m2
+>           hasTrailingNewline m2
 >     }
 > 
 > instance

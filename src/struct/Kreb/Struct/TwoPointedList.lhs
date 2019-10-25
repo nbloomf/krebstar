@@ -887,10 +887,10 @@ As with one-pointed lists, it will be handy to have access to the accumulated va
 
 We can also extract the accumulated value at the point and the mark. These return a `Maybe` to account for the case where the mark (or point!) is not set.
 
-> valueUpToPoint
+> valueBeforePoint
 >   :: ( Valued m a )
 >   => TwoPointedList m a -> Maybe m
-> valueUpToPoint w = case w of
+> valueBeforePoint w = case w of
 >   Vacant ->
 >     Nothing
 >   PointOnly (as, _, _) ->
@@ -915,6 +915,21 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Just (value x)
 >   MarkPoint (_, _, _, y, _) ->
 >     Just (value y)
+> 
+> valueUpToPoint
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe m
+> valueUpToPoint w = case w of
+>   Vacant ->
+>     Nothing
+>   PointOnly (as, x, _) ->
+>     Just (value as <> value x)
+>   Coincide (as, x, _) ->
+>     Just (value as <> value x)
+>   PointMark (as, x, _, _, _) ->
+>     Just (value as <> value x)
+>   MarkPoint (as, x, bs, y, _) ->
+>     Just (value as <> value x <> value bs <> value y)
 > 
 > valueUpToMark
 >   :: ( Valued m a )
@@ -1018,11 +1033,13 @@ We also provide a splitting function that preserves the mark.
 >       Just (us, y, vs) ->
 >         Just $ PointOnly (us, y, vs)
 >   Coincide (as, x, bs) ->
->     case FT.split pointP as of
->       Just (us, y, vs) -> Just $ PointMark (us, y, vs, x, bs)
->       Nothing -> case FT.splitWithContext (value as <> value x) pointP bs of
->         Just (us, y, vs) -> Just $ MarkPoint (as, x, us, y, vs)
->         Nothing -> Nothing
+>     if (not (pointP (value as))) && (pointP (value as <> value x))
+>       then Just $ Coincide (as, x, bs)
+>       else case FT.split pointP as of
+>         Just (us, y, vs) -> Just $ PointMark (us, y, vs, x, bs)
+>         Nothing -> case FT.splitWithContext (value as <> value x) pointP bs of
+>           Just (us, y, vs) -> Just $ MarkPoint (as, x, us, y, vs)
+>           Nothing -> Nothing
 >   PointMark (as, x, bs, y, cs) ->
 >     let ds = as <> FT.cons x bs
 >     in case FT.split pointP ds of
