@@ -40,7 +40,7 @@ docs/index.html: FORCE
 	@pandoc \
 	  --from markdown+literate_haskell --to html \
 	  --mathjax --section-divs \
-	  --data-dir=aux --template=tufte.html5 \
+	  --data-dir=aux --template=doc.html5 \
 	  --css style.css \
 	  --output $@ \
 	  aux/index.md
@@ -51,7 +51,7 @@ $(EXTRADOC): FORCE
 	  --from markdown+literate_haskell --to html \
 	  --mathjax --section-divs \
 	  --filter pandoc-sidenote \
-	  --data-dir=aux --template=tufte.html5 \
+	  --data-dir=aux --template=doc.html5 \
 	  --css ../style.css \
 	  --output docs/html/$(patsubst %.md,%.html,$(notdir $@)) \
 	  $@
@@ -62,7 +62,7 @@ $(SOURCES): FORCE
 	  --from markdown+literate_haskell --to html \
 	  --mathjax --section-divs \
 	  --filter pandoc-sidenote \
-	  --data-dir=aux --template=tufte.html5 \
+	  --data-dir=aux --template=doc.html5 \
 	  --css ../style.css \
 	  --output docs/html/$(patsubst %.lhs,%.html,$(notdir $@)) \
 	  $@

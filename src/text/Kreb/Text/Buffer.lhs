@@ -1019,6 +1019,14 @@ And some tests for our intuition:
 Rendering
 ---------
 
+Buffers are a data structure for storing and manipulating text, but they're not very helpful for _viewing_ the text. We'll also need some code to convert the internal representation of a buffer into a format suitable for rendering on a screen.
+
+We're making a major simplifying assumption that comes in handy here: text will be drawn in a monospaced typeface, meaning we can pretend that the display window is divided into a rectangular grid of character positions and each character occupies a whole number of grid cells.
+
+The buffer is naturally divided into _screen lines_ -- these are contiguous chunks of text that will render at the same $y$ coordinate. We've set up the `MeasureText` type so that these are easy to find. All but the last of these screen lines will be _full_, meaning that every cell is occupied (possibly by a newline or tab). The last screen line is not full; this is where the EOF sigil hangs out.
+
+To flesh out the theory of buffers, we'll include here a function which detects whether or not the buffer has a full screen line.
+
 > hasFullScreenLine
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
@@ -1028,6 +1036,8 @@ Rendering
 >     m = value w :: MeasureText w t
 >     (_,h) = applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
 >   in h > 0
+
+This function is primarily used in testing to help scaffold the consistency of our main rendering code. Here are some examples.
 
 ::: doctest
 
@@ -1058,6 +1068,8 @@ Rendering
 
 :::
 
+To render the buffer we'll first need to extract the visible screen lines. Working toward that goal, we'll start with something simpler: extracting the _first_ screen line from a buffer. Note the return type; we can always extract _something_ from a valid buffer, even if it's just the EOF sigil. The second entry in the return type indicates whether this happened -- it's `Nothing` if the EOF appears in the first entry, and `Just` otherwise.
+
 > takeFirstScreenLine
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
@@ -1077,9 +1089,12 @@ Rendering
 >           movePointToScreenLine 1 (clearMark w)
 >       in ( as, Just $ Buffer $ TPL.PointOnly (mempty, x, bs) )
 
+It is crucial that we understand exactly how this function works, since the rest of the rendering code is built on it. Here are some examples covering some of the different ways a buffer can be populated.
+
 ::: doctest
 
 > -- $
+> -- >>> -- 'Normal' text with a newline
 > -- >>> :set -XFlexibleContexts
 > -- >>> :{
 > -- let
@@ -1093,6 +1108,7 @@ Rendering
 > -- :}
 > -- True
 > --
+> -- >>> -- No full screen lines
 > -- >>> :{
 > -- let
 > --   x = makePointOnlyBuffer nat8 nat2
@@ -1103,6 +1119,7 @@ Rendering
 > -- :}
 > -- True
 > --
+> -- >>> -- All newlines
 > -- >>> :set -XFlexibleContexts
 > -- >>> :{
 > -- let
@@ -1115,8 +1132,24 @@ Rendering
 > -- in (z, Just y) == takeFirstScreenLine x
 > -- :}
 > -- True
+> --
+> -- >>> -- Full screen line with no newlines
+> -- >>> :set -XFlexibleContexts
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abcdefghij" 'k' "lmn"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" 'i' "jklmn"
+> --   z = FT.fromList $ map Cell
+> --     "abcdefgh"
+> -- in (z, Just y) == takeFirstScreenLine x
+> -- :}
+> -- True
 
 :::
+
+After taking the first screen line, the next step in complexity is to take some number of screen lines from the front of the buffer. This is a pretty straightforward application of an accumulating recursive function.
 
 > takeScreenLines
 >   :: forall w t a
@@ -1140,6 +1173,8 @@ Rendering
 >             (reverse (a:as), Nothing)
 >           (a, Just buf') ->
 >             accum (k+1) (a:as) buf'
+
+Interesting examples of this are a little more verbose:
 
 ::: doctest
 
@@ -1179,6 +1214,8 @@ Rendering
 
 :::
 
+Now we're prepared to extract a 'screenful' of screen lines from anywhere in the buffer with `getScreenLines`. This function returns the accumulated `MeasureText` up to the extracted lines; we'll need this to compute the (logical) line numbers.
+
 > getScreenLines
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
@@ -1213,21 +1250,23 @@ Rendering
 >             (Buffer $ TPL.PointOnly (mempty, y, cs))
 >         in (value (as <> FT.cons x bs), us)
 
+Next we can attach the logical line numbers to the screen lines. (_Logical_ here means lines as separated by newline characters; these can be broken across several screen lines.)
+
 > attachLineNumbers
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => ( MeasureText w t
 >      , [ FT.FingerTree (MeasureText w t) (Cell a) ] )
->   -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
+>   -> [ ( Maybe Int, FT.FingerTree (MeasureText w t) (Cell a) ) ]
 > attachLineNumbers (ctx, xs) = case xs of
 >   [] -> []
 >   u:us ->
 >     let
 >       LineCol k h = logicalCoords ctx <> logicalOffset ctx
 >       v = if h == 0 then Just k else Nothing
->       ws = attachLineNumbers ( ctx <> value u, us )
->     in (u,v) : ws
+>     in (v,u) : attachLineNumbers ( ctx <> value u, us )
 
+We will also need to know the expected column index of each rendered character later on -- this is so we can render tabs correctly.
 
 > attachColumnIndices
 >   :: forall w t a
@@ -1246,7 +1285,7 @@ Rendering
 >   in
 >     map f $ FT.toAnnotatedList ys
 
-
+Putting it all together, `renderScreenLinesWithRegion` extracts (1) a list of screen lines with column indices attached to each character, and (2) a list of logical line numbers.
 
 > renderScreenLinesWithRegion
 >   :: forall w t a
@@ -1258,10 +1297,12 @@ Rendering
 >   -> ([Maybe Int], [[(a, Int)]])
 > renderScreenLinesWithRegion f t h buf =
 >   unzip
->     $ map (\(u,v) -> (v, attachColumnIndices u))
+>     $ map (\(u, v) -> (u, attachColumnIndices v))
 >     $ attachLineNumbers
 >     $ getScreenLines t h
 >     $ alterRegion f buf
+
+Testing this "by hand" is awkward, but we can do it.
 
 ::: doctest
 

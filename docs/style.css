@@ -184,6 +184,10 @@ div.frontmatter {
   display: none;
 }
 
+q {
+  quotes: "“" "”" "‘" "’";
+}
+
 
 
 /* Links */
@@ -233,6 +237,12 @@ a:any-link::-moz-selection {
 
 /* Code */
 
+/* Inline */
+code:not(.sourceCode) {
+  font-size: 1.1rem;
+  color: #313131;
+}
+
 div.example > div.sourceCode {
   background: #E3FDEB;
 }
@@ -255,6 +265,8 @@ pre:not(.sourceCode)
   font-size: 0.9rem;
   overflow-x: auto;
   background: #FDF6E3;
+  line-height: 1.42;
+  -webkit-text-size-adjust: 100%; /* Prevent adjustments of font size after orientation changes in iOS. See https://github.com/edwardtufte/tufte-css/issues/81#issuecomment-261953409 */
 }
 
 pre code { color: #657B83; }
@@ -352,6 +364,10 @@ blockquote .marginnote
   text-align: left; 
 }
 
+.sidenote > code {
+  font-size: 1rem; 
+}
+
 
 
 /* Epigraphs */
@@ -381,4 +397,63 @@ div.epigraph > blockquote > footer {
 
 div.epigraph > blockquote > footer > cite {
   font-style: italic;
+}
+
+
+
+@media (max-width: 760px) {
+  body {
+    width: 84%;
+    padding-left: 8%;
+    padding-right: 8%;
+  }
+
+  hr,
+  section > p,
+  section > footer,
+  section > table {
+    width: 100%;
+  }
+
+  section > div.sourceCode {
+    width: 92%; 
+  }
+
+  section > ol,
+  section > ul {
+    width: 90%; 
+  }
+
+  .sidenote {
+    display: none; 
+  }
+
+  label {
+    cursor: pointer; 
+  }
+
+  label.margin-toggle:not(.sidenote-number) {
+    display: inline; 
+  }
+
+  .margin-toggle:checked + .sidenote {
+    display: block;
+    float: left;
+    left: 1rem;
+    clear: both;
+    width: 95%;
+    margin: 1rem 2.5%;
+    vertical-align: baseline;
+    position: relative; 
+  }
+
+  div.epigraph > blockquote {
+    margin-left: 1.5em;
+    margin-right: 0em; 
+  }
+
+  div.epigraph > blockquote > p,
+  div.epigraph > blockquote > footer {
+    width: 100%; 
+  }
 }
