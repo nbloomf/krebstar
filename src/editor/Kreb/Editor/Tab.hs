@@ -60,9 +60,9 @@ getActiveTab (Tabs xs) =
   Seq.readPoint xs
 
 updateRenderedTabs
-  :: BufferRenderSettings -> GlyphRenderSettings -> EditorMode -> Int -> Tabs -> Tabs
-updateRenderedTabs opts settings mode tab =
-  Tabs . Seq.alterPoint (updateRenderedPanel opts settings mode tab) . unTabs
+  :: GlyphRenderSettings -> EditorMode -> Int -> Tabs -> Tabs
+updateRenderedTabs settings mode tab =
+  Tabs . Seq.alterPoint (updateRenderedPanel settings mode tab) . unTabs
 
 
 getAbsCursorPosTabs

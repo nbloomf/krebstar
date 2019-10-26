@@ -487,4 +487,36 @@ title: Kreb.Struct.TwoPointedList.Test
 >           claimEqual
 >             (fst <$> cutRegionL as)
 >             (copyRegionL as)
+> 
+>     , testKreb
+>         "prependFT as (prependFT bs xs) == prependFT (as <> bs) xs" $
+>         \(as :: FT.FingerTree m a)
+>          (bs :: FT.FingerTree m a)
+>          (xs :: TwoPointedList m a) ->
+>           claimEqual
+>             (prependFT as (prependFT bs xs))
+>             (prependFT (as <> bs) xs)
+> 
+>     , testKreb
+>         "appendFT as (appendFT bs xs) == appendFT (bs <> as) xs" $
+>         \(as :: FT.FingerTree m a)
+>          (bs :: FT.FingerTree m a)
+>          (xs :: TwoPointedList m a) ->
+>           claimEqual
+>             (appendFT as (appendFT bs xs))
+>             (appendFT (bs <> as) xs)
+> 
+>     , testKreb
+>         "prependFT mempty xs == xs" $
+>         \(xs :: TwoPointedList m a) ->
+>           claimEqual
+>             (xs)
+>             (prependFT mempty xs)
+> 
+>     , testKreb
+>         "appendFT mempty xs == xs" $
+>         \(xs :: TwoPointedList m a) ->
+>           claimEqual
+>             (xs)
+>             (appendFT mempty xs)
 >     ]

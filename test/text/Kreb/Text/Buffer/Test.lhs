@@ -48,7 +48,7 @@ title: Kreb.Text.Buffer.Test
 >      , Eq a, Show a, Arb a, Prune a, IsChar a )
 >   => String -> Proxy w -> Proxy t -> Proxy a
 >   -> TestTree
-> test_Buffer_properties label _ _ _ =
+> test_Buffer_properties label pw pt _ =
 >   let title = "Buffer (" ++ label ++ ")"
 >   in testGroup title
 >     [ testKreb
@@ -579,7 +579,118 @@ title: Kreb.Text.Buffer.Test
 >           claimEqual
 >             (as)
 >             (movePointToLineCol (getPointLineCol as) as)
+> 
+>     , testKreb
+>         "getPointScreenCoords as == seekScreenCoords (getPointScreenCoords as) as" $
+>         \(as :: Buffer w t a) ->
+>           claimEqual
+>             (getPointScreenCoords as)
+>             (seekScreenCoords (getPointScreenCoords as) as)
+> 
+>     , testKreb
+>         "(0,0) == seekScreenCoords (0,0) as" $
+>         \(as :: Buffer w t a) ->
+>           claimEqual
+>             (0,0)
+>             (seekScreenCoords (0,0) as)
+> 
+>     , testKreb
+>         "getBufferScreenCoords as == seekScreenCoords (getBufferScreenCoords as) as" $
+>         \(as :: Buffer w t a) ->
+>           claimEqual
+>             (getBufferScreenCoords as)
+>             (seekScreenCoords (getBufferScreenCoords as) as)
+> 
+>     , testKreb
+>         "movePointToLineCol (point only, prepared focus)" $
+>         \(as :: [a]) (x :: a) (bs :: [a]) ->
+>           let
+>             zs, ws :: Buffer w t a
+>             zs = fromList (as ++ [x] ++ bs)
+>             ws = fromList (as ++ [x])
+>             m = value ws :: MeasureText w t
+>           in claimEqual
+>             (makePointOnlyBuffer pw pt as x bs)
+>             (movePointToLineCol (logicalCoords m) zs)
+> 
+>     , testKreb
+>         "movePointToScreenCoords (point only, prepared focus)" $
+>         \(as :: [a]) (x :: a) (bs :: [a]) ->
+>           let
+>             zs, ws :: Buffer w t a
+>             zs = fromList (as ++ [x] ++ bs)
+>             ws = fromList (as ++ [x])
+>             m = value ws :: MeasureText w t
+>           in claimEqual
+>             (makePointOnlyBuffer pw pt as x bs)
+>             (movePointToScreenCoords (applyScreenOffset (screenCoords m) (0,0)) zs)
+> 
+>     , testKreb
+>         "prependFT as (prependFT bs xs) == prependFT (as <> bs) xs" $
+>         \(as :: FT.FingerTree (MeasureText w t) (Cell a))
+>          (bs :: FT.FingerTree (MeasureText w t) (Cell a))
+>          (xs :: Buffer w t a) ->
+>           claimEqual
+>             (prependFT as (prependFT bs xs))
+>             (prependFT (as <> bs) xs)
+> 
+>     , testKreb
+>         "appendFT as (appendFT bs xs) == appendFT (bs <> as) xs" $
+>         \(as :: FT.FingerTree (MeasureText w t) (Cell a))
+>          (bs :: FT.FingerTree (MeasureText w t) (Cell a))
+>          (xs :: Buffer w t a) ->
+>           claimEqual
+>             (appendFT as (appendFT bs xs))
+>             (appendFT (bs <> as) xs)
+> 
+>     , testKreb
+>         "prependFT as (appendFT bs xs) == appendFT bs (prependFT as xs)" $
+>         \(as :: FT.FingerTree (MeasureText w t) (Cell a))
+>          (bs :: FT.FingerTree (MeasureText w t) (Cell a))
+>          (xs :: Buffer w t a) ->
+>           claimEqual
+>             (prependFT as (appendFT bs xs))
+>             (appendFT bs (prependFT as xs))
+> 
+>     , testKreb
+>         "prependFT mempty xs == xs" $
+>         \(xs :: Buffer w t a) ->
+>           claimEqual
+>             (xs)
+>             (prependFT mempty xs)
+> 
+>     , testKreb
+>         "appendFT mempty xs == xs" $
+>         \(xs :: Buffer w t a) ->
+>           claimEqual
+>             (xs)
+>             (appendFT mempty xs)
+> 
+>     , testKreb
+>         "takeFirstScreenLine is a cat factorization" $
+>         \(as :: Buffer w t a) ->
+>           let bs = movePointToStart $ clearMark as in
+>           claimAny
+>             [ claimFalse (hasFullScreenLine bs)
+>             , let (u, Just x) = takeFirstScreenLine bs
+>               in claimEqual
+>                 (bs)
+>                 (movePointToStart (prependFT u x))
+>             ]
+> 
+>     , testKreb
+>         "hasFullScreenLine empty == False" $
+>         claimFalse (hasFullScreenLine (empty :: Buffer w t a))
+> 
+>     , testKreb
+>         "takeScreenLines length bound" $
+>         \(NonNegative k :: NonNegative Int)
+>          (as :: Buffer w t a) ->
+>           claimLEQ
+>             (length $ fst $ takeScreenLines k as)
+>             (k)
 >     ]
+
 
 
 
@@ -636,198 +747,12 @@ Generates valid input/output pairs for `renderBuffer`.
 
 
 
-> prop_Buffer_splitBufferAtLineCol_focus
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arb a, Prune a, Show a, Eq a, IsChar a )
->   => Proxy w -> Proxy t -> Proxy a
->   -> [a] -> a -> [a]
->   -> Check
-> 
-> prop_Buffer_splitBufferAtLineCol_focus pw pt _ as x bs =
->   let
->     m = mconcat $ map value (as ++ [x]) :: MeasureText w t
->     z = makePointOnlyBuffer pw pt as x bs :: Buffer w t a
->   in
->     claimEqual z (splitBufferAtLineCol (logicalCoords m) z)
-> 
-> test_Buffer_splitBufferAtLineCol_focus
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arb a, Prune a, Show a, Eq a, IsChar a )
->   => Proxy w -> Proxy t -> Proxy a -> TestTree
-> test_Buffer_splitBufferAtLineCol_focus pw pt pa =
->   testKreb "splitBufferAtLineCol (prepared focus)" $
->     prop_Buffer_splitBufferAtLineCol_focus pw pt pa
-
-> prop_Buffer_splitBufferAtScreenCoords_focus
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arb a, Prune a, Show a, Eq a, IsChar a )
->   => Proxy w -> Proxy t -> Proxy a
->   -> [a] -> a -> [a]
->   -> Check
-> 
-> prop_Buffer_splitBufferAtScreenCoords_focus pw pt _ as x bs =
->   let
->     m = mconcat (map value as) :: MeasureText w t
->     pos = applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
->     z1 = makePointOnlyBuffer pw pt as x bs
->     z2 = splitBufferAtScreenCoords pos z1
->   in
->     if validateBuffer z2
->       then claimEqual z1 z2
->       else reject "z2 does not validate!"
-> 
-> test_Buffer_splitBufferAtScreenCoords_focus
->   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arb a, Prune a, Show a, Eq a, IsChar a )
->   => Proxy w -> Proxy t -> Proxy a -> TestTree
-> test_Buffer_splitBufferAtScreenCoords_focus pw pt pa =
->   testKreb "splitBufferAtScreenCoords (prepared focus)" $
->     prop_Buffer_splitBufferAtScreenCoords_focus pw pt pa
 
 
 
-Examples
---------
 
 
 
-> prop_Buffer_splitAtScreenCoords_examples
->   :: ( IsWidth w, IsTab t )
->   => ((Int, Int), Buffer w t Char, Buffer w t Char)
->   -> Check
-> prop_Buffer_splitAtScreenCoords_examples (pos, buf1, buf2) =
->   claimEqual buf2 (splitBufferAtScreenCoords pos buf1)
-> 
-> test_Buffer_splitAtScreenCoords_examples :: TestTree
-> test_Buffer_splitAtScreenCoords_examples =
->   testGroup "splitAtScreenCoords examples"
->     [ testKreb "#1" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (0,0)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "" 'a' "aaaaaaaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#2" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (1,0)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "a" 'a' "aaaaaaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#3" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (2,0)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "aa" 'a' "aaaaaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#4" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (3,0)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "aa" 'a' "aaaaaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#5" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (0,1)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "aaa" 'a' "aaaaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#6" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (1,1)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "aaaa" 'a' "aaaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#7" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (2,1)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "aaaaa" 'a' "aaaaaaaaaaaaa"
->           )
-> 
->     , testKreb "#8" $
->         prop_Buffer_splitAtScreenCoords_examples
->           ( (0,2)
->           , defBuffer nat3 nat1 "aaaaaaaaaaaaaaaaaaa"
->           , makePointOnlyBuffer nat3 nat1
->               "aaaaaa" 'a' "aaaaaaaaaaaa"
->           )
->     ]
-
-> prop_Buffer_screenCoords_value_examples
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => (Buffer w t Char, (Int, Int))
->   -> Check
-> prop_Buffer_screenCoords_value_examples (buf1, pos) =
->   let offset = screenCoords (value buf1 :: MeasureText w t)
->   in claimEqual pos (applyScreenOffset offset (0,0))
-> 
-> test_Buffer_screenCoords_value_examples :: TestTree
-> test_Buffer_screenCoords_value_examples =
->   testGroup "Buffer value examples"
->     [ testKreb "#1" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "a"
->           , (1,0)
->           )
-> 
->     , testKreb "#2" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aa"
->           , (2,0)
->           )
-> 
->     , testKreb "#3" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aaa"
->           , (0,1)
->           )
-> 
->     , testKreb "#4" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aaaa"
->           , (1,1)
->           )
-> 
->     , testKreb "#5" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aaaaa"
->           , (2,1)
->           )
-> 
->     , testKreb "#6" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aaaaaa"
->           , (0,2)
->           )
-> 
->     , testKreb "#7" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aaaaaaa"
->           , (1,2)
->           )
-> 
->     , testKreb "#8" $
->         prop_Buffer_screenCoords_value_examples
->           ( defBuffer nat3 nat1 "aaaaaaaa"
->           , (2,2)
->           )
->     ]
 
 
 
@@ -882,106 +807,13 @@ Rendering
 
 
 
-> prop_Buffer_renderBuffer_examples
->   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , Arb a, Prune a, Eq a, Show a, IsChar a )
->   => Proxy a
->   -> (Int, Int, Buffer w t a)
->   -> ([Maybe Int], [[(a, Int)]])
->   -> Check
-> 
-> prop_Buffer_renderBuffer_examples pa
->   (top, height, buf) out =
->     claimEqual out $
->       renderBuffer defaultBufferRenderSettings id top height buf
-
-> test_Buffer_renderBuffer_examples :: TestTree
-> test_Buffer_renderBuffer_examples =
->   testGroup "Buffer value examples"
->     [ testKreb "#1" $
->         prop_Buffer_renderBuffer_examples
->           (Proxy :: Proxy Char)
->           ( 0, 1
->           , defBuffer nat3 nat1 "a"
->           )
->           ( [ Just 0 ]
->           , [[('a', 0)]]
->           )
-> 
->     , testKreb "#2" $
->         prop_Buffer_renderBuffer_examples
->           (Proxy :: Proxy Char)
->           ( 0, 1
->           , defBuffer nat3 nat1 "ab"
->           )
->           ( [ Just 0 ]
->           , [[('a', 0), ('b', 1)]]
->           )
-> 
->     , testKreb "#3" $
->         prop_Buffer_renderBuffer_examples
->           (Proxy :: Proxy Char)
->           ( 0, 1
->           , defBuffer nat3 nat1 "\n"
->           )
->           ( [ Just 0 ]
->           , [[ ('\n', 0) ]]
->           )
-> 
->     , testKreb "#4" $
->         prop_Buffer_renderBuffer_examples
->           (Proxy :: Proxy Char)
->           ( 0, 1
->           , defBuffer nat8 nat4 "a\t"
->           )
->           ( [ Just 0 ]
->           , [[('a', 0), ('\t', 1)]]
->           )
-> 
->     , testKreb "#5" $
->         prop_Buffer_renderBuffer_examples
->           (Proxy :: Proxy Char)
->           ( 0, 1
->           , defBuffer nat8 nat4 "\ta"
->           )
->           ( [ Just 0 ]
->           , [[('\t', 0), ('a', 4)]]
->           )
->     ]
 
 
 
 Take Line
 ---------
 
-> test_Buffer_takeLine
->   :: ( IsWidth w, IsTab t, IsChar a, Eq a
->      , Valued (MeasureText w t) a, Show a, Arb a, Prune a )
->   => Proxy w -> Proxy t -> Proxy a -> TestTree
-> test_Buffer_takeLine pw pt pa =
->   testGroup "Take Line"
->     [ testKreb "takeLine concat"
->         $ prop_Buffer_takeLine_concat pw pt pa
->     , testKreb "takeLines concat"
->         $ prop_Buffer_takeLines_concat pw pt pa
->     , test_Buffer_takeLine_examples pw pt pa
->     , test_Buffer_takeLines_examples pw pt pa
->     , test_Buffer_getLineNumbers_examples pw pt pa
->     ]
 
-> prop_Buffer_takeLine_concat
->   :: ( IsWidth w, IsTab t, IsChar a, Eq a
->      , Valued (MeasureText w t) a )
->   => Proxy w -> Proxy t -> Proxy a
->   -> FT.FingerTree (MeasureText w t) (Cell a)
->   -> Check
-> prop_Buffer_takeLine_concat _ _ _ xs =
->   check $
->     let zs = xs <> FT.fromList [eof] in
->     case takeLine zs of
->       Nothing -> claimEqual xs mempty
->       Just (as,bs) -> claimEqual zs (as <> bs)
 
 > prop_Buffer_takeLines_concat
 >   :: ( IsWidth w, IsTab t, IsChar a, Eq a

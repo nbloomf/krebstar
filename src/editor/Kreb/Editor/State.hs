@@ -42,7 +42,6 @@ data AppState (m :: * -> *) = AppState
   , absCursorPos         :: (Int, Int)
   , tabbedBuffers        :: Tabs
   , tabWidth             :: Int
-  , bufferRenderSettings :: BufferRenderSettings
   , glyphRenderSettings  :: GlyphRenderSettings
 
   , runtimeSt            :: RuntimeState (Hook m)
@@ -54,7 +53,6 @@ instance Show (AppState m) where
     [ "windowDim = ", show $ windowDim st
     , "editorMode = ", show $ editorMode st
     , "absCursorPos = ", show $ absCursorPos st
-    , "bufferRenderSettings = ", show $ bufferRenderSettings st
     , "tabbedBuffers = ", show $ tabbedBuffers st
     ]
 
@@ -66,7 +64,6 @@ initAppState stdLib dim rts (w,h) = AppState
   , tabWidth             = 4
   , tabbedBuffers        = initTabs "" (w,h) dim 4
   , glyphRenderSettings  = defaultGlyphRenderSettings
-  , bufferRenderSettings = defaultBufferRenderSettings
 
   , runtimeSt            = rts { _rtStack = Cons Empty V_Eff }
   , stdLibPath           = stdLib
@@ -141,10 +138,9 @@ updateRenderedState st =
     (w,h) = windowDim st
     tab = tabWidth st
     tabs = tabbedBuffers st
-    opts = bufferRenderSettings st
     settings = glyphRenderSettings st
   in st
-    { tabbedBuffers = updateRenderedTabs opts settings mode tab tabs
+    { tabbedBuffers = updateRenderedTabs settings mode tab tabs
     }
 
 updateAbsCursorPos :: AppState m -> AppState m

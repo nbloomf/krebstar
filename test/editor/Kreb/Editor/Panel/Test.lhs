@@ -41,7 +41,7 @@
 > prop_Panel_render_examples (dim, tab, acts) render =
 >   let
 >     Just x = renderedPanel $ updateRenderedPanel
->       defaultBufferRenderSettings defaultGlyphRenderSettings NormalMode tab $
+>       defaultGlyphRenderSettings NormalMode tab $
 >       alterPanel acts (initPanel "fakestdlib" dim initPanelDim tab)
 >   in claimAll
 >     [ claimEqualNamed "lineLabels: "

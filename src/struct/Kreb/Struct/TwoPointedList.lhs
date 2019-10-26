@@ -12,6 +12,7 @@ title: Two-Pointed Lists
 * [Region Operations](#region-operations): Read, delete, and alter the region
 * [Measurement](#measurement): Working with value annotations
 * [Splitting](#splitting): Breaking and searching
+* [Concatenation](#concatenation): Putting together
 * [Testing and Debugging](#testing-and-debugging): For when things go wrong
 :::
 
@@ -1087,6 +1088,47 @@ While we're here, it is also useful to convert two-pointed lists to ordinary lis
 >   => TwoPointedList m a -> [(a,m)]
 > toAnnotatedList =
 >   FT.toAnnotatedList . integrate
+
+
+
+Concatenation
+-------------
+
+It also makes sense to combine two-pointed lists with other structures in a few ways. In addition to being useful as utility functions, these concatenation operators fit nicely into the theory.
+
+> prependFT
+>   :: ( Valued m a )
+>   => FT.FingerTree m a
+>   -> TwoPointedList m a -> TwoPointedList m a
+> prependFT xs w = case w of
+>   Vacant -> case FT.unsnoc xs of
+>     Nothing -> Vacant
+>     Just (u,us) -> PointOnly (us, u, mempty)
+>   PointOnly (as, x, bs) ->
+>     PointOnly (xs <> as, x, bs)
+>   Coincide (as, x, bs) ->
+>     Coincide (xs <> as, x, bs)
+>   PointMark (as, x, bs, y, cs) ->
+>     PointMark (xs <> as, x, bs, y, cs)
+>   MarkPoint (as, x, bs, y, cs) ->
+>     MarkPoint (xs <> as, x, bs, y, cs)
+> 
+> appendFT
+>   :: ( Valued m a )
+>   => FT.FingerTree m a
+>   -> TwoPointedList m a -> TwoPointedList m a
+> appendFT xs w = case w of
+>   Vacant -> case FT.uncons xs of
+>     Nothing -> Vacant
+>     Just (u,us) -> PointOnly (mempty, u, us)
+>   PointOnly (as, x, bs) ->
+>     PointOnly (as, x, bs <> xs)
+>   Coincide (as, x, bs) ->
+>     Coincide (as, x, bs <> xs)
+>   PointMark (as, x, bs, y, cs) ->
+>     PointMark (as, x, bs, y, cs <> xs)
+>   MarkPoint (as, x, bs, y, cs) ->
+>     MarkPoint (as, x, bs, y, cs <> xs)
 
 
 

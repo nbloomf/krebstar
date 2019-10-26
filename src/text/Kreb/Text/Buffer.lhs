@@ -8,7 +8,7 @@ title: Buffers
 * [Basic Mutation](#basic-mutation): Cut, copy, alter, insert
 * [Queries](#queries): Learning things about buffers
 * [Splitting](#splitting): Moving the read heads around (again)
-
+* [Rendering](#rendering): Displaying buffers to a virtual screen
 * [Testing and Debugging](#testing-and-debugging): For when things go wrong
 :::
 
@@ -32,6 +32,15 @@ title: Buffers
 >   , toList
 >   , isEmpty
 >   , isSingleton
+>   , resizeBuffer
+>   , adjustBuffer
+>   , makeVacantBuffer
+>   , makePointOnlyBuffer
+>   , makeCoincideBuffer
+>   , makePointMarkBuffer
+>   , makeMarkPointBuffer
+>   , prependFT
+>   , appendFT
 > 
 >   , isPointAtStart
 >   , isPointAtEnd
@@ -71,55 +80,36 @@ title: Buffers
 >   , getBufferByteCount
 >   , getBufferLineCol
 >   , getBufferScreenCoords
+>   , getBufferScreenOffset
 >   , getPointCharCount
 >   , getPointByteCount
 >   , getPointLineCol
 >   , getPointScreenCoords
+>   , getPointScreenOffset
 >   , getMarkCharCount
 >   , getMarkByteCount
 >   , getMarkLineCol
 >   , getMarkScreenCoords
 > 
+>   , movePoint
 >   , movePointToLineCol
 >   , movePointToScreenCoords
 >   , movePointToScreenLine
 >   , atOrAfterLineCol
 >   , atOrAfterScreenCoords
 >   , atOrAfterScreenLine
-
-
-
-
->   -- * Constructors
-> 
-
->   , adjustBuffer
->   , resizeBuffer
-
->   -- * Queries
-> 
 >   , seekScreenCoords
 > 
-
-> 
->   -- * Rendering
->   , BufferRenderSettings(..)
->   , defaultBufferRenderSettings
->   , takeLine
->   , takeLines
->   , splitLines
->   , getLineNumbers
->   , renderBuffer
-> 
->   -- * Debugging
->   , makePointOnlyBuffer
->   , makeCoincideBuffer
->   , makePointMarkBuffer
->   , makeMarkPointBuffer
-
->   , toAnnotatedList
+>   , hasFullScreenLine
+>   , takeFirstScreenLine
+>   , takeScreenLines
+>   , getScreenLines
+>   , attachLineNumbers
+>   , attachColumnIndices
+>   , renderScreenLinesWithRegion
 > 
 >   , validate
+>   , toAnnotatedList
 > ) where
 > 
 > import Data.Proxy
@@ -227,8 +217,31 @@ Due to the EOF sigil, detecting when a buffer is empty or a singleton is a littl
 >     Just (a, as) ->
 >       (a == (eof :: Cell a)) && (TPL.isSingleton as)
 
+It will also be handy to be able to resize the buffer in two different ways, depending on whether we want to specify the new parameters 'statically' or 'dynamically'.
+
+> resizeBuffer
+>   :: ( IsWidth w1, IsTab t1, Valued (MeasureText w1 t1) a
+>      , IsWidth w2, IsTab t2, Valued (MeasureText w2 t2) a )
+>   => Buffer w1 t1 a -> Buffer w2 t2 a
+> resizeBuffer (Buffer x) = Buffer (TPL.remeasure x)
+> 
+> adjustBuffer
+>   :: ( IsWidth w1, IsTab t1, Valued (MeasureText w1 t1) a
+>      , IsWidth w2, IsTab t2, Valued (MeasureText w2 t2) a )
+>   => Proxy w2 -> Proxy t2
+>   -> Buffer w1 t1 a -> Buffer w2 t2 a
+> adjustBuffer _ _ = resizeBuffer
+
 We'll also go ahead and define some special constructors for building buffers of a very specific structure. These should only be used for testing and debugging, but we need to define them early in the module so we can use them in examples as we go. These correspond to the nontrivial constructors of two-pointed lists.
 
+> makeVacantBuffer
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Proxy w -> Proxy t -> Proxy a
+>   -> Buffer w t a
+> makeVacantBuffer _ _ _ =
+>   Buffer $ TPL.singleton (eof :: Cell a)
+> 
 > makePointOnlyBuffer
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
@@ -266,6 +279,22 @@ We'll also go ahead and define some special constructors for building buffers of
 >   Buffer $ TPL.makeMarkPoint
 >     (map Cell as) (Cell x) (map Cell bs)
 >     (Cell y) (map Cell cs ++ [eof])
+
+We can also lift some utility code on two-pointed lists to buffers.
+
+> prependFT
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => FT.FingerTree (MeasureText w t) (Cell a)
+>   -> Buffer w t a -> Buffer w t a
+> prependFT xs =
+>   Buffer . TPL.prependFT xs . unBuffer
+> 
+> appendFT
+>   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => FT.FingerTree (MeasureText w t) (Cell a)
+>   -> Buffer w t a -> Buffer w t a
+> appendFT xs =
+>   Buffer . TPL.appendFT xs . unBuffer
 
 
 
@@ -555,6 +584,14 @@ Next we have queries on the measure of the entire buffer.
 > getBufferScreenCoords (Buffer buf) =
 >   let m = value buf :: MeasureText w t in
 >   applyScreenOffset (screenCoords m) (0,0)
+> 
+> getBufferScreenOffset
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> (Int, Int)
+> getBufferScreenOffset (Buffer buf) =
+>   let m = value buf :: MeasureText w t in
+>   applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
 
 Likewise we can query the value at the point.
 
@@ -591,6 +628,15 @@ Likewise we can query the value at the point.
 >   case TPL.valueUpToPoint w of
 >     Nothing -> (0,0)
 >     Just m -> applyScreenOffset (screenCoords m) (0,0)
+> 
+> getPointScreenOffset
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> (Int, Int)
+> getPointScreenOffset (Buffer w) =
+>   case TPL.valueUpToPoint w of
+>     Nothing -> (0,0)
+>     Just m -> applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
 
 And for good measure, at the mark as well.
 
@@ -635,11 +681,11 @@ Splitting
 
 Recall that finger trees, the structure underlying our buffers, admit an efficient _splitting_ operation, which we can take advantage of to move the point and mark to specific locations in the buffer. First we define a utility function, not exposed outside this module, that attempts to split a buffer on an arbitrary predicate.
 
-> splitPoint
+> movePoint
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => (MeasureText w t -> Bool)
 >   -> Buffer w t a -> Maybe (Buffer w t a)
-> splitPoint pointP (Buffer w) =
+> movePoint pointP (Buffer w) =
 >   Buffer <$> TPL.splitPoint pointP w
 
 For ergonomics' sake we'll expose specialized splitting functions. First at a given line and column position:
@@ -648,7 +694,7 @@ For ergonomics' sake we'll expose specialized splitting functions. First at a gi
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => LineCol -> Buffer w t a -> Buffer w t a
 > movePointToLineCol lc buf =
->   case splitPoint (atOrAfterLineCol lc) buf of
+>   case movePoint (atOrAfterLineCol lc) buf of
 >     Nothing -> movePointToEnd buf
 >     Just xs -> xs
 > 
@@ -703,9 +749,11 @@ One option is to just fail. But I think a better option is to try our best to re
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => (Int, Int) -> Buffer w t a -> Buffer w t a
 > movePointToScreenCoords pos buf =
->   case splitPoint (atOrAfterScreenCoords pos) buf of
->     Nothing -> movePointToEnd buf
->     Just xs -> xs
+>   if pos == (0,0)
+>     then movePointToStart buf
+>     else case movePoint (atOrAfterScreenCoords pos) buf of
+>       Nothing -> movePointToEnd buf
+>       Just xs -> xs
 > 
 > atOrAfterScreenCoords
 >   :: forall w t
@@ -764,6 +812,16 @@ We can test our understanding with some examples.
 > -- >>> :{
 > -- let
 > --   x = makePointOnlyBuffer nat8 nat2
+> --     "ab" 'c' "defghijklmnop"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "abcdefghij" 'k' "lmnop"
+> -- in y == movePointToScreenCoords (2,1) x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
 > --     "abc\nde\nf" 'g' "h"
 > --   y = makePointOnlyBuffer nat8 nat2
 > --     "abc\nde" '\n' "fgh"
@@ -794,26 +852,20 @@ That's a mouthful!
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => Int -> Buffer w t a -> Maybe (Buffer w t a)
 > movePointToScreenLine k buf =
->   let (w,h) = getBufferScreenCoords buf
+>   let
+>     (_,h) = getBufferScreenOffset buf
+>     bW = toWidth (Proxy :: Proxy w)
 >   in if k > 1 + h
 >     then Nothing
 >     else if k <= 0
 >       then Just $ movePointToStart buf
 >       else do
->         z <- splitPoint (atOrAfterScreenLine k) buf
->         if k < 1 + h
->           then return z
->           else case fmap (fmap toChar) (readPoint buf) of
->             Nothing -> error "movePointToScreenLine: panic (expected eof)"
->             Just (Cell '\n') -> Just $ movePointRight z
->             Just (Cell c) ->
->               let
->                 offset :: ScreenOffset w t
->                 offset = screenOffset $ value c
->                 (_,h1) = applyScreenOffset offset (w,h)
->               in if (h1 == 1 + h)
->                 then Just $ movePointRight z
->                 else Nothing
+>         z <- movePoint (atOrAfterScreenLine k) buf
+>         let
+>           (u,v) = getPointScreenOffset z
+>         if (k < 1 + h) || ((v == 1 + h) && ((u == bW - 1)))
+>           then Just z
+>           else Nothing
 > 
 > atOrAfterScreenLine
 >   :: forall w t
@@ -821,9 +873,9 @@ That's a mouthful!
 >   => Int -> MeasureText w t -> Bool
 > atOrAfterScreenLine k m =
 >   let
->     offset = screenCoords m
->     (_,v) = applyScreenOffset offset (0,0)
->   in (v >= k) || (hasEOF m)
+>     offset = (screenCoords m) <> (screenOffset m)
+>     (u,v) = applyScreenOffset offset (0,0)
+>   in (v > k) || ((v == k) && (u >= 1)) || (hasEOF m)
 
 And some example cases:
 
@@ -915,254 +967,350 @@ And some example cases:
 
 :::
 
+With `movePointToScreenCoords` in hand, we can also figure out the coordinates "nearest" to a given pair which actually appear in the buffer.
 
-
-
-
-
-
-
-
-
-
-
-> instance
->   ( Show a, IsWidth w, IsTab t, IsChar a
->   ) => Show (Buffer w t a)
->   where
->     show (Buffer w) =
->       let
->         wid = showWidth (Proxy :: Proxy w)
->         tab = showTab (Proxy :: Proxy t)
->       in case w of
->         TPL.Vacant -> "rawVacantBuffer"
->         TPL.PointOnly (as, x, bs) -> concat
->           [ "rawPointOnly "
->           , wid, " ", tab, " "
->           , show $ Fold.toList as, " "
->           , show x, " "
->           , show $ Fold.toList bs
->           ]
->         TPL.Coincide (as, x, bs) -> concat
->           [ "rawCoincide "
->           , wid, " ", tab, " "
->           , show $ Fold.toList as, " "
->           , show x, " "
->           , show $ Fold.toList bs
->           ]
->         TPL.PointMark (as, x, bs, y, cs) -> concat
->           [ "rawPointMark "
->           , wid, " ", tab, " "
->           , show $ Fold.toList as, " "
->           , show x, " "
->           , show $ Fold.toList bs, " "
->           , show y, " "
->           , show $ Fold.toList cs
->           ]
->         TPL.MarkPoint (as, x, bs, y, cs) -> concat
->           [ "rawMarkPoint "
->           , wid, " ", tab, " "
->           , show $ Fold.toList as, " "
->           , show x, " "
->           , show $ Fold.toList bs, " "
->           , show y, " "
->           , show $ Fold.toList cs
->           ]
-
-
-
-
-
-
-It will also be handy to be able to resize the buffer in two different ways, depending on whether we want to specify the new parameters statically or dynamically.
-
-> resizeBuffer
->   :: ( IsWidth w1, IsTab t1, Valued (MeasureText w1 t1) a
->      , IsWidth w2, IsTab t2, Valued (MeasureText w2 t2) a )
->   => Buffer w1 t1 a -> Buffer w2 t2 a
-> resizeBuffer (Buffer x) = Buffer (TPL.remeasure x)
-> 
-> adjustBuffer
->   :: ( IsWidth w1, IsTab t1, Valued (MeasureText w1 t1) a
->      , IsWidth w2, IsTab t2, Valued (MeasureText w2 t2) a )
->   => Proxy w2 -> Proxy t2
->   -> Buffer w1 t1 a -> Buffer w2 t2 a
-> adjustBuffer _ _ = resizeBuffer
-
-
-
-
-
-
-
-
-
-
-
-> -- Find coordinates "nearest" to a given pair that are
-> -- present in the buffer.
 > seekScreenCoords
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a )
 >   => (Int, Int) -> Buffer w t a -> (Int, Int)
 > seekScreenCoords z =
 >   getPointScreenCoords . movePointToScreenCoords z
 
+And some tests for our intuition:
 
-> data BufferRenderSettings
->   = BufferRenderSettings
->   deriving (Eq, Show)
+::: doctest
 
-> defaultBufferRenderSettings
->   :: BufferRenderSettings
-> defaultBufferRenderSettings =
->   BufferRenderSettings
+> -- $
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\ngh"
+> -- in seekScreenCoords (0,0) x
+> -- :}
+> -- (0,0)
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\ngh"
+> -- in seekScreenCoords (2,0) x
+> -- :}
+> -- (2,0)
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\ngh"
+> -- in seekScreenCoords (3,0) x
+> -- :}
+> -- (3,0)
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f\ngh"
+> -- in seekScreenCoords (4,0) x
+> -- :}
+> -- (3,0)
 
-
-
+:::
 
 
 
 Rendering
-=========
+---------
 
-> takeLine
+> hasFullScreenLine
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
+>   => Buffer w t a -> Bool
+> hasFullScreenLine w =
+>   let
+>     m = value w :: MeasureText w t
+>     (_,h) = applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
+>   in h > 0
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "bc"
+> -- in hasFullScreenLine x
+> -- :}
+> -- False
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "bc\n"
+> -- in hasFullScreenLine x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "bcdefgh"
+> -- in hasFullScreenLine x
+> -- :}
+> -- True
+
+:::
+
+> takeFirstScreenLine
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
->   => FT.FingerTree (MeasureText w t) (Cell a)
->   -> Maybe
->       ( FT.FingerTree (MeasureText w t) (Cell a)
->       , FT.FingerTree (MeasureText w t) (Cell a) )
-> takeLine xs =
->   if FT.isEmpty xs
->     then Nothing
->     else case FT.split (atOrAfterScreenLine 1) xs of
->       Nothing -> Just (xs, mempty)
->       Just (as, x, bs) ->
->         if FT.isEmpty bs
->           then case FT.unsnoc as of
->             Nothing -> Just (FT.snoc x as, bs)
->             Just (EOF, _) -> error "panic (3)" 
->             Just (Cell u,us) -> case toChar u of
->               '\n' -> Just (as, FT.cons x bs)
->               _    ->
->                 let
->                   m = value as :: MeasureText w t
->                   (_,y) = applyScreenOffset (screenOffset m) (0,0)
->                 in if y == 0
->                   then Just (as, FT.cons x bs)
->                   else Just (FT.snoc x as, bs)
->           else Just (as, FT.cons x bs)
-> 
-> takeLines
+>   => Buffer w t a
+>   -> ( FT.FingerTree (MeasureText w t) (Cell a)
+>      , Maybe (Buffer w t a) )
+> takeFirstScreenLine w =
+>   let
+>     m = value w :: MeasureText w t
+>     (_,h) = applyScreenOffset (screenCoords m <> screenOffset m) (0,0)
+>   in if h == 0
+>     then (TPL.integrate $ unBuffer w, Nothing)
+>     else
+>       let
+>         -- This pattern must match.
+>         Just (Buffer (TPL.PointOnly (as, x, bs))) =
+>           movePointToScreenLine 1 (clearMark w)
+>       in ( as, Just $ Buffer $ TPL.PointOnly (mempty, x, bs) )
+
+::: doctest
+
+> -- $
+> -- >>> :set -XFlexibleContexts
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\ndef" 'g' "\nhi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" 'd' "efg\nhi"
+> --   z = FT.fromList $ map Cell
+> --     "abc\n"
+> -- in (z, Just y) == takeFirstScreenLine x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "a" 'b' "c"
+> --   y = FT.fromList
+> --     [ Cell 'a', Cell 'b', Cell 'c', EOF ]
+> -- in (y, Nothing) == takeFirstScreenLine x
+> -- :}
+> -- True
+> --
+> -- >>> :set -XFlexibleContexts
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "\n\n\n" '\n' "\n"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" '\n' "\n\n\n"
+> --   z = FT.fromList $ map Cell
+> --     "\n"
+> -- in (z, Just y) == takeFirstScreenLine x
+> -- :}
+> -- True
+
+:::
+
+> takeScreenLines
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
->   => Int
->   -> FT.FingerTree (MeasureText w t) (Cell a)
+>   => Int -> Buffer w t a
 >   -> ( [ FT.FingerTree (MeasureText w t) (Cell a) ]
->      , FT.FingerTree (MeasureText w t) (Cell a) )
-> takeLines n xs = f 0 [] xs
+>      , Maybe (Buffer w t a) )
+> takeScreenLines n = accum 0 []
 >   where
->     f :: Int
+>     accum
+>       :: Int
 >       -> [ FT.FingerTree (MeasureText w t) (Cell a) ]
->       -> FT.FingerTree (MeasureText w t) (Cell a)
+>       -> Buffer w t a
 >       -> ( [ FT.FingerTree (MeasureText w t) (Cell a) ]
->          , FT.FingerTree (MeasureText w t) (Cell a) )
->     f k us vs =
->       if (k >= n) || FT.isEmpty vs
->         then (reverse us, vs)
->         else if FT.isSingleton vs
->           then (reverse (vs : us), mempty)
->           else case takeLine vs of
->             Nothing ->
->               (reverse (vs : us), mempty)
->             Just (as, bs) ->
->               f (k+1) (as:us) bs
-> 
-> splitLines
+>          , Maybe (Buffer w t a) )
+>     accum k as buf =
+>       if (k >= n)
+>         then (reverse as, Just buf)
+>         else case takeFirstScreenLine buf of
+>           (a, Nothing) ->
+>             (reverse (a:as), Nothing)
+>           (a, Just buf') ->
+>             accum (k+1) (a:as) buf'
+
+::: doctest
+
+> -- $
+> -- >>> :set -XFlexibleContexts
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\ndef" 'g' "\nhi"
+> --   y = makePointOnlyBuffer nat8 nat2
+> --     "" 'h' "i"
+> --   zs = 
+> --    [ FT.fromList $ map Cell
+> --        "abc\n"
+> --    , FT.fromList $ map Cell
+> --        "defg\n"
+> --    ]
+> -- in (zs, Just y) == takeScreenLines 2 x
+> -- :}
+> -- True
+> --
+> -- $
+> -- >>> :set -XFlexibleContexts
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "abc\nd" 'e' "f"
+> --   zs = 
+> --    [ FT.fromList $ map Cell
+> --        "abc\n"
+> --    , FT.fromList
+> --        [ Cell 'd', Cell 'e', Cell 'f', EOF ]
+> --    ]
+> -- in (zs, Nothing) == takeScreenLines 3 x
+> -- :}
+> -- True
+
+:::
+
+> getScreenLines
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
 >   => Int -- top screen line
 >   -> Int -- view height
 >   -> Buffer w t a
->   -> ( FT.FingerTree (MeasureText w t) (Cell a)
->      , [ FT.FingerTree (MeasureText w t) (Cell a) ]
->      , FT.FingerTree (MeasureText w t) (Cell a) )
-> splitLines t h buf =
+>   -> ( MeasureText w t
+>      , [ FT.FingerTree (MeasureText w t) (Cell a) ] )
+> getScreenLines t h buf =
 >   case movePointToScreenLine t buf of
->     Nothing ->
->       let Buffer w = buf
->       in (TPL.integrate w, [], mempty)
->     Just z ->
->       let Buffer w = z
->       in case w of
->         TPL.Vacant ->
->           (mempty, [], mempty)
->         TPL.PointOnly (as, x, bs) ->
->           let (us, vs) = takeLines h (FT.cons x bs)
->           in (as, us, vs)
->         TPL.Coincide (as, x, bs) ->
->           let (us, vs) = takeLines h (FT.cons x bs)
->           in (as, us, vs)
->         TPL.PointMark (as, x, bs, y, cs) ->
->           let (us, vs) = takeLines h (FT.cons x bs <> FT.cons y cs)
->           in (as, us, vs)
->         TPL.MarkPoint (as, x, bs, y, cs) ->
->           let (us, vs) = takeLines h (FT.cons y cs)
->           in (as <> FT.cons x bs, us, vs)
+>     Nothing -> ( value buf, [] )
+>     Just (Buffer w) -> case w of
+>       TPL.Vacant -> (mempty, [])
+>       TPL.PointOnly (as, x, bs) ->
+>         let
+>           (us, _) = takeScreenLines h
+>             (Buffer $ TPL.PointOnly (mempty, x, bs))
+>         in (value as, us)
+>       TPL.Coincide (as, x, bs) ->
+>         let
+>           (us, _) = takeScreenLines h
+>             (Buffer $ TPL.PointOnly (mempty, x, bs))
+>         in (value as, us)
+>       TPL.PointMark (as, x, bs, y, cs) ->
+>         let
+>           (us, _) = takeScreenLines h
+>             (Buffer $ TPL.PointOnly (mempty, x, bs <> FT.cons y cs))
+>         in (value as, us)
+>       TPL.MarkPoint (as, x, bs, y, cs) ->
+>         let
+>           (us, _) = takeScreenLines h
+>             (Buffer $ TPL.PointOnly (mempty, y, cs))
+>         in (value (as <> FT.cons x bs), us)
 
-> getLineNumbers
+> attachLineNumbers
 >   :: forall w t a
 >    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
->   => MeasureText w t
->   -> [ FT.FingerTree (MeasureText w t) (Cell a) ]
+>   => ( MeasureText w t
+>      , [ FT.FingerTree (MeasureText w t) (Cell a) ] )
 >   -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
-> getLineNumbers m xs = f m xs []
->   where
->     f :: MeasureText w t
->       -> [ FT.FingerTree (MeasureText w t) (Cell a) ]
->       -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
->       -> [ ( FT.FingerTree (MeasureText w t) (Cell a), Maybe Int ) ]
->     f i as bs = case as of
->       [] -> reverse bs
->       us:uss ->
->         let
->           k = case FT.uncons us of
->             Nothing -> Nothing
->             Just (c, _) ->
->               let
->                 j' = i <> value c
->                 LineCol lj cj = logicalCoords j'
->               in
->                 if cj == 0
->                   then Just lj
->                   else Nothing
-> 
->           j = i <> value us
-> 
->         in f j uss ((us, k) : bs)
+> attachLineNumbers (ctx, xs) = case xs of
+>   [] -> []
+>   u:us ->
+>     let
+>       LineCol k h = logicalCoords ctx <> logicalOffset ctx
+>       v = if h == 0 then Just k else Nothing
+>       ws = attachLineNumbers ( ctx <> value u, us )
+>     in (u,v) : ws
 
-> renderBuffer
+
+> attachColumnIndices
 >   :: forall w t a
->    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->      , IsChar a, Eq a )
->   => BufferRenderSettings
->   -> (a -> a)
->   -> Int -- top screen line
->   -> Int -- view height
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
+>   => FT.FingerTree (MeasureText w t) (Cell a)
+>   -> [(a, Int)]
+> attachColumnIndices xs =
+>   let
+>     ys :: FT.FingerTree (MeasureText w t) a
+>     ys = FT.inflateWith listCell xs
+> 
+>     f :: (a, MeasureText w t) -> (a, Int)
+>     f (a, m) =
+>       let (w, _) = applyScreenOffset (screenCoords m) (0,0)
+>       in (a, w)
+>   in
+>     map f $ FT.toAnnotatedList ys
+
+
+
+> renderScreenLinesWithRegion
+>   :: forall w t a
+>    . ( IsWidth w, IsTab t, Valued (MeasureText w t) a, Eq a, IsChar a )
+>   => (a -> a) -- apply to the region
+>   -> Int      -- top screen line
+>   -> Int      -- view height
 >   -> Buffer w t a
 >   -> ([Maybe Int], [[(a, Int)]])
-> renderBuffer _ f t h buf =
->   let (as, xs, _) = splitLines t h $ alterRegion f buf
->   in
->     unzip $
->       map (\(z,i) -> (i, map (\(Cell a,m) -> (a, fst $ applyScreenOffset (screenCoords m) (0,0))) $ filter (\(x, _) -> case x of EOF -> False; _ -> True) $ FT.toAnnotatedList z)) $
->       getLineNumbers (value as) xs
+> renderScreenLinesWithRegion f t h buf =
+>   unzip
+>     $ map (\(u,v) -> (v, attachColumnIndices u))
+>     $ attachLineNumbers
+>     $ getScreenLines t h
+>     $ alterRegion f buf
 
+::: doctest
 
+> -- $
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' ""
+> --   nums = [Just 0]
+> --   cells = [[('a',0)]]
+> -- in (nums, cells) ==
+> --     renderScreenLinesWithRegion id 0 1 x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" 'a' "b"
+> --   nums = [Just 0]
+> --   cells = [[('a',0),('b',1)]]
+> -- in (nums, cells) ==
+> --     renderScreenLinesWithRegion id 0 1 x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" '\n' ""
+> --   nums = [Just 0]
+> --   cells = [[('\n',0)]]
+> -- in (nums, cells) ==
+> --     renderScreenLinesWithRegion id 0 1 x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x = makePointOnlyBuffer nat8 nat2
+> --     "" '\t' "a"
+> --   nums = [Just 0]
+> --   cells = [[('\t',0),('a',2)]]
+> -- in (nums, cells) ==
+> --     renderScreenLinesWithRegion id 0 1 x
+> -- :}
+> -- True
 
-
-
-
+:::
 
 
 
@@ -1203,9 +1351,57 @@ Next, recall that buffers need to satisfy some invariants: first of all they are
 >     Just (u, _) -> 
 >       (u == eof) && (TPL.validate w)
 
-And lastly we expose a function that converts a buffer into a list with all the gritty value details exposed.
+We also expose a function that converts a buffer into a list with all the gritty value details exposed.
 
 > toAnnotatedList
 >   :: ( IsWidth w, IsTab t, Valued (MeasureText w t) a )
 >   => Buffer w t a -> [(Cell a, MeasureText w t)]
 > toAnnotatedList = TPL.toAnnotatedList . unBuffer
+
+Finally we give a `Show` instance to match our structure-aware constructors. This is filed with the debugging methods because we won't need it in "production".
+
+> instance
+>   ( Show a, IsWidth w, IsTab t, IsChar a
+>   ) => Show (Buffer w t a)
+>   where
+>     show (Buffer w) =
+>       let
+>         wid = showWidth (Proxy :: Proxy w)
+>         tab = showTab (Proxy :: Proxy t)
+>       in case w of
+>         TPL.Vacant -> concat
+>           [ "makeVacantBuffer"
+>           , wid, " ", tab
+>           ]
+>         TPL.PointOnly (as, x, bs) -> concat
+>           [ "makePointOnlyBuffer "
+>           , wid, " ", tab, " "
+>           , show $ Fold.toList as, " "
+>           , show x, " "
+>           , show $ Fold.toList bs
+>           ]
+>         TPL.Coincide (as, x, bs) -> concat
+>           [ "makeCoincide "
+>           , wid, " ", tab, " "
+>           , show $ Fold.toList as, " "
+>           , show x, " "
+>           , show $ Fold.toList bs
+>           ]
+>         TPL.PointMark (as, x, bs, y, cs) -> concat
+>           [ "makePointMarkBuffer "
+>           , wid, " ", tab, " "
+>           , show $ Fold.toList as, " "
+>           , show x, " "
+>           , show $ Fold.toList bs, " "
+>           , show y, " "
+>           , show $ Fold.toList cs
+>           ]
+>         TPL.MarkPoint (as, x, bs, y, cs) -> concat
+>           [ "makeMarkPointBuffer "
+>           , wid, " ", tab, " "
+>           , show $ Fold.toList as, " "
+>           , show x, " "
+>           , show $ Fold.toList bs, " "
+>           , show y, " "
+>           , show $ Fold.toList cs
+>           ]

@@ -92,6 +92,11 @@ These instances are only needed locally. Can we get rid of them?
 >   let title = "FingerTree (" ++ label ++ ")"
 >   in testGroup title
 >     [ testKreb
+>         "validate a == True" $
+>         \(a :: FingerTree m a) ->
+>           claimTrue (validate a)
+> 
+>     , testKreb
 >         "isSingleton (singleton a) == True" $
 >         \(a :: a) ->
 >           let x = singleton a :: FingerTree m a
@@ -352,4 +357,38 @@ These instances are only needed locally. Can we get rid of them?
 >           in claimEqual
 >             (inflateWith id as :: FingerTree m a)
 >             (fromList xs)
+> 
+>     , testKreb
+>         "(isEmpty as) || (readInit (as <> bs) == readInit as)" $
+>         \(as :: FingerTree m a) (bs :: FingerTree m a) ->
+>           claimAny
+>             [ claimTrue (isEmpty as)
+>             , claimEqual
+>                 (readInit as)
+>                 (readInit (as <> bs))
+>             ]
+> 
+>     , testKreb
+>         "(isEmpty bs) || (readLast (as <> bs) == readLast bs)" $
+>         \(as :: FingerTree m a) (bs :: FingerTree m a) ->
+>           claimAny
+>             [ claimTrue (isEmpty bs)
+>             , claimEqual
+>                 (readLast bs)
+>                 (readLast (as <> bs))
+>             ]
+> 
+>     , testKreb
+>         "readInit (mempty <> bs) == readInit bs" $
+>         \(bs :: FingerTree m a) ->
+>           claimEqual
+>             (readInit bs)
+>             (readInit (mempty <> bs))
+> 
+>     , testKreb
+>         "readLast (as <> mempty) == readLast as" $
+>         \(as :: FingerTree m a) ->
+>           claimEqual
+>             (readLast as)
+>             (readLast (as <> mempty))
 >     ]

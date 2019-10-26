@@ -215,27 +215,26 @@
 >   } deriving (Eq, Show)
 
 > updateRenderedPanel
->   :: BufferRenderSettings
->   -> GlyphRenderSettings
+>   :: GlyphRenderSettings
 >   -> EditorMode
 >   -> Int
 >   -> Panel
 >   -> Panel
-> updateRenderedPanel opts settings mode tab panel =
+> updateRenderedPanel settings mode tab panel =
 >   let
 >     textL = textboxOffset $ textBox panel
 
 >     (labels, labW, text, tDim, tCursor) =
->       renderTextBox opts (textBox panel)
+>       renderTextBox (textBox panel)
 
 >     (_, _, cmd, cDim, cCursor) =
->       renderTextBox opts (cmdBox panel)
+>       renderTextBox (cmdBox panel)
 
 >     (_, _, hist, hDim, _) =
->       renderTextBox opts (histBox panel)
+>       renderTextBox (histBox panel)
 > 
 >     (_, _, stat, sDim, _) =
->       renderTextBox opts (statusBox panel)
+>       renderTextBox (statusBox panel)
 > 
 >     m = case mode of
 >       InsertMode -> map plainRune "INS "

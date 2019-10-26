@@ -204,15 +204,14 @@ Queries
 
 
 > renderTextBox
->   :: BufferRenderSettings
->   -> TextBox
+>   :: TextBox
 >   -> ([[(Glyph, Int)]], Int, [[(Glyph, Int)]], (Int, Int), (Int, Int))
-> renderTextBox opts box@TextBox{..} =
+> renderTextBox box@TextBox{..} =
 >   let
 >     w = getTextBoxWidth box
 >     (labels', lines') =
 >       querySizedBuffer
->         (renderBuffer defaultBufferRenderSettings highlightRegion textboxOffset textboxHeight) $
+>         (renderScreenLinesWithRegion highlightRegion textboxOffset textboxHeight) $
 >       textboxBuffer
 > 
 >     firstMaybe :: [Maybe a] -> Maybe a
@@ -679,7 +678,7 @@ Resizing should not change the logical coordinates of the focus.
 >   :: TextBox
 >   -> DebugTextBox
 > debugTextBox box =
->   let (lb,_, ln, _, _) = renderTextBox defaultBufferRenderSettings box
+>   let (lb,_, ln, _, _) = renderTextBox box
 >   in DebugTextBox lb ln box
 
 > debugTextBoxActions
