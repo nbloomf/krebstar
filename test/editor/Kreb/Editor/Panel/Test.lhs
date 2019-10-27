@@ -16,13 +16,13 @@
 >     [ test_Panel_render_examples
 >     ]
 
-> grid :: [[Char]] -> [[Rune]]
+> grid :: [[Char]] -> [[Glyph String]]
 > grid = map (map plainRune)
 
-> dimGrid :: [[Char]] -> [[Rune]]
+> dimGrid :: [[Char]] -> [[Glyph String]]
 > dimGrid = map (map dimRune)
 
-> line :: [Char] -> [Rune]
+> line :: [Char] -> [Glyph String]
 > line = map dimRune
 
 > initPanelDim :: PanelDim
@@ -76,7 +76,7 @@
 >     , testKreb "#2" $
 >         prop_Panel_render_examples
 >         ( (6, 5), 2
->         , [ PanelAlterText [TextBoxInsert (mkGlyph 'a')] ]
+>         , [ PanelAlterText [TextBoxInsert (plainGlyph 'a')] ]
 >         ) $
 >         RenderedPanel
 >           { lineLabels = (grid ["0 ", "  ", "  "], (2,3))
@@ -89,7 +89,7 @@
 >     , testKreb "#3" $
 >         prop_Panel_render_examples
 >         ( (6, 5), 2
->         , [ PanelAlterCmd [TextBoxInsert (mkGlyph 'a')] ]
+>         , [ PanelAlterCmd [TextBoxInsert (plainGlyph 'a')] ]
 >         ) $
 >         RenderedPanel
 >           { lineLabels = (grid ["0 ", "  ", "  "], (2,3))
@@ -105,11 +105,11 @@
 >         prop_Panel_render_examples
 >         ( (16, 5), 4
 >         , [ PanelAlterText
->             [ TextBoxInsert (mkGlyph '\t')
->             , TextBoxInsert (mkGlyph 'b')
+>             [ TextBoxInsert (plainGlyph '\t')
+>             , TextBoxInsert (plainGlyph 'b')
 >             , TextBoxCursorLeft
 >             , TextBoxCursorLeft
->             , TextBoxInsert (mkGlyph 'a')]
+>             , TextBoxInsert (plainGlyph 'a')]
 >             ]
 >         ) $
 >         RenderedPanel

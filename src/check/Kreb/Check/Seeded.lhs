@@ -127,6 +127,10 @@
 >     i <- randIn (1,k-1)
 >     z !! i
 
+> oneFrom
+>   :: [a] -> Seeded a
+> oneFrom = selectFrom . map return
+
 > pickFrom2
 >   :: (Seeded a, Seeded a)
 >   -> Seeded a
@@ -168,6 +172,19 @@
 >     2 -> a3
 >     3 -> a4
 >     _ -> a5
+
+> pickFrom6
+>   :: (Seeded a, Seeded a, Seeded a, Seeded a, Seeded a, Seeded a)
+>   -> Seeded a
+> pickFrom6 (a1, a2, a3, a4, a5, a6) = do
+>   i <- randIn (0 :: Int, 5)
+>   case i of
+>     0 -> a1
+>     1 -> a2
+>     2 -> a3
+>     3 -> a4
+>     4 -> a5
+>     _ -> a6
 
 > freq
 >   :: forall a. [(Int, Seeded a)] -> Seeded a

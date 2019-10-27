@@ -34,7 +34,8 @@ Design and Implementation
 1. The Editor Core
     1. [The Read-Eval-Print Loop](html/ReplT.html)
     1. [Buffers](html/Buffer.html)
-    1. Text Boxes
+    1. [Sized Buffers](html/SizedBuffer.html)
+    1. [Text Boxes](html/TextBox.html)
 1. The Language
     1. Virtual Machine
     1. Expressions

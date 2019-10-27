@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Sized Buffers</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Sized Buffers</h1>
+</header>
+<div class="contents">
+<ul>
+<li><a href="#a-problem">A Problem</a>: Have types gone too far?</li>
+<li><a href="#working-with-sized-buffers">Working with sized buffers</a>: Interacting with a typeless type</li>
+</ul>
+</div>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE ExistentialQuantification #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE QuantifiedConstraints #-}</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE FlexibleContexts #-}</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ot">{-# LANGUAGE Rank2Types #-}</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="kw">module</span> <span class="dt">Kreb.Text.SizedBuffer</span> (</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">    <span class="dt">SizedBuffer</span>()</a>
+<a class="sourceLine" id="cb1-11" data-line-number="11">  , emptySizedBuffer</a>
+<a class="sourceLine" id="cb1-12" data-line-number="12">  , makeSizedBuffer</a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">  , shapeSizedBuffer</a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">  , alterSizedBuffer</a>
+<a class="sourceLine" id="cb1-15" data-line-number="15">  , alterSizedBufferF</a>
+<a class="sourceLine" id="cb1-16" data-line-number="16">  , querySizedBuffer</a>
+<a class="sourceLine" id="cb1-17" data-line-number="17">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="kw">import</span> <span class="dt">Data.Proxy</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="kw">import</span> <span class="dt">Kreb.Reflect</span></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"><span class="kw">import</span> <span class="dt">Kreb.Struct.Valued</span></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Kreb.Text.ScreenOffset</span></a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"><span class="kw">import</span> <span class="dt">Kreb.Text.Glyph</span></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25"><span class="kw">import</span> <span class="dt">Kreb.Text.MeasureText</span></a>
+<a class="sourceLine" id="cb1-26" data-line-number="26"><span class="kw">import</span> <span class="dt">Kreb.Text.Buffer</span></a></code></pre></div>
+</div>
+<section id="a-problem" class="level2">
+<h2>A Problem</h2>
+<p>The <code>Buffer</code> type is parameterized by two type level natural numbers. This is necessary to make the monoid instance for <code>MeasureText</code> work out nicely (and statically), but is also cumbersome to work with – we’ve seen this already with the awkward type signatures and <code>natN</code> parameters we needed to use when testing buffers by hand, and it will only get worse when we start juggling several text buffers at once. Consumers of this code need to know that a buffer has a well defined width and tab stop, but don’t really want to care about the <em>types</em> used to express this.</p>
+<p>What we want is to be able to hide the <code>w</code> and <code>t</code> type parameters – and this is precisely the problem existentially quantified types can solve. We can wrap the <code>Buffer</code> type in the following <em>existential type</em>, <code>SizedBuffer</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">data</span> <span class="dt">SizedBuffer</span> a <span class="fu">=</span> forall w t<span class="fu">.</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  ( <span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t, <span class="dt">Valued</span> (<span class="dt">MeasureText</span> w t) a</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">SizedBuffer</span> (<span class="dt">Buffer</span> w t a)</a></code></pre></div>
+<p>Note that the type variables <code>w</code> and <code>t</code> are bound on the right hand side of the definition, so they cannot “leak out”. Code consuming <code>SizedBuffers</code> cannot know about or do anything with <code>w</code> and <code>t</code> beyond what is allowed by the <code>IsWidth</code> and <code>IsTab</code> constraints. This is really powerful! <code>Buffer</code> can take full advantage of the benefits of very expressive types, and <code>SizedBuffer</code> acts like a guard giving the outside world the ability to ignore those types. It’s <em>almost</em> like we have dependent types – types depending on terms – albeit in a very restricted form.</p>
+<p>The type constraint inside <code>SizedBuffer</code>, on its face, makes it tricky to write fully polymorphic code over the <code>a</code> variable. But in practice all the <code>Valued</code> instances are universally quantified over <code>w</code> and <code>t</code> in the correct classes, so we can bundle this constraint in a way that refers only to <code>a</code> explicitly. I’ll call this class <code>Face</code> as a reference to typefaces, because in a sense it captures the notion of a character-like type which can be measured, and typefaces are subject to lots of different measurements.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  ( forall w t<span class="fu">.</span> (<span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t) <span class="ot">=&gt;</span> <span class="dt">Valued</span> (<span class="dt">MeasureText</span> w t) a</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Face</span> a</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="kw">instance</span> <span class="dt">Face</span> <span class="dt">Char</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="kw">instance</span> (<span class="dt">Face</span> a) <span class="ot">=&gt;</span> <span class="dt">Face</span> (<span class="dt">Glyph</span> a)</a></code></pre></div>
+<p>We can also give <code>Eq</code> and <code>Show</code> instances for sized buffers, but these are only really useful for testing and development. In practice we don’t care that much about ‘identity’ on sized buffers, and the closest we’ll get to ‘showing’ a buffer is rendering it.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  ( <span class="dt">Eq</span> a, <span class="dt">IsChar</span> a, <span class="dt">Face</span> a</a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Eq</span> (<span class="dt">SizedBuffer</span> a)</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">    (<span class="dt">SizedBuffer</span> b1) <span class="fu">==</span> (<span class="dt">SizedBuffer</span> b2) <span class="fu">=</span> and</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">      [ (getBufferWidth b1)</a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">          <span class="fu">==</span> (getBufferWidth b2)</a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">      , (getBufferTabStop b1)</a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">          <span class="fu">==</span> (getBufferTabStop b2)</a>
+<a class="sourceLine" id="cb4-10" data-line-number="10">      , (toList b1)</a>
+<a class="sourceLine" id="cb4-11" data-line-number="11">          <span class="fu">==</span> (toList b2)</a>
+<a class="sourceLine" id="cb4-12" data-line-number="12">      ]</a>
+<a class="sourceLine" id="cb4-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb4-14" data-line-number="14"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb4-15" data-line-number="15">  ( <span class="dt">Show</span> a, <span class="dt">IsChar</span> a</a>
+<a class="sourceLine" id="cb4-16" data-line-number="16">  ) <span class="ot">=&gt;</span> <span class="dt">Show</span> (<span class="dt">SizedBuffer</span> a)</a>
+<a class="sourceLine" id="cb4-17" data-line-number="17">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-18" data-line-number="18">    show (<span class="dt">SizedBuffer</span> buf) <span class="fu">=</span> </a>
+<a class="sourceLine" id="cb4-19" data-line-number="19">      <span class="st">&quot;SizedBuffer (&quot;</span> <span class="fu">++</span> show buf <span class="fu">++</span> <span class="st">&quot;)&quot;</span></a></code></pre></div>
+</section>
+<section id="working-with-sized-buffers" class="level2">
+<h2>Working with sized buffers</h2>
+<p>Existential types neatly solve the problem of how to express data with a hidden type parameter. However we still need a way to interact with the information so hidden. Unsurprisingly this requires some (not too bad) type hackery, which is mercifully contained entirely inside this module. Exactly how this works depends on whether or not we are touching the hidden type parameters.</p>
+<p>First we consider operations which involve fixing or changing the hidden parameters. In this case we use the helper functions <code>withWidth</code> and <code>withTab</code> to turn value parameters into types.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">emptySizedBuffer</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Face</span> a )</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">emptySizedBuffer width tab <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">  withWidth width <span class="fu">$</span> \(<span class="ot">_ ::</span> (<span class="dt">IsWidth</span> w) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> w) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">    withTab tab <span class="fu">$</span> \(<span class="ot">_ ::</span> (<span class="dt">IsTab</span> t) <span class="ot">=&gt;</span> <span class="dt">Proxy</span> t) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">      <span class="dt">SizedBuffer</span> (<span class="ot">empty ::</span> (<span class="dt">Valued</span> (<span class="dt">MeasureText</span> w t) a) <span class="ot">=&gt;</span> <span class="dt">Buffer</span> w t a)</a></code></pre></div>
+<p>We’re doing some weird stuff with type annotations here! But again, all the type-level weirdness is isolated to this module; consumers won’t need to worry about it.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4"><span class="co">--   x :: SizedBuffer Char</span></a>
+<a class="sourceLine" id="cb6-5" data-line-number="5"><span class="co">--   x = emptySizedBuffer 8 2</span></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="co">-- in show x</span></a>
+<a class="sourceLine" id="cb6-7" data-line-number="7"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8"><span class="co">-- &quot;SizedBuffer (makePointOnlyBuffer nat8 nat2 [] eof [])&quot;</span></a>
+<a class="sourceLine" id="cb6-9" data-line-number="9"><span class="co">--</span></a>
+<a class="sourceLine" id="cb6-10" data-line-number="10"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-11" data-line-number="11"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb6-12" data-line-number="12"><span class="co">--   x, y :: SizedBuffer Char</span></a>
+<a class="sourceLine" id="cb6-13" data-line-number="13"><span class="co">--   x = emptySizedBuffer 8 2</span></a>
+<a class="sourceLine" id="cb6-14" data-line-number="14"><span class="co">--   y = emptySizedBuffer 10 3</span></a>
+<a class="sourceLine" id="cb6-15" data-line-number="15"><span class="co">-- in x == y</span></a>
+<a class="sourceLine" id="cb6-16" data-line-number="16"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-17" data-line-number="17"><span class="co">-- False</span></a></code></pre></div>
+</div>
+<p>Next we have the problem of constructing a nonempty sized buffer. We’ll define this in terms of the underlying <code>fromList</code> function on buffers – in particular, this utility takes a list as input.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1">makeSizedBuffer</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="ot">  ::</span> forall a</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">Face</span> a )</a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">makeSizedBuffer width tab as <span class="fu">=</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">  withWidth width <span class="fu">$</span> \(<span class="ot">_ ::</span> <span class="dt">Proxy</span> w) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7">    withTab tab <span class="fu">$</span> \(<span class="ot">_ ::</span> <span class="dt">Proxy</span> t) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-8" data-line-number="8">      <span class="dt">SizedBuffer</span> (fromList<span class="ot"> as ::</span> <span class="dt">Buffer</span> w t a)</a></code></pre></div>
+<p>The final utility for messing with the hidden type parameters changes the size of the underlying buffer.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1">shapeSizedBuffer</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="ot">  ::</span> forall a</a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">Face</span> a )</a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">  <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">  <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb8-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb8-7" data-line-number="7">shapeSizedBuffer width tab (<span class="dt">SizedBuffer</span> buf) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8">  withWidth width <span class="fu">$</span> \(<span class="ot">_ ::</span> <span class="dt">Proxy</span> w) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb8-9" data-line-number="9">    withTab tab <span class="fu">$</span> \(<span class="ot">_ ::</span> <span class="dt">Proxy</span> t) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb8-10" data-line-number="10">      <span class="dt">SizedBuffer</span> (resizeBuffer<span class="ot"> buf ::</span> <span class="dt">Buffer</span> w t a)</a></code></pre></div>
+<p>Next we have functions which don’t mess with the hidden parameters. In this case there’s really only two things we can do: <em>alter</em> the underlying buffer or <em>query</em> the buffer to retrieve a value.</p>
+<p>To alter the buffer, we take a buffer-altering function. Note the quantified type signature of the altering function.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1">alterSizedBuffer</a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="ot">  ::</span> forall a</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">Face</span> a )</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">  <span class="ot">=&gt;</span> (forall w t<span class="fu">.</span> (<span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t)</a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">      <span class="ot">=&gt;</span> <span class="dt">Buffer</span> w t a <span class="ot">-&gt;</span> <span class="dt">Buffer</span> w t a)</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">  <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb9-8" data-line-number="8">alterSizedBuffer f (<span class="dt">SizedBuffer</span> buf) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb9-9" data-line-number="9">  <span class="dt">SizedBuffer</span> (f buf)</a></code></pre></div>
+<p>We also define a version taking an alter function returning a functor-wrapped valued.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1">alterSizedBufferF</a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="ot">  ::</span> forall a f</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">Functor</span> f, <span class="dt">Face</span> a )</a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">  <span class="ot">=&gt;</span> (forall w t<span class="fu">.</span> (<span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t)</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5">      <span class="ot">=&gt;</span> <span class="dt">Buffer</span> w t a <span class="ot">-&gt;</span> f (<span class="dt">Buffer</span> w t a))</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">  <span class="ot">-&gt;</span> f (<span class="dt">SizedBuffer</span> a)</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">alterSizedBufferF f (<span class="dt">SizedBuffer</span> buf) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">  fmap <span class="dt">SizedBuffer</span> (f buf)</a></code></pre></div>
+<p>Finally, a utility which extracts a value from a sized buffer.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1">querySizedBuffer</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2"><span class="ot">  ::</span> forall a b</a>
+<a class="sourceLine" id="cb11-3" data-line-number="3">   <span class="fu">.</span> ( <span class="dt">Face</span> a )</a>
+<a class="sourceLine" id="cb11-4" data-line-number="4">  <span class="ot">=&gt;</span> (forall w t<span class="fu">.</span> (<span class="dt">IsWidth</span> w, <span class="dt">IsTab</span> t)</a>
+<a class="sourceLine" id="cb11-5" data-line-number="5">      <span class="ot">=&gt;</span> <span class="dt">Buffer</span> w t a <span class="ot">-&gt;</span> b)</a>
+<a class="sourceLine" id="cb11-6" data-line-number="6">  <span class="ot">-&gt;</span> <span class="dt">SizedBuffer</span> a</a>
+<a class="sourceLine" id="cb11-7" data-line-number="7">  <span class="ot">-&gt;</span> b</a>
+<a class="sourceLine" id="cb11-8" data-line-number="8">querySizedBuffer f (<span class="dt">SizedBuffer</span> buf) <span class="fu">=</span></a>
+<a class="sourceLine" id="cb11-9" data-line-number="9">  f buf</a></code></pre></div>
+<p>The utilities designed in this module don’t expose any new functionality for sized buffers, and they don’t have to. Instead they provide a small set of ways to manipulate sized buffers without needing to worry about type weirdness.</p>
+</section>
+</article>
+</body>
+</html>

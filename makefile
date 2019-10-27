@@ -5,7 +5,9 @@ SOURCES := \
   src/struct/Kreb/Struct/Seq.lhs \
   src/struct/Kreb/Struct/RunLengthEncoded.lhs \
   src/struct/Kreb/Struct/TwoPointedList.lhs \
-  src/text/Kreb/Text/Buffer.lhs
+  src/text/Kreb/Text/Buffer.lhs \
+  src/text/Kreb/Text/SizedBuffer.lhs \
+  src/text/Kreb/Text/TextBox.lhs
 
 EXTRADOC := \
   aux/section/Rationale.md

@@ -22,15 +22,15 @@ import Kreb.Text
 
 
 class IsGlyph a where
-  toGlyph :: a -> Glyph
-  fromGlyph :: Glyph -> a
+  toGlyph :: a -> Glyph Char
+  fromGlyph :: Glyph Char -> a
 
 
 
 -- Printable Ascii Characters
 
 data Ascii
-  = Ascii Glyph
+  = Ascii (Glyph Char)
   deriving Eq
 
 charAscii :: Char -> Ascii

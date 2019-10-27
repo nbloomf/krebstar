@@ -15,5 +15,5 @@
 >     [ test_ScreenOffset
 >     , test_MeasureText
 >     , test_Buffer
->  --   , test_TextBox
+>     , test_TextBox
 >     ]

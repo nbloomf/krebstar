@@ -37,10 +37,10 @@ title: Kreb.Text.Buffer.Test
 >     , test_Buffer_properties "Char" nat15 nat2 (Proxy :: Proxy Char)
 >     , test_Buffer_properties "Char" nat8 nat2 (Proxy :: Proxy Char)
 > 
->     , test_Buffer_properties "Glyph" nat30 nat8 (Proxy :: Proxy Glyph)
->     , test_Buffer_properties "Glyph" nat30 nat4 (Proxy :: Proxy Glyph)
->     , test_Buffer_properties "Glyph" nat15 nat2 (Proxy :: Proxy Glyph)
->     , test_Buffer_properties "Glyph" nat8 nat2 (Proxy :: Proxy Glyph)
+>     , test_Buffer_properties "Glyph" nat30 nat8 (Proxy :: Proxy (Glyph Char))
+>     , test_Buffer_properties "Glyph" nat30 nat4 (Proxy :: Proxy (Glyph Char))
+>     , test_Buffer_properties "Glyph" nat15 nat2 (Proxy :: Proxy (Glyph Char))
+>     , test_Buffer_properties "Glyph" nat8 nat2 (Proxy :: Proxy (Glyph Char))
 >     ]
 
 > test_Buffer_properties

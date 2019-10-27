@@ -82,7 +82,7 @@
 >   :: ShellCommand -> Panel -> Panel
 > updateHistory cmd panel =
 >   let
->     append :: String -> [Glyph]
+>     append :: String -> [Glyph Char]
 >     append = map fromChar
 >   in panel
 >     { commandHistory = cmd : commandHistory panel
@@ -116,20 +116,20 @@
 >     w2 = width - w1 - 1
 >     h = height
 >   in Panel
->     { textBox       = initTextBox (_textDim dim) tab
+>     { textBox       = emptyTextBox (_textDim dim) tab
 >     , textOffset    = (3,0)
 >     , textChanged   = False
 >     , textOrigin    = Nothing
 >     , textWidth     = w1-3
 
->     , histBox       = initTextBox (_historyDim dim) tab
+>     , histBox       = emptyTextBox (_historyDim dim) tab
 >     , histChanged   = False
 
->     , statusBox     = initTextBox (_statusDim dim) tab
+>     , statusBox     = emptyTextBox (_statusDim dim) tab
 
 >     , commandHistory = []
 
->     , cmdBox        = initTextBox (_commandDim dim) tab
+>     , cmdBox        = emptyTextBox (_commandDim dim) tab
 >     , cmdOffset     = (0,h-1)
 >     , cmdHeight     = 1
 >     , renderedPanel = Nothing
@@ -148,7 +148,7 @@
 
 
 > mkPanel
->   :: [Glyph] -> Panel
+>   :: [Glyph Char] -> Panel
 > mkPanel xs = undefined
 
 
@@ -207,11 +207,11 @@
 >     }
 
 > data RenderedPanel = RenderedPanel
->   { lineLabels :: ([[Rune]], (Int, Int))
->   , textLines  :: ([[Rune]], (Int, Int), (Int, Int))
->   , histLines  :: ([[Rune]], (Int, Int))
->   , cmdLines   :: ([[Rune]], (Int, Int), (Int, Int))
->   , statusLine :: ([[Rune]], (Int, Int))
+>   { lineLabels :: ([[Glyph String]], (Int, Int))
+>   , textLines  :: ([[Glyph String]], (Int, Int), (Int, Int))
+>   , histLines  :: ([[Glyph String]], (Int, Int))
+>   , cmdLines   :: ([[Glyph String]], (Int, Int), (Int, Int))
+>   , statusLine :: ([[Glyph String]], (Int, Int))
 >   } deriving (Eq, Show)
 
 > updateRenderedPanel
@@ -241,7 +241,7 @@
 >       CommandMode -> map plainRune "CMD "
 >       NormalMode -> map plainRune "NOR "
 > 
->     cropAndRender :: (Int, Int) -> [[(Glyph, Int)]] -> [[Rune]]
+>     cropAndRender :: (Int, Int) -> [[(Glyph Char, Int)]] -> [[Glyph String]]
 >     cropAndRender (w, h) gss =
 >       take h $ (++ repeat (repeat $ plainRune ' ')) $
 >         map (take w . concatMap (renderGlyph settings tab)) gss

@@ -1,25 +1,36 @@
 ---
-title: Kreb.Text.TextBox
+title: Text Boxes
 ---
 
+::: contents
+* [Introduction](#introduction): The problem we're solving
+* [Queries](#queries): Getting information out of a text box
+* [Rendering](#rendering): Representing the viewable region
+* [Mutation](#mutation): Altering the text box
+:::
 
 
-Contents
---------
 
+::: frontmatter
 
-
-Introduction
-============
-
-> {-# LANGUAGE
->     FlexibleContexts
->   , RecordWildCards
-> #-}
-
+> {-# LANGUAGE FlexibleContexts #-}
+> {-# LANGUAGE RecordWildCards #-}
+> 
 > module Kreb.Text.TextBox (
 >     TextBox(..)
->   , initTextBox
+>   , emptyTextBox
+>   , stringTextBox
+> 
+>   , getTextBoxWidth
+>   , getTextBoxHeight
+>   , getTextBoxTabStop
+>   , getTextBoxBytes
+>   , getTextBoxLineCol
+>   , getTextBoxScreenCoords
+
+
+
+
 >   , mkTextBox
 >   , textboxLabelWidth
 > 
@@ -28,12 +39,6 @@ Introduction
 >   , TextBoxAction(..)
 > 
 >   -- * Queries
->   , getTextBoxWidth
->   , getTextBoxHeight
->   , getTextBoxTabStop
->   , getTextBoxBytes
->   , getTextBoxLineCol
->   , getTextBoxScreenCoords
 >   , getTextBoxCursor
 >   , getTextBoxOffset
 >   , getTextBoxBuffer
@@ -42,7 +47,6 @@ Introduction
 >   , getTextBoxFocusLineCol
 >   , getTextBoxFocusScreenCoords
 
->   , setTextBoxHeight
 >   , setTextBoxOffset
 >   , setTextBoxCursor
 
@@ -63,85 +67,262 @@ Introduction
 > import Kreb.Control
 > import Kreb.Text.MeasureText
 > import Kreb.Text.ScreenOffset
+> import Kreb.Text.Pigment
 > import Kreb.Text.Buffer
 > import Kreb.Text.Glyph
 > import Kreb.Text.Cell
 > import Kreb.Text.SizedBuffer
 
+:::
 
 
-A @TextBox@ is a rectangular array of cells that acts as a view into a @Buffer@, together with a distinguished cursor position that is used to interact with the buffer.
+
+Introduction
+------------
+
+There's a pretty big gap between a buffer data structure and a usable text editor. In a way the concrete data structure is the easy part, because it is all algorithms and data layout, while the gritty details of a usable text editor involve mostly _policy_ and _compromise_ -- it's more politics than engineering. We can still build up to the usable editor in layers, though, so that the policy choices are made at properly separate levels and as naturally as possible -- the code that interprets keystrokes can and should be independent of the code that draws to the screen, even though both of these activities are almost 100% policy decisions.
+
+In this module we'll build the bottom layer of the editor cake. It may seem odd to call this the bottom layer since it depends on a ton of code already. But here for the first time a recognizable _editor API_ will start to emerge. Specifically, this module represents the basic text buffer data structure _as exposed to the editor_ as well as the operations that can be performed with it.
+
+To that end, we need to draw some boundaries around what exactly we're trying to do here.
+
+The `TextBox` structure should represent the following as generically as possible:
+
+  1. A sized buffer of text
+  2. A pointer to the _persistent source_ of the text, if one exists (e.g. the filename)
+  3. A representation of the _screen view_ into the text
+  4. A distinguished _cursor position_ measured in screen coordinates
+
+We represent this information with the following type.
 
 > data TextBox = TextBox
->   { textboxHeight     :: Int        -- ^ Height in cells
->   , textboxCursor     :: (Int, Int) -- ^ Relative cursor position
->   , textboxOffset     :: Int        -- ^ The top screen line index
->   , textboxBuffer     :: SizedBuffer Glyph
->   , textboxLabelBase  :: Int
+>   -- The sized buffer
+>   { textboxBuffer     :: SizedBuffer (Glyph Char)
+> 
+>   -- The persistent source
 >   , textboxSource     :: Maybe FilePath
 >   , textboxHasChanged :: Bool
+> 
+>   -- The view
+>   , textboxOffset     :: Int -- ^ The top screen line index
+>   , textboxHeight     :: Int -- ^ Height in cells
+>   , textboxLabelBase  :: Int -- ^ Numeric base of line labels
+> 
+>   -- The cursor
+>   , textboxCursor     :: (Int, Int) -- ^ Relative cursor position
 >   } deriving (Eq, Show)
 
+The `Eq` and `Show` instances are just for testing. Under normal use we won't care about checking text boxes for equality, and the derived show instance is practically useless.
 
+Definitely not useless are the functions for constructing text boxes. First we have the empty box:
 
-> initTextBox
->   :: (Int, Int) -- ^ (Width, Height)
->   -> Int        -- ^ Tab
+> emptyTextBox
+>   :: (Int, Int) -- ^ Screen dimensions: (Width, Height)
+>   -> Int        -- ^ Tab width
 >   -> TextBox
-> initTextBox (w,h) t = TextBox
->   { textboxHeight     = h
->   , textboxCursor     = (0,0)
->   , textboxBuffer     = emptySizedBuffer w t
->   , textboxOffset     = 0
->   , textboxLabelBase  = 10
->   , textboxSource     = Nothing
->   , textboxHasChanged = False
->   }
+> emptyTextBox (w,h) t =
+>   if (w <= 0) || (h <= 0) || (t <= 0) || (w < t)
+>     then error "emptyTextBox: panic (invalid dimensions)"
+>     else TextBox
+>       { textboxHeight     = h
+>       , textboxCursor     = (0,0)
+>       , textboxBuffer     = emptySizedBuffer w t
+>       , textboxOffset     = 0
+>       , textboxLabelBase  = 10
+>       , textboxSource     = Nothing
+>       , textboxHasChanged = False
+>       }
+
+And we can build a text box out of an arbitrary string:
+
+> stringTextBox
+>   :: (Int, Int) -- ^ Screen dimensions: (Width, Height)
+>   -> Int        -- ^ Tab width
+>   -> String
+>   -> TextBox
+> stringTextBox (w,h) t str =
+>   if (w <= 0) || (h <= 0) || (t <= 0) || (w < t)
+>     then error "emptyTextBox: panic (invalid dimensions)"
+>     else TextBox
+>       { textboxHeight     = h
+>       , textboxCursor     = (0,0)
+>       , textboxBuffer     = makeSizedBuffer w t $ map plainGlyph str
+>       , textboxOffset     = 0
+>       , textboxLabelBase  = 10
+>       , textboxSource     = Nothing
+>       , textboxHasChanged = False
+>       }
 
 
 
 Queries
-=======
+-------
+
+Text boxes have lots of properties, and we'd like to know what those properties are.
+
+We can extract the screen width of the box:
 
 > getTextBoxWidth
 >   :: TextBox -> Int
 > getTextBoxWidth box =
 >   querySizedBuffer getBufferWidth
 >     $ textboxBuffer box
-> 
+
+And an example for fun:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello world!"
+> -- in getTextBoxWidth x
+> -- :}
+> -- 8
+
+:::
+
+We can extract the view height of the box:
+
+> getTextBoxHeight
+>   :: TextBox -> Int
+> getTextBoxHeight = textboxHeight
+
+And an example for fun:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello world!"
+> -- in getTextBoxHeight x
+> -- :}
+> -- 3
+
+:::
+
+We can extract the tab stop width of the box:
+
 > getTextBoxTabStop
 >   :: TextBox -> Int
 > getTextBoxTabStop box =
 >   querySizedBuffer getBufferTabStop
 >     $ textboxBuffer box
-> 
+
+And an example for fun:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello world!"
+> -- in getTextBoxTabStop x
+> -- :}
+> -- 2
+
+:::
+
+We can extract the number of bytes in the box:
+
 > getTextBoxBytes
 >   :: TextBox -> Int
 > getTextBoxBytes box =
 >   querySizedBuffer getBufferByteCount
 >     $ textboxBuffer box
-> 
+
+::: doctest
+
+And an example for fun:
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello world!"
+> -- in getTextBoxBytes x
+> -- :}
+> -- 12
+
+:::
+
+We can extract the logical size (line and column) of the box:
+
 > getTextBoxLineCol
 >   :: TextBox -> LineCol
 > getTextBoxLineCol box =
 >   querySizedBuffer getBufferLineCol
 >     $ textboxBuffer box
-> 
+
+::: doctest
+
+And some examples for fun:
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello world!"
+> -- in getTextBoxLineCol x
+> -- :}
+> -- l0c11
+> --
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello there,\nworld!"
+> -- in getTextBoxLineCol x
+> -- :}
+> -- l1c5
+
+:::
+
+We can extract the dimensions of the box in screen space:
+
 > getTextBoxScreenCoords
 >   :: TextBox -> (Int, Int)
 > getTextBoxScreenCoords box =
 >   querySizedBuffer getBufferScreenCoords
 >     $ textboxBuffer box
-> 
+
+And some examples for fun:
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello world!"
+> -- in getTextBoxScreenCoords x
+> -- :}
+> -- (3,1)
+> --
+> -- >>> :{
+> -- let
+> --   x = stringTextBox (8,3) 2
+> --     "hello there,\nworld!"
+> -- in getTextBoxScreenCoords x
+> -- :}
+> -- (5,2)
+
+
+
+
+
+
+
+
+
 > getTextBoxString
 >   :: TextBox -> String
 > getTextBoxString box =
 >   querySizedBuffer (map toChar . toList)
 >     $ textboxBuffer box
 > 
-> getTextBoxHeight
->   :: TextBox -> Int
-> getTextBoxHeight = textboxHeight
+
 > 
 > getTextBoxCursor
 >   :: TextBox -> (Int, Int)
@@ -152,7 +333,7 @@ Queries
 > getTextBoxOffset = textboxOffset
 > 
 > getTextBoxBuffer
->   :: TextBox -> SizedBuffer Glyph
+>   :: TextBox -> SizedBuffer (Glyph Char)
 > getTextBoxBuffer = textboxBuffer
 
 > getTextBoxHasChanged
@@ -173,8 +354,21 @@ Queries
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 > editTextBoxBuffer
->   :: (SizedBuffer Glyph -> SizedBuffer Glyph)
+>   :: (SizedBuffer (Glyph Char) -> SizedBuffer (Glyph Char))
 >   -> TextBox -> TextBox
 > editTextBoxBuffer f box =
 >   box { textboxBuffer = f (textboxBuffer box) }
@@ -198,14 +392,14 @@ Queries
 
 
 > highlightRegion
->   :: Glyph -> Glyph
+>   :: Glyph Char -> Glyph Char
 > highlightRegion z = case z of
->   Glyph c f _ -> Glyph c (RuneColor HueBlack BrightnessDull) (RuneColor HueWhite BrightnessVivid)
+>   Glyph c f _ -> Glyph c dullBlack vividWhite
 
 
 > renderTextBox
 >   :: TextBox
->   -> ([[(Glyph, Int)]], Int, [[(Glyph, Int)]], (Int, Int), (Int, Int))
+>   -> ([[(Glyph Char, Int)]], Int, [[(Glyph Char, Int)]], (Int, Int), (Int, Int))
 > renderTextBox box@TextBox{..} =
 >   let
 >     w = getTextBoxWidth box
@@ -225,7 +419,7 @@ Queries
 >       Nothing -> 1
 >       Just k -> 1 + length (show k)
 > 
->     showLabel :: Maybe Int -> [(Glyph, Int)]
+>     showLabel :: Maybe Int -> [(Glyph Char, Int)]
 >     showLabel z = case z of
 >       Nothing -> [(fromChar ' ', 0)]
 >       Just k -> zip ((map fromChar (show k)) ++ [fromChar ' ']) [0..]
@@ -251,7 +445,7 @@ Queries
 >   -> [TextBoxAction]
 >   -> TextBox
 > mkTextBox (x,y) tab acts =
->   alterTextBox acts $ initTextBox (x,y) tab
+>   alterTextBox acts $ emptyTextBox (x,y) tab
 
 
 
@@ -281,8 +475,8 @@ Queries
 
 > data TextBoxAction
 >   -- Text Manipulation
->   = TextBoxInsert Glyph
->   | TextBoxInsertMany [Glyph]
+>   = TextBoxInsert (Glyph Char)
+>   | TextBoxInsertMany [Glyph Char]
 >   | TextBoxBackspace
 > 
 >   -- Navigation
@@ -413,7 +607,7 @@ Queries
 >   :: FilePath -> String -> TextBox -> TextBox
 > textboxLoad path str box = box
 >   { textboxBuffer = makeSizedBuffer
->       (getTextBoxWidth box) (getTextBoxHeight box) str
+>       (getTextBoxWidth box) (getTextBoxHeight box) (map fromChar str)
 >   , textboxOffset = 0
 >   , textboxCursor = (0,0)
 >   , textboxSource = Just path
@@ -445,7 +639,7 @@ Queries
 
 
 > textBoxInsert
->   :: Glyph
+>   :: Glyph Char
 >   -> TextBox -> TextBox
 > textBoxInsert c box =
 >   let
@@ -473,7 +667,7 @@ Queries
 >     }
 
 > textBoxInsertMany
->   :: [Glyph]
+>   :: [Glyph Char]
 >   -> TextBox -> TextBox
 > textBoxInsertMany cs box =
 >   foldl (flip textBoxInsert) box cs
@@ -654,8 +848,8 @@ Resizing should not change the logical coordinates of the focus.
 
 
 > data DebugTextBox = DebugTextBox
->   { _labels :: [[(Glyph, Int)]]
->   , _lines  :: [[(Glyph, Int)]]
+>   { _labels :: [[(Glyph Char, Int)]]
+>   , _lines  :: [[(Glyph Char, Int)]]
 >   , _box    :: TextBox
 >   }
 

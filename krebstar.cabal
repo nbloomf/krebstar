@@ -189,6 +189,7 @@ library kreb-text
       Kreb.Text
     , Kreb.Text.ScreenOffset
     , Kreb.Text.MeasureText
+    , Kreb.Text.Pigment
     , Kreb.Text.Glyph
     , Kreb.Text.Cell
     , Kreb.Text.Buffer

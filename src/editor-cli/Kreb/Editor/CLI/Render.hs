@@ -23,28 +23,14 @@ imageTiles mode panel =
     Nothing -> Picture (Cursor 0 0) [char defAttr ' '] (ClearBackground)
     Just rp -> imageRenderedPanel mode rp
 
-drawCell :: Rune -> Image
-drawCell (Rune c fore back) =
+drawCell :: Glyph String -> Image
+drawCell (Glyph c fore back) =
   string (withForeColor (withBackColor defAttr (getColor back)) (getColor fore)) c
 
-getColor :: RuneColor -> Color
-getColor (RuneColor hue brightness) = case (hue, brightness) of
-  (HueBlack,   BrightnessDull)  -> black
-  (HueRed,     BrightnessDull)  -> red
-  (HueGreen,   BrightnessDull)  -> green
-  (HueYellow,  BrightnessDull)  -> yellow
-  (HueBlue,    BrightnessDull)  -> blue
-  (HueMagenta, BrightnessDull)  -> magenta
-  (HueCyan,    BrightnessDull)  -> cyan
-  (HueWhite,   BrightnessDull)  -> white
-  (HueBlack,   BrightnessVivid) -> brightBlack
-  (HueRed,     BrightnessVivid) -> brightRed
-  (HueGreen,   BrightnessVivid) -> brightGreen
-  (HueYellow,  BrightnessVivid) -> brightYellow
-  (HueBlue,    BrightnessVivid) -> brightBlue
-  (HueMagenta, BrightnessVivid) -> brightMagenta
-  (HueCyan,    BrightnessVivid) -> brightCyan
-  (HueWhite,   BrightnessVivid) -> brightWhite
+getColor :: Pigment -> Color
+getColor p =
+  let (r,g,b) = pigmentToRGB24 p
+  in rgbColor r g b
 
 imageRenderedPanel
   :: EditorMode -> RenderedPanel -> Picture

@@ -1,5 +1,6 @@
 0.0.1 Checklist
 ===============
+- TextBox: do not export raw field names
 - measuretext: get rid of hastrailingnewline
 - buffer: move mark to linecol/screenpos/screenline
 - adjustRegion :: (FT a -> FT a) -> Buffer a -> Buffer a

@@ -39,6 +39,15 @@ Introduction
 
 
 
+> test_TextBox :: TestTree
+> test_TextBox = testGroup "TextBox"
+>   [
+>   ]
+
+
+
+> {-
+
 
 Test suite
 ----------
@@ -316,7 +325,7 @@ Insert One Character
 >     (Width_ w, Height_ h) = dim
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_one_char dim tab x
->     padC = padQuad (w,h) (mkGlyph ' ')
+>     padC = padQuad (w,h) (plainGlyph ' ')
 >     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ claimEqual labels $ annotateCol $
@@ -376,7 +385,7 @@ Insert many 'a's
 >     l = (q - h) + if r == 0 then 1 else 1
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_many_as dim tab k
->     padC = padQuad (w,h) (mkGlyph ' ')
+>     padC = padQuad (w,h) (plainGlyph ' ')
 >     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ heightIs box h
@@ -421,7 +430,7 @@ Insert only newlines
 >     z = if u >= h then 1 else 0
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_newlines dim tab k
->     padC = padQuad (w,h) (mkGlyph ' ')
+>     padC = padQuad (w,h) (plainGlyph ' ')
 >     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ claimEqual labels $ annotateCol $ padL
@@ -464,7 +473,7 @@ Insert some, then left
 >     (q,r) = quotRem u w
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_left dim tab k
->     padC = padQuad (w,h) (mkGlyph ' ')
+>     padC = padQuad (w,h) (plainGlyph ' ')
 >     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ claimEqual labels $ annotateCol $ padL (take h
@@ -508,7 +517,7 @@ Insert some, then backspace
 >     Positive u = k
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_some_then_backspace dim tab k b
->     padC = padQuad (w,h) (mkGlyph ' ')
+>     padC = padQuad (w,h) (plainGlyph ' ')
 >     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ claimEqual labels $ annotateCol $ padL ["0 "]
@@ -550,7 +559,7 @@ Insert no characters
 >     (Positive w, Positive h) = dim
 >     DebugTextBox labels lines box =
 >       make_TextBox_insert_no_chars act dim tab
->     padC = padQuad (w,h) (mkGlyph ' ')
+>     padC = padQuad (w,h) (plainGlyph ' ')
 >     padL xs = take h $ xs ++ repeat "  "
 >   in claimAll
 >     [ claimEqual labels $ annotateCol $ padL ["0 "]
@@ -627,7 +636,7 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
+>           , [ TextBoxInsert (plainGlyph 'a')
 >             ]
 >           )
 >           ( ["0 "]
@@ -639,7 +648,7 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
+>           , [ TextBoxInsert (plainGlyph 'a')
 >             , TextBoxCursorLeft
 >             ]
 >           )
@@ -652,9 +661,9 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
+>           , [ TextBoxInsert (plainGlyph 'a')
 >             , TextBoxCursorLeft
->             , TextBoxInsert (mkGlyph 'b')
+>             , TextBoxInsert (plainGlyph 'b')
 >             ]
 >           )
 >           ( ["0 "]
@@ -666,8 +675,8 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph '\n')
->             , TextBoxInsert (mkGlyph 'a')
+>           , [ TextBoxInsert (plainGlyph '\n')
+>             , TextBoxInsert (plainGlyph 'a')
 >             , TextBoxCursorUp
 >             ]
 >           )
@@ -680,7 +689,7 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph '\n')
+>           , [ TextBoxInsert (plainGlyph '\n')
 >             , TextBoxCursorUp
 >             , TextBoxCursorRight
 >             ]
@@ -694,9 +703,9 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
->             , TextBoxInsert (mkGlyph 'b')
->             , TextBoxInsert (mkGlyph '\n')
+>           , [ TextBoxInsert (plainGlyph 'a')
+>             , TextBoxInsert (plainGlyph 'b')
+>             , TextBoxInsert (plainGlyph '\n')
 >             , TextBoxCursorUp
 >             , TextBoxCursorRight
 >             ]
@@ -710,9 +719,9 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
->             , TextBoxInsert (mkGlyph 'b')
->             , TextBoxInsert (mkGlyph 'c')
+>           , [ TextBoxInsert (plainGlyph 'a')
+>             , TextBoxInsert (plainGlyph 'b')
+>             , TextBoxInsert (plainGlyph 'c')
 >             , TextBoxCursorDown
 >             ]
 >           )
@@ -725,7 +734,7 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph '\n')
+>           , [ TextBoxInsert (plainGlyph '\n')
 >             ]
 >           )
 >           ( ["0 ", "1 "]
@@ -737,8 +746,8 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph '\n')
->             , TextBoxInsert (mkGlyph '\n')
+>           , [ TextBoxInsert (plainGlyph '\n')
+>             , TextBoxInsert (plainGlyph '\n')
 >             ]
 >           )
 >           ( ["1 ", "2 "]
@@ -750,9 +759,9 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph '\n')
->             , TextBoxInsert (mkGlyph '\n')
->             , TextBoxInsert (mkGlyph '\n')
+>           , [ TextBoxInsert (plainGlyph '\n')
+>             , TextBoxInsert (plainGlyph '\n')
+>             , TextBoxInsert (plainGlyph '\n')
 >             ]
 >           )
 >           ( ["2 ", "3 "]
@@ -764,12 +773,12 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,1)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
->             , TextBoxInsert (mkGlyph 'b')
->             , TextBoxInsert (mkGlyph 'c')
->             , TextBoxInsert (mkGlyph 'd')
->             , TextBoxInsert (mkGlyph 'e')
->             , TextBoxInsert (mkGlyph 'f')
+>           , [ TextBoxInsert (plainGlyph 'a')
+>             , TextBoxInsert (plainGlyph 'b')
+>             , TextBoxInsert (plainGlyph 'c')
+>             , TextBoxInsert (plainGlyph 'd')
+>             , TextBoxInsert (plainGlyph 'e')
+>             , TextBoxInsert (plainGlyph 'f')
 >             , TextBoxCursorDown
 >             ]
 >           )
@@ -782,18 +791,18 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
->             , TextBoxInsert (mkGlyph 'b')
->             , TextBoxInsert (mkGlyph 'c')
->             , TextBoxInsert (mkGlyph 'd')
->             , TextBoxInsert (mkGlyph 'e')
->             , TextBoxInsert (mkGlyph 'f')
->             , TextBoxInsert (mkGlyph 'g')
->             , TextBoxInsert (mkGlyph 'h')
->             , TextBoxInsert (mkGlyph 'i')
->             , TextBoxInsert (mkGlyph 'j')
->             , TextBoxInsert (mkGlyph 'k')
->             , TextBoxInsert (mkGlyph 'l')
+>           , [ TextBoxInsert (plainGlyph 'a')
+>             , TextBoxInsert (plainGlyph 'b')
+>             , TextBoxInsert (plainGlyph 'c')
+>             , TextBoxInsert (plainGlyph 'd')
+>             , TextBoxInsert (plainGlyph 'e')
+>             , TextBoxInsert (plainGlyph 'f')
+>             , TextBoxInsert (plainGlyph 'g')
+>             , TextBoxInsert (plainGlyph 'h')
+>             , TextBoxInsert (plainGlyph 'i')
+>             , TextBoxInsert (plainGlyph 'j')
+>             , TextBoxInsert (plainGlyph 'k')
+>             , TextBoxInsert (plainGlyph 'l')
 >             , TextBoxCursorDown
 >             ]
 >           )
@@ -817,7 +826,7 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
+>           , [ TextBoxInsert (plainGlyph 'a')
 >             , TextBoxBackspace
 >             ]
 >           )
@@ -830,7 +839,7 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
+>           , [ TextBoxInsert (plainGlyph 'a')
 >             , TextBoxBackspace
 >             , TextBoxBackspace
 >             ]
@@ -844,8 +853,8 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (3,2)
 >           , 1
->           , [ TextBoxInsert (mkGlyph 'a')
->             , TextBoxInsert (mkGlyph 'b')
+>           , [ TextBoxInsert (plainGlyph 'a')
+>             , TextBoxInsert (plainGlyph 'b')
 >             , TextBoxCursorLeft
 >             , TextBoxBackspace
 >             ]
@@ -861,8 +870,8 @@ Action examples
 >           ( (3,2)
 >           , 1
 >           , [ TextBoxInsertMany
->               [ mkGlyph 'a', mkGlyph 'b', mkGlyph 'c'
->               , mkGlyph 'd', mkGlyph 'e', mkGlyph 'f' ]
+>               [ plainGlyph 'a', plainGlyph 'b', plainGlyph 'c'
+>               , plainGlyph 'd', plainGlyph 'e', plainGlyph 'f' ]
 >             , TextBoxCursorUp
 >             , TextBoxResize (3,1)
 >             ]
@@ -876,11 +885,11 @@ Action examples
 >         prop_TextBox_action_examples
 >           ( (8,2)
 >           , 4
->           , [ TextBoxInsert (mkGlyph '\t')
->             , TextBoxInsert (mkGlyph 'b')
+>           , [ TextBoxInsert (plainGlyph '\t')
+>             , TextBoxInsert (plainGlyph 'b')
 >             , TextBoxCursorLeft
 >             , TextBoxCursorLeft
->             , TextBoxInsert (mkGlyph 'a')
+>             , TextBoxInsert (plainGlyph 'a')
 >             ]
 >           )
 >           ( [ "0 ", "  " ]
@@ -889,3 +898,5 @@ Action examples
 >           , (1,0)
 >           )
 >     ]
+
+> -}
