@@ -36,9 +36,10 @@
 >   , "src/struct/Kreb/Struct/Valued.lhs"
 >   , "src/struct/Kreb/Struct/FingerTree.lhs"
 >   , "src/struct/Kreb/Struct/OnePointedList.lhs"
->   , "src/struct/Kreb/Struct/Seq.lhs"
+>   , "src/struct/Kreb/Struct/Sequence.lhs"
 >   , "src/struct/Kreb/Struct/TwoPointedList.lhs"
 >   , "src/struct/Kreb/Struct/RunLengthEncoded.lhs"
+>   , "src/struct/Kreb/Struct/RoseTree.lhs"
 > 
 >   , "src/text/Kreb/Text.lhs"
 >   , "src/text/Kreb/Text/ScreenOffset.lhs"

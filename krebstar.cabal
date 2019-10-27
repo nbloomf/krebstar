@@ -148,8 +148,9 @@ library kreb-struct
     , Kreb.Struct.FingerTree
     , Kreb.Struct.OnePointedList
     , Kreb.Struct.TwoPointedList
-    , Kreb.Struct.Seq
+    , Kreb.Struct.Sequence
     , Kreb.Struct.RunLengthEncoded
+    , Kreb.Struct.RoseTree
   build-depends:
       base >=4.7 && <5
 
@@ -165,8 +166,9 @@ test-suite kreb-struct-test
     , Kreb.Struct.FingerTree.Test
     , Kreb.Struct.OnePointedList.Test
     , Kreb.Struct.TwoPointedList.Test
-    , Kreb.Struct.Seq.Test
+    , Kreb.Struct.Sequence.Test
     , Kreb.Struct.RunLengthEncoded.Test
+    , Kreb.Struct.RoseTree.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -496,7 +498,8 @@ test-suite kreb-test
     , Kreb.Struct.OnePointedList.Test
     , Kreb.Struct.TwoPointedList.Test
     , Kreb.Struct.RunLengthEncoded.Test
-    , Kreb.Struct.Seq.Test
+    , Kreb.Struct.Sequence.Test
+    , Kreb.Struct.RoseTree.Test
     , Kreb.Text.Buffer.Test
     , Kreb.Text.Glyph.Test
     , Kreb.Text.MeasureText.Test

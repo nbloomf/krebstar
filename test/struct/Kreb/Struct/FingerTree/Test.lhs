@@ -1,5 +1,5 @@
 ---
-title: Kreb.Struct.FingerTree.Test
+title: Finger Trees -- Tests
 ---
 
 

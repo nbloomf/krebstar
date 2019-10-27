@@ -50,7 +50,7 @@ Appendices
 1. Data Structures
     1. [Finger Trees](html/FingerTree.html)
     1. [One-Pointed Lists](html/OnePointedList.html)
-    1. [Seq](html/Seq.html)
+    1. [Sequences](html/Sequence.html)
     1. [Run Length Encoding](html/RunLengthEncoding.html)
     1. [Two-Pointed Lists](html/TwoPointedList.html)
 1. Testing Library

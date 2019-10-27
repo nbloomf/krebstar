@@ -25,7 +25,7 @@ import Kreb.Text.Glyph
 import Kreb.Editor.Panel
 import Kreb.Struct.Valued
 import Kreb.Struct.FingerTree
-import qualified Kreb.Struct.Seq as Seq
+import qualified Kreb.Struct.Sequence as Seq
 
 
 
@@ -33,13 +33,13 @@ instance Valued Count Panel where
   value _ = Count 1
 
 data Tabs = Tabs
-  { unTabs :: Seq.Seq Panel
+  { unTabs :: Seq.Sequence Panel
   } deriving (Eq, Show)
 
 setTabsDim
   :: (Int, Int) -> Tabs -> Tabs
 setTabsDim dim (Tabs ts) =
-  Tabs $ Seq.fmapSeq (setPanelDim dim) ts
+  Tabs $ Seq.fmapSequence (setPanelDim dim) ts
 
 
 
@@ -87,4 +87,4 @@ queryActivePanelTabs f =
 
 
 debugShowTabs :: Tabs -> String
-debugShowTabs (Tabs ts) = Seq.debugShowSeq debugShowPanel ts
+debugShowTabs (Tabs ts) = Seq.debugShowSequence debugShowPanel ts

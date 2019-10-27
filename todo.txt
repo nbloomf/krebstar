@@ -1,5 +1,10 @@
 0.0.1 Checklist
 ===============
+- OPL: view init and view last
+- fix the EOF bug
+- TextBox: Arrow up and down should 'remember' x coordinate
+- TextBox: reified edits are natural patch algebra primitives, make this explicit
+  - all movement commands in terms of line/col position
 - TextBox: do not export raw field names
 - measuretext: get rid of hastrailingnewline
 - buffer: move mark to linecol/screenpos/screenline
@@ -8,7 +13,6 @@
 - concatenation for two-pointed lists; need both left and right biased versions
   - test for this
   - biased == which point/mark is preserved
-- rename Seq to Sequence
 - rename makeFromList to fromList (OPL and TPL)
 - When a region loses focus the selection should highlight to a dimmer color
 - replace 'normal mode' with 'debug mode' (not sure about this idea)
@@ -38,8 +42,6 @@
 Refactoring
 - rewrite Tape tests for Seq
 - make TextBox and Editor tests active again
-
-- Arrow up and down should 'remember' x coordinate
 - page up and down, home and end
 - start the manual
 - File load and save (primitives and key bindings)
