@@ -20,7 +20,6 @@ title: Kreb.Struct.Sequence.Test
 > import Test.Tasty
 > 
 > import Kreb.Check
-> import Kreb.Struct.Valued
 > import Kreb.Struct.Sequence
 
 
@@ -35,7 +34,7 @@ title: Kreb.Struct.Sequence.Test
 
 > test_Sequence_properties
 >   :: forall m a
->    . ( Eq a, Valued Count a, Show a, Arb a, Prune a, MakeTo a, CoArb a )
+>    . ( Eq a, Show a, Arb a, Prune a, MakeTo a, CoArb a )
 >   => String -> Proxy a -> TestTree
 > test_Sequence_properties label _ =
 >   let title = "Sequence properties (" ++ label ++ ")"
@@ -225,4 +224,42 @@ title: Kreb.Struct.Sequence.Test
 >           claimEqual
 >             (xs)
 >             (toList (fromList xs :: Sequence a))
+> 
+>     , testKreb
+>         "moveToInit as == moveToIndex 0 as" $
+>         \(as :: Sequence a) ->
+>           claimEqual
+>             (moveToInit as)
+>             (moveToIndex 0 as)
+> 
+>     , testKreb
+>         "movetoLast as == moveToIndex (getLength as - 1) as" $
+>         \(as :: Sequence a) ->
+>           claimEqual
+>             (moveToLast as)
+>             (moveToIndex (getLength as - 1) as)
+> 
+>     , testKreb
+>         "prepend as (prepend bs cs) == prepend (prepend as bs) cs" $
+>         \(as :: Sequence a) (bs :: Sequence a) (cs :: Sequence a) ->
+>           claimEqual
+>             (prepend as (prepend bs cs))
+>             (prepend (prepend as bs) cs)
+> 
+>     , testKreb
+>         "append as (append bs cs) == append (append as bs) cs" $
+>         \(as :: Sequence a) (bs :: Sequence a) (cs :: Sequence a) ->
+>           claimEqual
+>             (append as (append bs cs))
+>             (append (append as bs) cs)
+> 
+>     , testKreb
+>         "prepend as (append bs cs) == append bs (prepend as cs)" $
+>         \(as :: Sequence a) (bs :: Sequence a) (cs :: Sequence a) ->
+>           claimAny
+>             [ claimTrue (isEmpty cs)
+>             , claimEqual
+>                 (prepend as (append bs cs))
+>                 (append bs (prepend as cs))
+>             ]
 >     ]

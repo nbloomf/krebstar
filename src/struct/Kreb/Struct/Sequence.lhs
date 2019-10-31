@@ -3,7 +3,13 @@ title: Sequences
 ---
 
 ::: contents
-* [Introduction](#introduction): 
+* [Introduction](#introduction): Specializing one-pointed lists
+* [Class instances](#class-instances): Code for free
+* [Queries](#queries): Getting information out of a sequence
+* [Navigation](#navigation): Moving around
+* [Mutation](#mutation): Making edits
+* [Concatenation](#concatenation): Putting sequences together
+* [Testing and debugging](#testing-and-debugging): For when things go wrong
 :::
 
 
@@ -21,38 +27,36 @@ title: Sequences
 >   , empty
 >   , singleton
 >   , fromList
-
+> 
 >   , isEmpty
 >   , isSingleton
 >   , isAtInit
 >   , isAtLast
-
 >   , readPoint
 >   , readInit
 >   , readLast
-
+>   , getLength
+> 
 >   , movePointLeft
 >   , movePointRight
 >   , moveToInit
 >   , moveToLast
-
->   , alterInit
->   , alterLast
->   , alterPoint
-
+>   , moveToIndex
+> 
 >   , insertInit
 >   , deleteInit
 >   , insertLast
 >   , deleteLast
-
 >   , insertPointLeft
 >   , deletePointLeft
 >   , insertPointRight
 >   , deletePointRight
-
-
-
->   , fmapSequence
+>   , alterInit
+>   , alterLast
+>   , alterPoint
+> 
+>   , prepend
+>   , append
 > 
 >   , debugShowSequence
 > ) where
@@ -70,235 +74,451 @@ title: Sequences
 Introduction
 ------------
 
-So far we've developed the [finger tree](src/Ned/Data/FingerTree.html) data type, and taken its [derivative](src/Ned/Data/OnePointedList.html) to get a linear structure with a distinguished pointer in the middle. We'll use this as the basis for a couple of more specialized structures. The first of these is `Seq`, which uses our existing `Count` monoid to describe a list with efficient indexing.
+So far we've developed the finger tree data type, and taken its derivative to get a linear structure with a distinguished and movable pointer somewhere in the middle. We'll use this as the basis for a more specialized structure: _sequences_. This type uses our existing `Count` monoid to describe a list with efficient indexing.
 
 > newtype Sequence a = Sequence
->   { unSequence :: OPL.OnePointedList Count a
+>   { unSequence :: OPL.OnePointedList Count (Item a)
 >   } deriving (Eq, Show)
 
+The `Item` constructor allows us to hide the otherwise awkward `Valued` constraint from consumers of this module; because it is implemented as a newtype, it has no runtime overhead.
 
+> newtype Item a = Item
+>   { unItem :: a
+>   } deriving (Eq, Show)
+> 
+> instance Valued Count (Item a) where
+>   value _ = Count 1
+> 
+> instance Functor Item where
+>   fmap f (Item x) = Item (f x)
+
+Nearly all of the functionality we want out of sequences is already provided by one-pointed lists, so we can just lift the API of that module to work over the `Sequence` type. First are the basic constructors.
 
 > empty :: Sequence a
 > empty = Sequence OPL.empty
-
+> 
 > singleton
->   :: ( Valued Count a )
->   => a -> Sequence a
-> singleton = Sequence . OPL.singleton
-
+>   :: a -> Sequence a
+> singleton = Sequence . OPL.singleton . Item
+> 
 > fromList
->   :: ( Valued Count a )
->   => [a] -> Sequence a
-> fromList = Sequence . OPL.makeFromList
+>   :: [a] -> Sequence a
+> fromList = Sequence . OPL.makeFromList . fmap Item
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: Sequence Int
+> --   x = singleton 5
+> -- in x == empty
+> -- :}
+> -- False
+
+:::
+
+We also expose a constructor that gives us control over the location of the point; this is only used for testing and debugging.
 
 > makePointSequence
->   :: ( Valued Count a )
->   => [a] -> a -> [a]
+>   :: [a] -> a -> [a]
 >   -> Sequence a
 > makePointSequence as x bs =
->   Sequence $ OPL.makePoint as x bs
+>   Sequence $ OPL.makePoint
+>     (fmap Item as) (Item x) (fmap Item bs)
+
+
+
+Class instances
+---------------
+
+We have a `Foldable` instance for `Sequence`:
 
 > instance Foldable Sequence where
 >   toList =
->     toList . unSequence
+>     fmap unItem . toList . unSequence
 > 
 >   foldr f e =
->     foldr f e . unSequence
+>     let g (Item a) (Item b) = Item (f a b)
+>     in unItem . foldr g (Item e) . unSequence
 > 
 >   foldl f e =
->     foldl f e . unSequence
+>     let g (Item a) (Item b) = Item (f a b)
+>     in unItem . foldl g (Item e) . unSequence
+
+Because we've hidden the `Valued` constraint, we can give a real `Functor` instance for sequences.
+
+> instance Functor Sequence where
+>   fmap f (Sequence x) =
+>     Sequence $ OPL.fmapList (fmap f) x
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y :: Sequence Int
+> --   x = fromList [1,2,3]
+> --   y = fromList [2,4,6]
+> -- in y == fmap (*2) x
+> -- :}
+> -- True
+
+:::
 
 
 
-> fmapSequence
->   :: ( Valued Count a1, Valued Count a2 )
->   => (a1 -> a2) -> Sequence a1 -> Sequence a2
-> fmapSequence f (Sequence x) = Sequence $ OPL.fmapList f x
+Queries
+-------
 
-
+Next we can get information out of a sequence. First are the basic predicates:
 
 > isEmpty
 >   :: Sequence a -> Bool
 > isEmpty =
 >   OPL.isEmpty . unSequence
-
-
+> 
 > isSingleton
->   :: ( Valued Count a )
->   => Sequence a -> Bool
+>   :: Sequence a -> Bool
 > isSingleton =
 >   OPL.isSingleton . unSequence
-
+> 
 > isAtInit
->   :: ( Valued Count a )
->   => Sequence a -> Bool
+>   :: Sequence a -> Bool
 > isAtInit =
 >   OPL.isAtInit . unSequence
-
+> 
 > isAtLast
->   :: ( Valued Count a )
->   => Sequence a -> Bool
+>   :: Sequence a -> Bool
 > isAtLast =
 >   OPL.isAtLast . unSequence
 
+And some examples for good measure.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: Sequence Int
+> --   x = makePointSequence
+> --     [] 1 [2,3]
+> -- in (isAtInit x, isAtLast x)
+> -- :}
+> -- (True,False)
+> --
+> -- >>> :{
+> -- let
+> --   x :: Sequence Int
+> --   x = makePointSequence
+> --     [1,2] 3 []
+> -- in (isAtInit x, isAtLast x)
+> -- :}
+> -- (False,True)
+
+:::
+
+Then we have functions for extracting the value at the point and at the ends of the sequence.
+
 > readInit
->   :: ( Valued Count a )
->   => Sequence a -> Maybe a
+>   :: Sequence a -> Maybe a
 > readInit =
->   OPL.readInit . unSequence
-
+>   fmap unItem . OPL.readInit . unSequence
+> 
 > readLast
->   :: ( Valued Count a )
->   => Sequence a -> Maybe a
+>   :: Sequence a -> Maybe a
 > readLast =
->   OPL.readLast . unSequence
-
+>   fmap unItem . OPL.readLast . unSequence
+> 
 > readPoint
->   :: ( Valued Count a )
->   => Sequence a -> Maybe a
+>   :: Sequence a -> Maybe a
 > readPoint =
->   OPL.readPoint . unSequence
+>   fmap unItem . OPL.readPoint . unSequence
+
+And an example.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: Sequence Int
+> --   x = makePointSequence
+> --     [1,2] 3 [4,5,6]
+> -- in (readInit x, readPoint x, readLast x)
+> -- :}
+> -- (Just 1,Just 3,Just 6)
+
+:::
+
+We'll sometimes also want to get the length of a sequence.
+
+> getLength
+>   :: Sequence a -> Int
+> getLength (Sequence as) =
+>   let Count k = value as
+>   in k
+
+And some examples.
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: Sequence Int
+> --   x = fromList [1,2,3,4,5]
+> -- in getLength x
+> -- :}
+> -- 5
+> --
+> -- >>> getLength (empty :: Sequence Int)
+> -- 0
+
+:::
+
+
+
+Navigation
+----------
+
+Next we have the basic navigation primitives.
 
 > movePointLeft
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > movePointLeft =
 >   Sequence . OPL.movePointLeft . unSequence
-
+> 
 > movePointRight
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > movePointRight =
 >   Sequence . OPL.movePointRight . unSequence
-
+> 
 > moveToInit
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > moveToInit =
 >   Sequence . OPL.moveToInit . unSequence
-
+> 
 > moveToLast
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > moveToLast =
 >   Sequence . OPL.moveToLast . unSequence
 
-> insertInit
->   :: ( Valued Count a )
->   => a -> Sequence a -> Sequence a
-> insertInit a =
->   Sequence . OPL.insertInit a . unSequence
+And some examples:
 
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y, z :: Sequence Int
+> --   x = makePointSequence
+> --     [1,2] 3 [4,5,6]
+> --   y = makePointSequence
+> --     [] 1 [2,3,4,5,6]
+> --   z = makePointSequence
+> --     [1,2,3,4,5] 6 []
+> -- in (y == moveToInit x, z == moveToLast x)
+> -- :}
+> -- (True,True)
+> --
+> -- >>> :{
+> -- let
+> --   x, y, z :: Sequence Int
+> --   x = makePointSequence
+> --     [1,2] 3 [4,5,6]
+> --   y = makePointSequence
+> --     [1] 2 [3,4,5,6]
+> --   z = makePointSequence
+> --     [1,2,3] 4 [5,6]
+> -- in (y == movePointLeft x, z == movePointRight x)
+> -- :}
+> -- (True,True)
+
+:::
+
+We can also navigate to an arbitrary index in the sequence, which is sort of the purpose of this type. :) Note that the indexing is zero-based.
+
+> moveToIndex
+>   :: Int -> Sequence a -> Sequence a
+> moveToIndex k (Sequence as) = Sequence $
+>   OPL.split
+>     (\(Count i) -> i > k)
+>     (OPL.integrate as)
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x :: Sequence Char
+> --   x = fromList ['a','b','c','d','e']
+> -- in readPoint (moveToIndex 0 x)
+> -- :}
+> -- Just 'a'
+> --
+> -- >>> :{
+> -- let
+> --   x :: Sequence Char
+> --   x = fromList ['a','b','c','d','e']
+> -- in readPoint (moveToIndex 3 x)
+> -- :}
+> -- Just 'd'
+
+:::
+
+
+
+Mutation
+--------
+
+Finally we lift the mutation primitives. We have insert and delete at the ends:
+
+> insertInit
+>   :: a -> Sequence a -> Sequence a
+> insertInit a =
+>   Sequence . OPL.insertInit (Item a) . unSequence
+> 
 > deleteInit
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > deleteInit =
 >   Sequence . OPL.deleteInit . unSequence
-
+> 
 > insertLast
->   :: ( Valued Count a )
->   => a -> Sequence a -> Sequence a
+>   :: a -> Sequence a -> Sequence a
 > insertLast a =
->   Sequence . OPL.insertLast a . unSequence
-
+>   Sequence . OPL.insertLast (Item a) . unSequence
+> 
 > deleteLast
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > deleteLast =
 >   Sequence . OPL.deleteLast . unSequence
 
-> insertPointLeft
->   :: ( Valued Count a )
->   => a -> Sequence a -> Sequence a
-> insertPointLeft a =
->   Sequence . OPL.insertPointLeft a . unSequence
+Insert and delete at the point:
 
+> insertPointLeft
+>   :: a -> Sequence a -> Sequence a
+> insertPointLeft a =
+>   Sequence . OPL.insertPointLeft (Item a) . unSequence
+> 
 > deletePointLeft
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > deletePointLeft =
 >   Sequence . OPL.deletePointLeft . unSequence
-
+> 
 > insertPointRight
->   :: ( Valued Count a )
->   => a -> Sequence a -> Sequence a
+>   :: a -> Sequence a -> Sequence a
 > insertPointRight a =
->   Sequence . OPL.insertPointRight a . unSequence
-
+>   Sequence . OPL.insertPointRight (Item a) . unSequence
+> 
 > deletePointRight
->   :: ( Valued Count a )
->   => Sequence a -> Sequence a
+>   :: Sequence a -> Sequence a
 > deletePointRight =
 >   Sequence . OPL.deletePointRight . unSequence
 
+And alter at the ends and the point.
+
 > alterInit
->   :: ( Valued Count a )
->   => (a -> a)
+>   :: (a -> a)
 >   -> Sequence a -> Sequence a
 > alterInit f =
->   Sequence . OPL.alterInit f . unSequence
-
+>   Sequence . OPL.alterInit (fmap f) . unSequence
+> 
 > alterLast
->   :: ( Valued Count a )
->   => (a -> a)
+>   :: (a -> a)
 >   -> Sequence a -> Sequence a
 > alterLast f =
->   Sequence . OPL.alterLast f . unSequence
-
+>   Sequence . OPL.alterLast (fmap f) . unSequence
+> 
 > alterPoint
->   :: ( Valued Count a )
->   => (a -> a)
+>   :: (a -> a)
 >   -> Sequence a -> Sequence a
 > alterPoint f =
->   Sequence . OPL.alterPoint f . unSequence
+>   Sequence . OPL.alterPoint (fmap f) . unSequence
 
 
 
+Concatenation
+-------------
+
+It will also be useful to concatenate sequences. Like one-pointed lists, we have two versions of this, depending on whether we want to preserve the left or right point.
+
+> prepend
+>   :: Sequence a -> Sequence a -> Sequence a
+> prepend as bs =
+>   Sequence $ OPL.prepend (unSequence as) (unSequence bs)
+> 
+> append
+>   :: Sequence a -> Sequence a -> Sequence a
+> append as bs =
+>   Sequence $ OPL.append (unSequence as) (unSequence bs)
+
+And some examples:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x,y,z :: Sequence Int
+> --   x = makePointSequence
+> --     [1] 2 [3]
+> --   y = makePointSequence
+> --     [4] 5 [6]
+> --   z = makePointSequence
+> --     [4,5,6,1] 2 [3]
+> -- in z == prepend y x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x,y,z :: Sequence Int
+> --   x = makePointSequence
+> --     [1] 2 [3]
+> --   y = makePointSequence
+> --     [4] 5 [6]
+> --   z = makePointSequence
+> --     [1] 2 [3,4,5,6]
+> -- in z == append y x
+> -- :}
+> -- True
+
+:::
 
 
 
+Testing and debugging
+---------------------
 
-
-
-
-
-Tape
-----
-
-Most of the code for `Seq` has already been written. All we need is a helper for lifting operations on finger trees to `Seq` values:
-
-> liftSequence
->   :: (OPL.OnePointedList Count a -> OPL.OnePointedList Count a)
->   -> Sequence a -> Sequence a
-> liftSequence f = Sequence . f . unSequence
-
-And now the heavy lifting can be offloaded to `OnePointedList`. Note that, since `Seq` is defined as a newtype, this layer of indirection has no runtime overhead.
-
-
-
-
-
-
-
-
-> debugShowSequence
->   :: ( Valued Count a )
->   => (a -> String) -> Sequence a -> String
-> debugShowSequence p xs =
->   "Seq\n===\n" ++ unlines [] -- TODO: fix this -- (map p $ unTape xs)
-
-
-
-
+We have the usual class instances for interacting with the property testing framework.
 
 > instance
->   ( Arb a, Valued Count a
+>   ( Arb a
+>   ) => Arb (Item a)
+>   where
+>     arb = fmap Item arb
+> 
+> instance
+>   ( Prune a
+>   ) => Prune (Item a)
+>   where
+>     prune (Item x) = map Item $ prune x
+
+> instance
+>   ( Arb a
 >   ) => Arb (Sequence a)
 >   where
 >     arb = Sequence <$> arb
 > 
 > instance
->   ( Prune a, Valued Count a
+>   ( Prune a
 >   ) => Prune (Sequence a)
 >   where
->     prune (Sequence x) = map Sequence $ prune x
+>     prune (Sequence x) =
+>       map Sequence $ prune x
+
+> debugShowSequence
+>   :: (a -> String) -> Sequence a -> String
+> debugShowSequence p xs =
+>   "Seq\n===\n" ++ unlines [] -- TODO: fix this -- (map p $ unTape xs)

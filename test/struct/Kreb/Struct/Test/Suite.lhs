@@ -8,6 +8,7 @@
 > import Kreb.Struct.Sequence.Test
 > import Kreb.Struct.RunLengthEncoded.Test
 > import Kreb.Struct.RoseTree.Test
+> import Kreb.Struct.PointedRoseTree.Test
 
 > kreb_struct_test_suite :: TestTree
 > kreb_struct_test_suite =
@@ -18,4 +19,5 @@
 >     , test_Sequence
 >     , test_RunLengthEncoded
 >     , test_RoseTree
+>     , test_PointedRoseTree
 >     ]

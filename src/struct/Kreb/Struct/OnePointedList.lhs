@@ -11,6 +11,7 @@ title: One-Pointed Lists
 * [Mutation](#mutation): Changing, adding, and removing list items
 * [Measurement](#measurement): Working with value annotations
 * [As Finger Trees](#as-finger-trees): Converting to and from
+* [Concatenation](#concatenation): Combining one-pointed lists
 * [Testing and Debugging](#testing-and-debugging): Test helpers
 :::
 
@@ -777,6 +778,58 @@ Analogously, we may sometimes need to turn a pointed list back into a finger tre
 
 
 
+Concatenation
+-------------
+
+It will also be useful to have utilities for combining one-pointed lists together sort of like concatenation. I say 'sort of' because pointed lists because there's not a unique way to do this; we have to decide what to do with the point. To this end we provide two biased versions of concat: _prepend_, which preserves the point of the right argument, and _append_, which preserves the left.
+
+> prepend
+>   :: ( Valued m a )
+>   => OnePointedList m a -> OnePointedList m a -> OnePointedList m a
+> prepend as bs = case bs of
+>   Vacant ->
+>     moveToLast as
+>   Point (us, x, vs) ->
+>     Point (integrate as <> us, x, vs)
+> 
+> append
+>   :: ( Valued m a )
+>   => OnePointedList m a -> OnePointedList m a -> OnePointedList m a
+> append as bs = case bs of
+>   Vacant ->
+>     moveToInit as
+>   Point (us, x, vs) ->
+>     Point (us, x, vs <> integrate as)
+
+And some examples:
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- let
+> --   x, y, z :: OnePointedList Count Char
+> --   x = makePoint ['a'] 'b' ['c']
+> --   y = makePoint ['d'] 'e' ['f']
+> --   z = makePoint ['d','e','f','a'] 'b' ['c']
+> -- in z == prepend y x
+> -- :}
+> -- True
+> --
+> -- >>> :{
+> -- let
+> --   x, y, z :: OnePointedList Count Char
+> --   x = makePoint ['a'] 'b' ['c']
+> --   y = makePoint ['d'] 'e' ['f']
+> --   z = makePoint ['a'] 'b' ['c','d','e','f']
+> -- in z == append y x
+> -- :}
+> -- True
+
+:::
+
+
+
 Testing and Debugging
 ---------------------
 
@@ -786,10 +839,14 @@ In order to test this module with our property testing framework we'll need some
 >   ( Arb a, Valued m a
 >   ) => Arb (OnePointedList m a)
 >   where
->     arb = pickFrom2
->       ( pure Vacant
->       , Point <$> arb
->       )
+>     arb = do
+>       ZZ k <- askSize
+>       if k <= 0
+>         then pure Vacant
+>         else pickFrom2
+>           ( pure Vacant
+>           , Point <$> arb
+>           )
 > 
 > instance
 >   ( Prune a, Valued m a

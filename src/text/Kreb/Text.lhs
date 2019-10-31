@@ -7,6 +7,7 @@
 >   , module Kreb.Text.SizedBuffer
 >   , module Kreb.Text.TextBox
 >   , module Kreb.Text.Cell
+>   , module Kreb.Text.Rune
 > ) where
 
 > import Kreb.Text.ScreenOffset
@@ -17,3 +18,4 @@
 > import Kreb.Text.Buffer
 > import Kreb.Text.SizedBuffer
 > import Kreb.Text.TextBox
+> import Kreb.Text.Rune

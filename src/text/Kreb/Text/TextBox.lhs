@@ -291,6 +291,8 @@ We can extract the dimensions of the box in screen space:
 
 And some examples for fun:
 
+::: doctest
+
 > -- $
 > -- >>> :{
 > -- let
@@ -298,7 +300,7 @@ And some examples for fun:
 > --     "hello world!"
 > -- in getTextBoxScreenCoords x
 > -- :}
-> -- (3,1)
+> -- (4,1)
 > --
 > -- >>> :{
 > -- let
@@ -306,9 +308,9 @@ And some examples for fun:
 > --     "hello there,\nworld!"
 > -- in getTextBoxScreenCoords x
 > -- :}
-> -- (5,2)
+> -- (6,2)
 
-
+:::
 
 
 
@@ -547,41 +549,18 @@ And some examples for fun:
 >   :: TextBoxAction
 >   -> TextBox -> TextBox
 > alterTextBoxPrimitive act = case act of
->   TextBoxInsert c ->
->     textBoxInsert c
-> 
->   TextBoxInsertMany cs ->
->     textBoxInsertMany cs
-> 
->   TextBoxBackspace ->
->     textBoxBackspace
-> 
->   TextBoxCursorDown ->
->     textboxCursorDown
-> 
->   TextBoxCursorUp ->
->     textboxCursorUp
-> 
->   TextBoxCursorRight ->
->     textboxCursorRight
-> 
->   TextBoxCursorLeft ->
->     textboxCursorLeft
-> 
->   TextBoxResize dim ->
->     textboxResize dim
-> 
->   TextBoxLoad path str ->
->     textboxLoad path str
-> 
->   TextBoxLeaveMark ->
->     textboxLeaveMark
-> 
->   TextBoxClearMark ->
->     textboxClearMark
-> 
->   TextBoxClear ->
->     textboxClear
+>   TextBoxInsert c      -> textBoxInsert c
+>   TextBoxInsertMany cs -> textBoxInsertMany cs
+>   TextBoxBackspace     -> textBoxBackspace
+>   TextBoxCursorDown    -> textboxCursorDown
+>   TextBoxCursorUp      -> textboxCursorUp
+>   TextBoxCursorRight   -> textboxCursorRight
+>   TextBoxCursorLeft    -> textboxCursorLeft
+>   TextBoxResize dim    -> textboxResize dim
+>   TextBoxLoad path str -> textboxLoad path str
+>   TextBoxLeaveMark     -> textboxLeaveMark
+>   TextBoxClearMark     -> textboxClearMark
+>   TextBoxClear         -> textboxClear
 
 
 

@@ -255,4 +255,28 @@ OnePointedList Test Suite
 >           claimEqual
 >             (xs)
 >             (toList (makeFromList xs :: OnePointedList m a))
+> 
+>     , testKreb
+>         "prepend as (prepend bs cs) == prepend (prepend as bs) cs" $
+>         \(as :: OnePointedList m a) (bs :: OnePointedList m a) (cs :: OnePointedList m a) ->
+>           claimEqual
+>             (prepend as (prepend bs cs))
+>             (prepend (prepend as bs) cs)
+> 
+>     , testKreb
+>         "append as (append bs cs) == append (append as bs) cs" $
+>         \(as :: OnePointedList m a) (bs :: OnePointedList m a) (cs :: OnePointedList m a) ->
+>           claimEqual
+>             (append as (append bs cs))
+>             (append (append as bs) cs)
+> 
+>     , testKreb
+>         "prepend as (append bs cs) == append bs (prepend as cs)" $
+>         \(as :: OnePointedList m a) (bs :: OnePointedList m a) (cs :: OnePointedList m a) ->
+>           claimAny
+>             [ claimTrue (isEmpty cs)
+>             , claimEqual
+>                 (prepend as (append bs cs))
+>                 (append bs (prepend as cs))
+>             ]
 >     ]

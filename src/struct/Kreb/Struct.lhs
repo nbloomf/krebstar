@@ -9,3 +9,4 @@
 > import qualified Kreb.Struct.Sequence as S
 > import qualified Kreb.Struct.RunLengthEncoded as RLE
 > import qualified Kreb.Struct.RoseTree as RT
+> import qualified Kreb.Struct.PointedRoseTree as PRT

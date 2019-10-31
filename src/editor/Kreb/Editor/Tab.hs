@@ -39,7 +39,7 @@ data Tabs = Tabs
 setTabsDim
   :: (Int, Int) -> Tabs -> Tabs
 setTabsDim dim (Tabs ts) =
-  Tabs $ Seq.fmapSequence (setPanelDim dim) ts
+  Tabs $ fmap (setPanelDim dim) ts
 
 
 

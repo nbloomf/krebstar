@@ -620,7 +620,7 @@ title: Kreb.Text.Buffer.Test
 >           let
 >             zs, ws :: Buffer w t a
 >             zs = fromList (as ++ [x] ++ bs)
->             ws = fromList (as ++ [x])
+>             ws = fromList as
 >             m = value ws :: MeasureText w t
 >           in claimEqual
 >             (makePointOnlyBuffer pw pt as x bs)

@@ -1,17 +1,6 @@
 ---
-title: Kreb.Text.TextBox.Test
+title: Text boxes -- Testing
 ---
-
-
-
-Contents
---------
-
-* [Introduction](#introduction)
-* [Generators](#generators)
-* [Tests](#tests)
-    * [Test suite](#test-suite)
-
 
 
 Introduction

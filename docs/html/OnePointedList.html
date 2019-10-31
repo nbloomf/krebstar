@@ -26,6 +26,7 @@
 <li><a href="#mutation">Mutation</a>: Changing, adding, and removing list items</li>
 <li><a href="#measurement">Measurement</a>: Working with value annotations</li>
 <li><a href="#as-finger-trees">As Finger Trees</a>: Converting to and from</li>
+<li><a href="#concatenation">Concatenation</a>: Combining one-pointed lists</li>
 <li><a href="#testing-and-debugging">Testing and Debugging</a>: Test helpers</li>
 </ul>
 </div>
@@ -675,28 +676,76 @@
 <a class="sourceLine" id="cb33-5" data-line-number="5">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span> mempty</a>
 <a class="sourceLine" id="cb33-6" data-line-number="6">  <span class="dt">Point</span> (as, x, bs) <span class="ot">-&gt;</span> as <span class="fu">&lt;&gt;</span> (FT.cons x bs)</a></code></pre></div>
 </section>
+<section id="concatenation" class="level2">
+<h2>Concatenation</h2>
+<p>It will also be useful to have utilities for combining one-pointed lists together sort of like concatenation. I say ‘sort of’ because pointed lists because there’s not a unique way to do this; we have to decide what to do with the point. To this end we provide two biased versions of concat: <em>prepend</em>, which preserves the point of the right argument, and <em>append</em>, which preserves the left.</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" data-line-number="1">prepend</a>
+<a class="sourceLine" id="cb34-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb34-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">OnePointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">OnePointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">OnePointedList</span> m a</a>
+<a class="sourceLine" id="cb34-4" data-line-number="4">prepend as bs <span class="fu">=</span> <span class="kw">case</span> bs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb34-5" data-line-number="5">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb34-6" data-line-number="6">    moveToLast as</a>
+<a class="sourceLine" id="cb34-7" data-line-number="7">  <span class="dt">Point</span> (us, x, vs) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb34-8" data-line-number="8">    <span class="dt">Point</span> (integrate as <span class="fu">&lt;&gt;</span> us, x, vs)</a>
+<a class="sourceLine" id="cb34-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb34-10" data-line-number="10">append</a>
+<a class="sourceLine" id="cb34-11" data-line-number="11"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
+<a class="sourceLine" id="cb34-12" data-line-number="12">  <span class="ot">=&gt;</span> <span class="dt">OnePointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">OnePointedList</span> m a <span class="ot">-&gt;</span> <span class="dt">OnePointedList</span> m a</a>
+<a class="sourceLine" id="cb34-13" data-line-number="13">append as bs <span class="fu">=</span> <span class="kw">case</span> bs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb34-14" data-line-number="14">  <span class="dt">Vacant</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb34-15" data-line-number="15">    moveToInit as</a>
+<a class="sourceLine" id="cb34-16" data-line-number="16">  <span class="dt">Point</span> (us, x, vs) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb34-17" data-line-number="17">    <span class="dt">Point</span> (us, x, vs <span class="fu">&lt;&gt;</span> integrate as)</a></code></pre></div>
+<p>And some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" data-line-number="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb35-2" data-line-number="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb35-3" data-line-number="3"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb35-4" data-line-number="4"><span class="co">--   x, y, z :: OnePointedList Count Char</span></a>
+<a class="sourceLine" id="cb35-5" data-line-number="5"><span class="co">--   x = makePoint [&#39;a&#39;] &#39;b&#39; [&#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb35-6" data-line-number="6"><span class="co">--   y = makePoint [&#39;d&#39;] &#39;e&#39; [&#39;f&#39;]</span></a>
+<a class="sourceLine" id="cb35-7" data-line-number="7"><span class="co">--   z = makePoint [&#39;d&#39;,&#39;e&#39;,&#39;f&#39;,&#39;a&#39;] &#39;b&#39; [&#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb35-8" data-line-number="8"><span class="co">-- in z == prepend y x</span></a>
+<a class="sourceLine" id="cb35-9" data-line-number="9"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb35-10" data-line-number="10"><span class="co">-- True</span></a>
+<a class="sourceLine" id="cb35-11" data-line-number="11"><span class="co">--</span></a>
+<a class="sourceLine" id="cb35-12" data-line-number="12"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb35-13" data-line-number="13"><span class="co">-- let</span></a>
+<a class="sourceLine" id="cb35-14" data-line-number="14"><span class="co">--   x, y, z :: OnePointedList Count Char</span></a>
+<a class="sourceLine" id="cb35-15" data-line-number="15"><span class="co">--   x = makePoint [&#39;a&#39;] &#39;b&#39; [&#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb35-16" data-line-number="16"><span class="co">--   y = makePoint [&#39;d&#39;] &#39;e&#39; [&#39;f&#39;]</span></a>
+<a class="sourceLine" id="cb35-17" data-line-number="17"><span class="co">--   z = makePoint [&#39;a&#39;] &#39;b&#39; [&#39;c&#39;,&#39;d&#39;,&#39;e&#39;,&#39;f&#39;]</span></a>
+<a class="sourceLine" id="cb35-18" data-line-number="18"><span class="co">-- in z == append y x</span></a>
+<a class="sourceLine" id="cb35-19" data-line-number="19"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb35-20" data-line-number="20"><span class="co">-- True</span></a></code></pre></div>
+</div>
+</section>
 <section id="testing-and-debugging" class="level2">
 <h2>Testing and Debugging</h2>
 <p>In order to test this module with our property testing framework we’ll need some class instances. These handle generating and shrinking one-pointed lists.</p>
-<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" data-line-number="1"><span class="kw">instance</span></a>
-<a class="sourceLine" id="cb34-2" data-line-number="2">  ( <span class="dt">Arb</span> a, <span class="dt">Valued</span> m a</a>
-<a class="sourceLine" id="cb34-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Arb</span> (<span class="dt">OnePointedList</span> m a)</a>
-<a class="sourceLine" id="cb34-4" data-line-number="4">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb34-5" data-line-number="5">    arb <span class="fu">=</span> pickFrom2</a>
-<a class="sourceLine" id="cb34-6" data-line-number="6">      ( pure <span class="dt">Vacant</span></a>
-<a class="sourceLine" id="cb34-7" data-line-number="7">      , <span class="dt">Point</span> <span class="fu">&lt;$&gt;</span> arb</a>
-<a class="sourceLine" id="cb34-8" data-line-number="8">      )</a>
-<a class="sourceLine" id="cb34-9" data-line-number="9"></a>
-<a class="sourceLine" id="cb34-10" data-line-number="10"><span class="kw">instance</span></a>
-<a class="sourceLine" id="cb34-11" data-line-number="11">  ( <span class="dt">Prune</span> a, <span class="dt">Valued</span> m a</a>
-<a class="sourceLine" id="cb34-12" data-line-number="12">  ) <span class="ot">=&gt;</span> <span class="dt">Prune</span> (<span class="dt">OnePointedList</span> m a)</a>
-<a class="sourceLine" id="cb34-13" data-line-number="13">  <span class="kw">where</span></a>
-<a class="sourceLine" id="cb34-14" data-line-number="14">    prune w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
-<a class="sourceLine" id="cb34-15" data-line-number="15">      <span class="dt">Vacant</span> <span class="ot">-&gt;</span> []</a>
-<a class="sourceLine" id="cb34-16" data-line-number="16">      <span class="dt">Point</span> z <span class="ot">-&gt;</span> concat </a>
-<a class="sourceLine" id="cb34-17" data-line-number="17">        [ [ <span class="dt">Vacant</span> ]</a>
-<a class="sourceLine" id="cb34-18" data-line-number="18">        , <span class="dt">Point</span> <span class="fu">&lt;$&gt;</span> prune z</a>
-<a class="sourceLine" id="cb34-19" data-line-number="19">        ]</a></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb36-2" data-line-number="2">  ( <span class="dt">Arb</span> a, <span class="dt">Valued</span> m a</a>
+<a class="sourceLine" id="cb36-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">Arb</span> (<span class="dt">OnePointedList</span> m a)</a>
+<a class="sourceLine" id="cb36-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb36-5" data-line-number="5">    arb <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb36-6" data-line-number="6">      <span class="dt">ZZ</span> k <span class="ot">&lt;-</span> askSize</a>
+<a class="sourceLine" id="cb36-7" data-line-number="7">      <span class="kw">if</span> k <span class="fu">&lt;=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb36-8" data-line-number="8">        <span class="kw">then</span> pure <span class="dt">Vacant</span></a>
+<a class="sourceLine" id="cb36-9" data-line-number="9">        <span class="kw">else</span> pickFrom2</a>
+<a class="sourceLine" id="cb36-10" data-line-number="10">          ( pure <span class="dt">Vacant</span></a>
+<a class="sourceLine" id="cb36-11" data-line-number="11">          , <span class="dt">Point</span> <span class="fu">&lt;$&gt;</span> arb</a>
+<a class="sourceLine" id="cb36-12" data-line-number="12">          )</a>
+<a class="sourceLine" id="cb36-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb36-14" data-line-number="14"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb36-15" data-line-number="15">  ( <span class="dt">Prune</span> a, <span class="dt">Valued</span> m a</a>
+<a class="sourceLine" id="cb36-16" data-line-number="16">  ) <span class="ot">=&gt;</span> <span class="dt">Prune</span> (<span class="dt">OnePointedList</span> m a)</a>
+<a class="sourceLine" id="cb36-17" data-line-number="17">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb36-18" data-line-number="18">    prune w <span class="fu">=</span> <span class="kw">case</span> w <span class="kw">of</span></a>
+<a class="sourceLine" id="cb36-19" data-line-number="19">      <span class="dt">Vacant</span> <span class="ot">-&gt;</span> []</a>
+<a class="sourceLine" id="cb36-20" data-line-number="20">      <span class="dt">Point</span> z <span class="ot">-&gt;</span> concat </a>
+<a class="sourceLine" id="cb36-21" data-line-number="21">        [ [ <span class="dt">Vacant</span> ]</a>
+<a class="sourceLine" id="cb36-22" data-line-number="22">        , <span class="dt">Point</span> <span class="fu">&lt;$&gt;</span> prune z</a>
+<a class="sourceLine" id="cb36-23" data-line-number="23">        ]</a></code></pre></div>
 </section>
 </article>
 </body>

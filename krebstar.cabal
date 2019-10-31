@@ -151,6 +151,7 @@ library kreb-struct
     , Kreb.Struct.Sequence
     , Kreb.Struct.RunLengthEncoded
     , Kreb.Struct.RoseTree
+    , Kreb.Struct.PointedRoseTree
   build-depends:
       base >=4.7 && <5
 
@@ -169,6 +170,7 @@ test-suite kreb-struct-test
     , Kreb.Struct.Sequence.Test
     , Kreb.Struct.RunLengthEncoded.Test
     , Kreb.Struct.RoseTree.Test
+    , Kreb.Struct.PointedRoseTree.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -190,6 +192,7 @@ library kreb-text
   exposed-modules:
       Kreb.Text
     , Kreb.Text.ScreenOffset
+    , Kreb.Text.Rune
     , Kreb.Text.MeasureText
     , Kreb.Text.Pigment
     , Kreb.Text.Glyph
@@ -214,6 +217,7 @@ test-suite kreb-text-test
   other-modules:
       Kreb.Text.Test.Suite
     , Kreb.Text.ScreenOffset.Test
+    , Kreb.Text.Rune.Test
     , Kreb.Text.MeasureText.Test
     , Kreb.Text.Glyph.Test
     , Kreb.Text.Buffer.Test
@@ -500,8 +504,10 @@ test-suite kreb-test
     , Kreb.Struct.RunLengthEncoded.Test
     , Kreb.Struct.Sequence.Test
     , Kreb.Struct.RoseTree.Test
+    , Kreb.Struct.PointedRoseTree.Test
     , Kreb.Text.Buffer.Test
     , Kreb.Text.Glyph.Test
+    , Kreb.Text.Rune.Test
     , Kreb.Text.MeasureText.Test
     , Kreb.Text.ScreenOffset.Test
     , Kreb.Text.TextBox.Test

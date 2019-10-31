@@ -940,12 +940,12 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Nothing
 >   PointOnly _ ->
 >     Nothing
->   Coincide (as, _, _) ->
->     Just (value as)
->   PointMark (as, x, bs, _, _) ->
->     Just (value as <> value x <> value bs)
->   MarkPoint (as, _, _, _, _) ->
->     Just (value as)
+>   Coincide (as, x, _) ->
+>     Just (value as <> value x)
+>   PointMark (as, x, bs, y, _) ->
+>     Just (value as <> value x <> value bs <> value y)
+>   MarkPoint (as, x, _, _, _) ->
+>     Just (value as <> value x)
 > 
 > valueAtMark
 >   :: ( Valued m a )

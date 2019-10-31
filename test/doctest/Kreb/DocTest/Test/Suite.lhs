@@ -40,11 +40,13 @@
 >   , "src/struct/Kreb/Struct/TwoPointedList.lhs"
 >   , "src/struct/Kreb/Struct/RunLengthEncoded.lhs"
 >   , "src/struct/Kreb/Struct/RoseTree.lhs"
+>   , "src/struct/Kreb/Struct/PointedRoseTree.lhs"
 > 
 >   , "src/text/Kreb/Text.lhs"
 >   , "src/text/Kreb/Text/ScreenOffset.lhs"
 >   , "src/text/Kreb/Text/MeasureText.lhs"
 >   , "src/text/Kreb/Text/Pigment.lhs"
+>   , "src/text/Kreb/Text/Rune.lhs"
 >   , "src/text/Kreb/Text/Glyph.lhs"
 >   , "src/text/Kreb/Text/Cell.lhs"
 >   , "src/text/Kreb/Text/Buffer.lhs"

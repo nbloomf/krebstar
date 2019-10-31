@@ -1,7 +1,11 @@
 0.0.1 Checklist
 ===============
-- OPL: view init and view last
-- fix the EOF bug
+- PointedRoseTree - need this for history tree
+- RoseTree - make the node a sequence: RoseTree a (Sequence a) (Sequence (RoseTree a))
+  - in our use case the trees will most often not have a high branching factor.
+- OPL:
+  - view init and view last
+  - prepend and append
 - TextBox: Arrow up and down should 'remember' x coordinate
 - TextBox: reified edits are natural patch algebra primitives, make this explicit
   - all movement commands in terms of line/col position
@@ -17,8 +21,10 @@
 - When a region loses focus the selection should highlight to a dimmer color
 - replace 'normal mode' with 'debug mode' (not sure about this idea)
   - record input events to interaction log
+- incremental regex for syntax highlighting. can this be a type parameter?
+- delimiter balancing with finger trees?
 - store document history.
-  - can we get more complex than linear history?
+  - can we get more complex than linear history? - use pointed rose trees
   - use patch algebra for this
 - Cut/Copy/Paste primitives
   - use patch algebra for this
@@ -40,7 +46,6 @@
 - interaction log: in output stack, where did @Eff go?
 
 Refactoring
-- rewrite Tape tests for Seq
 - make TextBox and Editor tests active again
 - page up and down, home and end
 - start the manual
