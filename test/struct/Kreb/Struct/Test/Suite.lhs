@@ -9,6 +9,7 @@
 > import Kreb.Struct.RunLengthEncoded.Test
 > import Kreb.Struct.RoseTree.Test
 > import Kreb.Struct.PointedRoseTree.Test
+> import Kreb.Struct.RedBlackTree.Test
 
 > kreb_struct_test_suite :: TestTree
 > kreb_struct_test_suite =
@@ -20,4 +21,5 @@
 >     , test_RunLengthEncoded
 >     , test_RoseTree
 >     , test_PointedRoseTree
+>     , test_RedBlackTree
 >     ]

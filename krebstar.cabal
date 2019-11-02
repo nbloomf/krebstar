@@ -152,6 +152,7 @@ library kreb-struct
     , Kreb.Struct.RunLengthEncoded
     , Kreb.Struct.RoseTree
     , Kreb.Struct.PointedRoseTree
+    , Kreb.Struct.RedBlackTree
   build-depends:
       base >=4.7 && <5
 
@@ -171,6 +172,7 @@ test-suite kreb-struct-test
     , Kreb.Struct.RunLengthEncoded.Test
     , Kreb.Struct.RoseTree.Test
     , Kreb.Struct.PointedRoseTree.Test
+    , Kreb.Struct.RedBlackTree.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -505,6 +507,7 @@ test-suite kreb-test
     , Kreb.Struct.Sequence.Test
     , Kreb.Struct.RoseTree.Test
     , Kreb.Struct.PointedRoseTree.Test
+    , Kreb.Struct.RedBlackTree.Test
     , Kreb.Text.Buffer.Test
     , Kreb.Text.Glyph.Test
     , Kreb.Text.Rune.Test

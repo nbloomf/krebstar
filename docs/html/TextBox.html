@@ -248,7 +248,7 @@
 <a class="sourceLine" id="cb25-5" data-line-number="5"><span class="co">--     &quot;hello world!&quot;</span></a>
 <a class="sourceLine" id="cb25-6" data-line-number="6"><span class="co">-- in getTextBoxScreenCoords x</span></a>
 <a class="sourceLine" id="cb25-7" data-line-number="7"><span class="co">-- :}</span></a>
-<a class="sourceLine" id="cb25-8" data-line-number="8"><span class="co">-- (3,1)</span></a>
+<a class="sourceLine" id="cb25-8" data-line-number="8"><span class="co">-- (4,1)</span></a>
 <a class="sourceLine" id="cb25-9" data-line-number="9"><span class="co">--</span></a>
 <a class="sourceLine" id="cb25-10" data-line-number="10"><span class="co">-- &gt;&gt;&gt; :{</span></a>
 <a class="sourceLine" id="cb25-11" data-line-number="11"><span class="co">-- let</span></a>
@@ -256,7 +256,7 @@
 <a class="sourceLine" id="cb25-13" data-line-number="13"><span class="co">--     &quot;hello there,\nworld!&quot;</span></a>
 <a class="sourceLine" id="cb25-14" data-line-number="14"><span class="co">-- in getTextBoxScreenCoords x</span></a>
 <a class="sourceLine" id="cb25-15" data-line-number="15"><span class="co">-- :}</span></a>
-<a class="sourceLine" id="cb25-16" data-line-number="16"><span class="co">-- (5,2)</span></a></code></pre></div>
+<a class="sourceLine" id="cb25-16" data-line-number="16"><span class="co">-- (6,2)</span></a></code></pre></div>
 </div>
 <div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1">getTextBoxString</a>
 <a class="sourceLine" id="cb26-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">TextBox</span> <span class="ot">-&gt;</span> <span class="dt">String</span></a>
@@ -437,41 +437,18 @@
 <a class="sourceLine" id="cb45-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">TextBoxAction</span></a>
 <a class="sourceLine" id="cb45-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">TextBox</span> <span class="ot">-&gt;</span> <span class="dt">TextBox</span></a>
 <a class="sourceLine" id="cb45-4" data-line-number="4">alterTextBoxPrimitive act <span class="fu">=</span> <span class="kw">case</span> act <span class="kw">of</span></a>
-<a class="sourceLine" id="cb45-5" data-line-number="5">  <span class="dt">TextBoxInsert</span> c <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-6" data-line-number="6">    textBoxInsert c</a>
-<a class="sourceLine" id="cb45-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb45-8" data-line-number="8">  <span class="dt">TextBoxInsertMany</span> cs <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-9" data-line-number="9">    textBoxInsertMany cs</a>
-<a class="sourceLine" id="cb45-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb45-11" data-line-number="11">  <span class="dt">TextBoxBackspace</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-12" data-line-number="12">    textBoxBackspace</a>
-<a class="sourceLine" id="cb45-13" data-line-number="13"></a>
-<a class="sourceLine" id="cb45-14" data-line-number="14">  <span class="dt">TextBoxCursorDown</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-15" data-line-number="15">    textboxCursorDown</a>
-<a class="sourceLine" id="cb45-16" data-line-number="16"></a>
-<a class="sourceLine" id="cb45-17" data-line-number="17">  <span class="dt">TextBoxCursorUp</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-18" data-line-number="18">    textboxCursorUp</a>
-<a class="sourceLine" id="cb45-19" data-line-number="19"></a>
-<a class="sourceLine" id="cb45-20" data-line-number="20">  <span class="dt">TextBoxCursorRight</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-21" data-line-number="21">    textboxCursorRight</a>
-<a class="sourceLine" id="cb45-22" data-line-number="22"></a>
-<a class="sourceLine" id="cb45-23" data-line-number="23">  <span class="dt">TextBoxCursorLeft</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-24" data-line-number="24">    textboxCursorLeft</a>
-<a class="sourceLine" id="cb45-25" data-line-number="25"></a>
-<a class="sourceLine" id="cb45-26" data-line-number="26">  <span class="dt">TextBoxResize</span> dim <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-27" data-line-number="27">    textboxResize dim</a>
-<a class="sourceLine" id="cb45-28" data-line-number="28"></a>
-<a class="sourceLine" id="cb45-29" data-line-number="29">  <span class="dt">TextBoxLoad</span> path str <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-30" data-line-number="30">    textboxLoad path str</a>
-<a class="sourceLine" id="cb45-31" data-line-number="31"></a>
-<a class="sourceLine" id="cb45-32" data-line-number="32">  <span class="dt">TextBoxLeaveMark</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-33" data-line-number="33">    textboxLeaveMark</a>
-<a class="sourceLine" id="cb45-34" data-line-number="34"></a>
-<a class="sourceLine" id="cb45-35" data-line-number="35">  <span class="dt">TextBoxClearMark</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-36" data-line-number="36">    textboxClearMark</a>
-<a class="sourceLine" id="cb45-37" data-line-number="37"></a>
-<a class="sourceLine" id="cb45-38" data-line-number="38">  <span class="dt">TextBoxClear</span> <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb45-39" data-line-number="39">    textboxClear</a></code></pre></div>
+<a class="sourceLine" id="cb45-5" data-line-number="5">  <span class="dt">TextBoxInsert</span> c      <span class="ot">-&gt;</span> textBoxInsert c</a>
+<a class="sourceLine" id="cb45-6" data-line-number="6">  <span class="dt">TextBoxInsertMany</span> cs <span class="ot">-&gt;</span> textBoxInsertMany cs</a>
+<a class="sourceLine" id="cb45-7" data-line-number="7">  <span class="dt">TextBoxBackspace</span>     <span class="ot">-&gt;</span> textBoxBackspace</a>
+<a class="sourceLine" id="cb45-8" data-line-number="8">  <span class="dt">TextBoxCursorDown</span>    <span class="ot">-&gt;</span> textboxCursorDown</a>
+<a class="sourceLine" id="cb45-9" data-line-number="9">  <span class="dt">TextBoxCursorUp</span>      <span class="ot">-&gt;</span> textboxCursorUp</a>
+<a class="sourceLine" id="cb45-10" data-line-number="10">  <span class="dt">TextBoxCursorRight</span>   <span class="ot">-&gt;</span> textboxCursorRight</a>
+<a class="sourceLine" id="cb45-11" data-line-number="11">  <span class="dt">TextBoxCursorLeft</span>    <span class="ot">-&gt;</span> textboxCursorLeft</a>
+<a class="sourceLine" id="cb45-12" data-line-number="12">  <span class="dt">TextBoxResize</span> dim    <span class="ot">-&gt;</span> textboxResize dim</a>
+<a class="sourceLine" id="cb45-13" data-line-number="13">  <span class="dt">TextBoxLoad</span> path str <span class="ot">-&gt;</span> textboxLoad path str</a>
+<a class="sourceLine" id="cb45-14" data-line-number="14">  <span class="dt">TextBoxLeaveMark</span>     <span class="ot">-&gt;</span> textboxLeaveMark</a>
+<a class="sourceLine" id="cb45-15" data-line-number="15">  <span class="dt">TextBoxClearMark</span>     <span class="ot">-&gt;</span> textboxClearMark</a>
+<a class="sourceLine" id="cb45-16" data-line-number="16">  <span class="dt">TextBoxClear</span>         <span class="ot">-&gt;</span> textboxClear</a></code></pre></div>
 <p>– ================= – – Primitive Actions – – ================= –</p>
 <div class="sourceCode" id="cb46"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb46-1" data-line-number="1">textboxClear</a>
 <a class="sourceLine" id="cb46-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">TextBox</span> <span class="ot">-&gt;</span> <span class="dt">TextBox</span></a>

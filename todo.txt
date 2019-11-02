@@ -1,5 +1,7 @@
 0.0.1 Checklist
 ===============
+- Understand and test red black tree
+- Rune
 - PointedRoseTree - need this for history tree
 - RoseTree - make the node a sequence: RoseTree a (Sequence a) (Sequence (RoseTree a))
   - in our use case the trees will most often not have a high branching factor.

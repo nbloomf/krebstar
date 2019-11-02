@@ -41,6 +41,7 @@
 >   , "src/struct/Kreb/Struct/RunLengthEncoded.lhs"
 >   , "src/struct/Kreb/Struct/RoseTree.lhs"
 >   , "src/struct/Kreb/Struct/PointedRoseTree.lhs"
+>   , "src/struct/Kreb/Struct/RedBlackTree.lhs"
 > 
 >   , "src/text/Kreb/Text.lhs"
 >   , "src/text/Kreb/Text/ScreenOffset.lhs"

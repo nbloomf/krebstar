@@ -1,3 +1,7 @@
+---
+title: Pointed Rose Trees
+---
+
 > module Kreb.Struct.PointedRoseTree (
 >     PointedRoseTree()
 >   , rewind

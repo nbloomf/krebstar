@@ -10,3 +10,4 @@
 > import qualified Kreb.Struct.RunLengthEncoded as RLE
 > import qualified Kreb.Struct.RoseTree as RT
 > import qualified Kreb.Struct.PointedRoseTree as PRT
+> import qualified Kreb.Struct.RedBlackTree as RBT

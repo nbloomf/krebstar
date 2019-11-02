@@ -7,6 +7,7 @@ SOURCES := \
   src/struct/Kreb/Struct/TwoPointedList.lhs \
   src/struct/Kreb/Struct/RoseTree.lhs \
   src/struct/Kreb/Struct/PointedRoseTree.lhs \
+  src/struct/Kreb/Struct/RedBlackTree.lhs \
   src/text/Kreb/Text/Buffer.lhs \
   src/text/Kreb/Text/SizedBuffer.lhs \
   src/text/Kreb/Text/TextBox.lhs

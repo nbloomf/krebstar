@@ -865,12 +865,12 @@
 <a class="sourceLine" id="cb28-50" data-line-number="50">    <span class="dt">Nothing</span></a>
 <a class="sourceLine" id="cb28-51" data-line-number="51">  <span class="dt">PointOnly</span> _ <span class="ot">-&gt;</span></a>
 <a class="sourceLine" id="cb28-52" data-line-number="52">    <span class="dt">Nothing</span></a>
-<a class="sourceLine" id="cb28-53" data-line-number="53">  <span class="dt">Coincide</span> (as, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-54" data-line-number="54">    <span class="dt">Just</span> (value as)</a>
-<a class="sourceLine" id="cb28-55" data-line-number="55">  <span class="dt">PointMark</span> (as, x, bs, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-56" data-line-number="56">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x <span class="fu">&lt;&gt;</span> value bs)</a>
-<a class="sourceLine" id="cb28-57" data-line-number="57">  <span class="dt">MarkPoint</span> (as, _, _, _, _) <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb28-58" data-line-number="58">    <span class="dt">Just</span> (value as)</a>
+<a class="sourceLine" id="cb28-53" data-line-number="53">  <span class="dt">Coincide</span> (as, x, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-54" data-line-number="54">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x)</a>
+<a class="sourceLine" id="cb28-55" data-line-number="55">  <span class="dt">PointMark</span> (as, x, bs, y, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-56" data-line-number="56">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x <span class="fu">&lt;&gt;</span> value bs <span class="fu">&lt;&gt;</span> value y)</a>
+<a class="sourceLine" id="cb28-57" data-line-number="57">  <span class="dt">MarkPoint</span> (as, x, _, _, _) <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb28-58" data-line-number="58">    <span class="dt">Just</span> (value as <span class="fu">&lt;&gt;</span> value x)</a>
 <a class="sourceLine" id="cb28-59" data-line-number="59"></a>
 <a class="sourceLine" id="cb28-60" data-line-number="60">valueAtMark</a>
 <a class="sourceLine" id="cb28-61" data-line-number="61"><span class="ot">  ::</span> ( <span class="dt">Valued</span> m a )</a>
