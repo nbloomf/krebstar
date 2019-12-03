@@ -1,7 +1,13 @@
 0.0.1 Checklist
 ===============
-- Understand and test red black tree
-- Rune
+- Apply buffer op
+  - split at rune id
+  - apply buffer op
+  - Test BufferOp (commutative, idempotent)
+  - pointed rose tree of sets of buffer ops
+  - get rid of d type parameter in measuretext
+- Move EventId to own module
+- Move augmented to own module (control?)
 - PointedRoseTree - need this for history tree
 - RoseTree - make the node a sequence: RoseTree a (Sequence a) (Sequence (RoseTree a))
   - in our use case the trees will most often not have a high branching factor.

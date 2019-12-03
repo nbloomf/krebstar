@@ -32,7 +32,7 @@
 >   = Ansi16 Bool Bool Bool Bool
 >   | RGB6 Nat6 Nat6 Nat6
 >   | Gray24 Nat24
->   deriving (Eq, Show)
+>   deriving (Eq, Ord, Show)
 > 
 > instance Arb Pigment where
 >   arb = pickFrom3

@@ -64,6 +64,20 @@ We'll be using this code later on to encode natural numbers in the type of a tex
 >   , nat28
 >   , nat29
 >   , nat30
+>   , nat31
+>   , nat32
+>   , nat33
+>   , nat34
+>   , nat35
+>   , nat36
+>   , nat37
+>   , nat38
+
+>   , nat50
+
+>   , nat100
+
+>   , Nat16
 > ) where
 > 
 > import Data.Proxy
@@ -175,3 +189,17 @@ Some constants:
 > nat28 = doub nat14
 > nat29 = incr nat28
 > nat30 = doub nat15
+> nat31 = incr nat30
+> nat32 = doub nat16
+> nat33 = incr nat32
+> nat34 = doub nat17
+> nat35 = incr nat34
+> nat36 = doub nat18
+> nat37 = incr nat36
+> nat38 = doub nat19
+
+> nat50 = doub nat25
+
+> nat100 = doub nat50
+
+> type Nat16 = Doub (Doub (Doub (Doub (Incr Zero))))

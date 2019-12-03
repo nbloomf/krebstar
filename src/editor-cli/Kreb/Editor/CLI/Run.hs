@@ -21,7 +21,8 @@ consoleIO :: FilePath -> IO ()
 consoleIO stdLibPath = do
   (replParams, env, dim) <- appEnvIO
   let panelDim = initPanelDim dim
-  runKrebEd replParams env (initAppState stdLibPath panelDim (runtimeState env) dim) loopReplT
+  let eId = EventId 0 "init"
+  runKrebEd replParams env (initAppState stdLibPath panelDim (runtimeState env eId) dim) loopReplT
 
 initPanelDim
   :: (Int, Int) -> PanelDim
@@ -66,7 +67,8 @@ appEnvIO = do
     -- Loop callbacks
     ( ReplParams
       { _Init = \env st -> do
-          result <- loadStdLib (stdLibPath st) env st
+          let eId = EventId 0 "load"
+          result <- loadStdLib (stdLibPath st) env st eId
           return $ case result of
             Left sig -> Left sig
             Right rts -> Right $ st { runtimeSt = rts }
@@ -74,7 +76,9 @@ appEnvIO = do
           let mode = editorMode st
           ev <- nextEvent vty
           return $ eventMapping mode ev
-      , _Eval = performActions
+      , _Eval = \env st act -> do
+          let eId = EventId 0 "foo"
+          performActions env st eId act
       , _Print = \_ st -> render $ updateStateCache st
       , _Exit = \sig -> do
           shutdown vty

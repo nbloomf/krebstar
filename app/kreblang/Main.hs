@@ -8,6 +8,7 @@ module Main where
 import Prelude hiding (read)
 
 import Kreb.Lang
+import Kreb.Text
 
 import Control.Monad (when)
 import System.Console.GetOpt
@@ -37,7 +38,7 @@ main = do
       env <- if optStream opts
         then getContents >>= load
         else return $
-          initRuntimeState (const Nothing) (const Nothing)
+          initRuntimeState (\_ _ -> Nothing) (const Nothing)
       case optQuery opts of
         Nothing -> loop Nothing env
         Just qs -> singleQuery qs env
@@ -49,7 +50,7 @@ singleQuery qs env =
   case runParser pPhrase qs of
     Left err -> hPutStrLn stderr $ show err
     Right expr -> do
-      x <- runRuntime (interpret (Query expr)) env
+      x <- runRuntime (interpret (EventId 0 "q") (Query expr)) env
       case x of
         Left err -> do
           hPutStrLn stderr $ show err
@@ -69,7 +70,7 @@ load str = do
     Module ds = ast
 
   (env :: RuntimeState IO) <- do
-    r <- runRuntime (applyDecls ds) (initRuntimeState (const Nothing) (const Nothing))
+    r <- runRuntime (applyDecls (EventId 0 "t") ds) (initRuntimeState (\_ _ -> Nothing) (const Nothing))
     case r of
       Left err -> do
         hPutStrLn stderr $ show err
@@ -124,7 +125,7 @@ loop path env = do
           putStrLn $ pretty arr
       loop path env
     Right query -> do
-      x <- runRuntime (interpret query) env
+      x <- runRuntime (interpret (EventId 0 "y") query) env
       case x of
         Left err -> do
           hPutStrLn stderr $ show err

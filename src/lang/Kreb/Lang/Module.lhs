@@ -12,6 +12,7 @@
 > import Kreb.Lang.Type
 > import Kreb.Lang.Value
 > import Kreb.Lang.Runtime
+> import Kreb.Text.Rune
 
 
 > data Decl
@@ -35,12 +36,12 @@
 
 > applyDecl
 >   :: ( Monad m )
->   => Decl -> Runtime m ()
-> applyDecl decl = case decl of
+>   => EventId -> Decl -> Runtime m ()
+> applyDecl eId decl = case decl of
 >   Definition atom phrase arr1 -> do
 >     checkIfDefined atom
 >     checkType phrase arr1
->     act <- compileAction phrase
+>     act <- compileAction eId phrase
 >     defineAtom atom arr1 act
 > 
 >   DeclareData (f, as) cs -> do
@@ -102,9 +103,9 @@
 
 > applyDecls
 >   :: ( Monad m )
->   => [Decl] -> Runtime m ()
-> applyDecls =
->   sequence_ . map applyDecl
+>   => EventId -> [Decl] -> Runtime m ()
+> applyDecls eId =
+>   sequence_ . map (applyDecl eId)
 
 
 

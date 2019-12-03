@@ -1,4 +1,5 @@
 > {-# LANGUAGE ScopedTypeVariables #-}
+> {-# LANGUAGE StandaloneDeriving #-}
 > {-# LANGUAGE Rank2Types #-}
 
 > module Kreb.Text.Rune (
@@ -11,12 +12,43 @@
 
 >   , chooseBetween
 
+>   , EventId(..)
+>   , RuneId()
+
+>   , Augmented(..)
+>   , IsChar(..)
+
+>   , Rune()
+>   , getRuneValue
+>   , getRuneId
+
+>   , newRuneId
+
+>   , makeRunes
+>   , makeRunes2
+>   , makeRunes3
+
+>   , setEventId
 > ) where
 
 > import Data.Proxy
 
 > import Kreb.Check
+> import Kreb.Control
 > import Kreb.Reflect
+
+
+> class IsChar a where
+>   toChar   :: a -> Char
+>   fromChar :: Char -> a
+
+> instance IsChar Char where
+>   toChar   = id
+>   fromChar = id
+
+> instance (IsBase d, IsChar a) => IsChar (Rune d a) where
+>   toChar = toChar . getRuneValue
+>   fromChar a = newRuneId (EventId 0 "t") (Infimum, Supremum) (fromChar a)
 
 
 
@@ -143,11 +175,95 @@
 >           then ZZFrac (m1 + 1) (NonNegative k1)
 >           else ZZFrac (d*m1 + 1) (NonNegative (k1 + 1))
 
+> data EventId
+>   = EventId Integer String
+>   deriving (Eq, Ord, Show)
 
+> data RuneId d
+>   = RuneId (ZZFrac d) Char EventId
+>   deriving Eq
+
+> newRuneId
+>   :: ( IsBase d, IsChar a )
+>   => EventId
+>   -> (Augmented (RuneId d), Augmented (RuneId d))
+>   -> a -> Rune d a
+> newRuneId eId (u,v) a = case (u,v) of
+>   (Infimum, Supremum) ->
+>     Rune a (RuneId 0 (toChar a) eId)
+>   (Infimum, Augmented (RuneId y _ _)) ->
+>     Rune a (RuneId (intBelow y) (toChar a) eId)
+>   (Augmented (RuneId x _ _), Supremum) ->
+>     Rune a (RuneId (intAbove x) (toChar a) eId)
+>   (Augmented (RuneId x _ _), Augmented (RuneId y _ _)) ->
+>     Rune a (RuneId (chooseBetween x y) (toChar a) eId)
+
+> makeRunes
+>   :: forall a d
+>    . ( IsBase d, IsChar a )
+>   => EventId -> [a] -> [Rune d a]
+> makeRunes eId =
+>   zipWith (\i a -> Rune a (RuneId (fromInteger i) (toChar a) eId)) [0..]
+
+> foo
+>   :: (Integer -> a -> b)
+>   -> Integer -> [a] -> ([b], Integer)
+> foo f k as = foo' [] as k
+>   where
+>     foo' us vs m = case vs of
+>       [] -> (reverse us, m)
+>       w:ws -> foo' (f m w : us) ws (m+1)
+
+> makeRunes2
+>   :: forall a d
+>    . ( IsBase d, IsChar a )
+>   => EventId -> [a] -> a -> [a]
+>   -> ([Rune d a], Rune d a, [Rune d a])
+> makeRunes2 eId as x bs =
+>   let
+>     g i a = Rune a (RuneId (fromInteger i) (toChar a) eId)
+>     (us,k) = foo g 0 as
+>     w = g k x
+>     (vs,_) = foo g (k+1) bs
+>   in (us, w, vs)
+
+> makeRunes3
+>   :: forall a d
+>    . ( IsBase d, IsChar a )
+>   => EventId -> [a] -> a -> [a] -> a -> [a]
+>   -> ([Rune d a], Rune d a, [Rune d a], Rune d a, [Rune d a])
+> makeRunes3 eId as x bs y cs =
+>   let
+>     g i a = Rune a (RuneId (fromInteger i) (toChar a) eId)
+>     (us,k) = foo g 0 as
+>     w = g k x
+>     (vs,l) = foo g (k+1) bs
+>     z = g l y
+>     (hs,_) = foo g (l+1) cs
+>   in (us, w, vs, z, hs)
+
+> deriving instance ( IsBase d ) => Ord (RuneId d)
+> deriving instance ( IsBase d ) => Show (RuneId d)
 
 > data Rune d a
->   = Rune a (ZZFrac d)
+>   = Rune a (RuneId d)
 >   deriving (Eq, Ord, Show)
+
+> setEventId
+>   :: EventId -> Rune d a -> Rune d a
+> setEventId eId (Rune a (RuneId x c _)) =
+>   Rune a (RuneId x c eId)
+
+> instance Functor (Rune d) where
+>   fmap f (Rune x y) = Rune (f x) y
+
+> getRuneValue
+>   :: Rune d a -> a
+> getRuneValue (Rune v _) = v
+> 
+> getRuneId
+>   :: Rune d a -> RuneId d
+> getRuneId (Rune _ m) = m
 
 > instance
 >   ( IsBase d
@@ -174,6 +290,34 @@
 >         ZZFrac m2 (NonNegative k2) = u2
 >       in canonize $ ZZFrac (m1 * m2) (NonNegative $ k1 + k2)
 
+Finds the largest integer strictly less than.
+
+> intBelow
+>   :: forall d
+>    . ( IsBase d )
+>   => ZZFrac d -> ZZFrac d
+> intBelow (ZZFrac m (NonNegative k)) =
+>   let
+>     d = fromIntegral $ toBase (Proxy :: Proxy d)
+>     (q,r) = quotRem m (d ^ k)
+>   in if r == 0
+>     then ZZFrac (q-1) (NonNegative 0)
+>     else ZZFrac q (NonNegative 0)
+
+> intAbove
+>   :: forall d
+>    . ( IsBase d )
+>   => ZZFrac d -> ZZFrac d
+> intAbove (ZZFrac m (NonNegative k)) =
+>   let
+>     d = fromIntegral $ toBase (Proxy :: Proxy d)
+>     q = quot m (d ^ k)
+>   in ZZFrac (q+1) (NonNegative 0)
+
+> isWhole
+>   :: ZZFrac d -> Bool
+> isWhole (ZZFrac _ (NonNegative k)) = k == 0
+
 
 
 
@@ -193,11 +337,36 @@
 >       [ canonize $ ZZFrac m' k | m' <- prune m ] ++
 >       [ canonize $ ZZFrac m k' | k' <- prune k ]
 
+> instance Arb EventId where
+>   arb = EventId <$> arb <*> arb
+> 
+> instance Prune EventId where
+>   prune (EventId a b) =
+>     [ EventId a' b | a' <- prune a ] ++
+>     [ EventId a b' | b' <- prune b ]
+
 > instance
->   ( IsBase d, Arb a
+>   ( IsBase d
+>   ) => Arb (RuneId d)
+>   where
+>     arb = RuneId <$> arb <*> arb <*> arb
+
+> instance
+>   ( IsBase d
+>   ) => Prune (RuneId d)
+>   where
+>     prune (RuneId u c v) =
+>       [ RuneId u' c v | u' <- prune u ] ++
+>       [ RuneId u c' v | c' <- prune c ] ++
+>       [ RuneId u c v' | v' <- prune v ]
+
+> instance
+>   ( IsBase d, Arb a, IsChar a
 >   ) => Arb (Rune d a)
 >   where
->     arb = Rune <$> arb <*> arb
+>     arb = do
+>       a <- arb
+>       Rune <$> pure a <*> (RuneId <$> arb <*> pure (toChar a) <*> arb)
 > 
 > instance
 >   ( IsBase d, Prune a
@@ -207,5 +376,19 @@
 >       [ Rune a' u | a' <- prune a ] ++
 >       [ Rune a u' | u' <- prune u ]
 
+> data Augmented a
+>   = Augmented a
+>   | Infimum
+>   | Supremum
+>   deriving (Eq, Show)
 
+> instance (Ord a) => Ord (Augmented a) where
+>   compare x y = case (x,y) of
+>     (Infimum,     Infimum)     -> EQ
+>     (Infimum,     _)           -> LT
+>     (_,           Infimum)     -> GT
+>     (Augmented u, Augmented v) -> compare u v
+>     (Supremum,    Supremum)    -> EQ
+>     (Supremum,    _)           -> GT
+>     (_,           Supremum)    -> LT
 

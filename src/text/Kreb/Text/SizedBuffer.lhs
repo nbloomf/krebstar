@@ -14,8 +14,10 @@ title: Sized Buffers
 > {-# LANGUAGE ExistentialQuantification #-}
 > {-# LANGUAGE QuantifiedConstraints #-}
 > {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE TypeSynonymInstances #-}
 > {-# LANGUAGE UndecidableInstances #-}
 > {-# LANGUAGE ScopedTypeVariables #-}
+> {-# LANGUAGE FlexibleInstances #-}
 > {-# LANGUAGE FlexibleContexts #-}
 > {-# LANGUAGE Rank2Types #-}
 > 
@@ -25,6 +27,7 @@ title: Sized Buffers
 >   , makeSizedBuffer
 >   , shapeSizedBuffer
 >   , alterSizedBuffer
+>   , alterSizedBuffer'
 >   , alterSizedBufferF
 >   , querySizedBuffer
 > ) where
@@ -34,6 +37,7 @@ title: Sized Buffers
 > import Kreb.Reflect
 > import Kreb.Struct.Valued
 > import Kreb.Text.ScreenOffset
+> import Kreb.Text.Rune
 > import Kreb.Text.Glyph
 > import Kreb.Text.MeasureText
 > import Kreb.Text.Buffer
@@ -50,15 +54,22 @@ The `Buffer` type is parameterized by two type level natural numbers. This is ne
 What we want is to be able to hide the `w` and `t` type parameters -- and this is precisely the problem existentially quantified types can solve. We can wrap the `Buffer` type in the following _existential type_, `SizedBuffer`.
 
 > data SizedBuffer a = forall w t.
->   ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->   ) => SizedBuffer (Buffer w t a)
+>   ( IsWidth w, IsTab t, Valued (MeasureText w t Base) a
+>   ) => SizedBuffer (Buffer w t Base a)
+
+> type Base = Nat16
+
+> instance IsBase Base where
+>   toBase = toBase
+>   showBase = showBase
 
 Note that the type variables `w` and `t` are bound on the right hand side of the definition, so they cannot "leak out". Code consuming `SizedBuffers` cannot know about or do anything with `w` and `t` beyond what is allowed by the `IsWidth` and `IsTab` constraints. This is really powerful! `Buffer` can take full advantage of the benefits of very expressive types, and `SizedBuffer` acts like a guard giving the outside world the ability to ignore those types. It's _almost_ like we have dependent types -- types depending on terms -- albeit in a very restricted form.
 
 The type constraint inside `SizedBuffer`, on its face, makes it tricky to write fully polymorphic code over the `a` variable. But in practice all the `Valued` instances are universally quantified over `w` and `t` in the correct classes, so we can bundle this constraint in a way that refers only to `a` explicitly. I'll call this class `Face` as a reference to typefaces, because in a sense it captures the notion of a character-like type which can be measured, and typefaces are subject to lots of different measurements.
 
 > class
->   ( forall w t. (IsWidth w, IsTab t) => Valued (MeasureText w t) a
+>   ( forall w t. (IsWidth w, IsTab t) => Valued (MeasureText w t Base) a
+>   , IsChar a
 >   ) => Face a
 > 
 > instance Face Char
@@ -101,7 +112,7 @@ First we consider operations which involve fixing or changing the hidden paramet
 > emptySizedBuffer width tab =
 >   withWidth width $ \(_ :: (IsWidth w) => Proxy w) ->
 >     withTab tab $ \(_ :: (IsTab t) => Proxy t) ->
->       SizedBuffer (empty :: (Valued (MeasureText w t) a) => Buffer w t a)
+>       SizedBuffer (empty :: (Valued (MeasureText w t Base) a) => Buffer w t Base a)
 
 We're doing some weird stuff with type annotations here! But again, all the type-level weirdness is isolated to this module; consumers won't need to worry about it.
 
@@ -132,11 +143,11 @@ Next we have the problem of constructing a nonempty sized buffer. We'll define t
 > makeSizedBuffer
 >   :: forall a
 >    . ( Face a )
->   => Int -> Int -> [a] -> SizedBuffer a
-> makeSizedBuffer width tab as =
+>   => EventId -> Int -> Int -> [a] -> SizedBuffer a
+> makeSizedBuffer eId width tab as =
 >   withWidth width $ \(_ :: Proxy w) ->
 >     withTab tab $ \(_ :: Proxy t) ->
->       SizedBuffer (fromList as :: Buffer w t a)
+>       SizedBuffer (fromList eId as :: Buffer w t Base a)
 
 The final utility for messing with the hidden type parameters changes the size of the underlying buffer.
 
@@ -146,10 +157,10 @@ The final utility for messing with the hidden type parameters changes the size o
 >   => Int -> Int
 >   -> SizedBuffer a
 >   -> SizedBuffer a
-> shapeSizedBuffer width tab (SizedBuffer buf) =
+> shapeSizedBuffer width tab (SizedBuffer (buf :: Buffer w0 t0 Base a)) =
 >   withWidth width $ \(_ :: Proxy w) ->
 >     withTab tab $ \(_ :: Proxy t) ->
->       SizedBuffer (resizeBuffer buf :: Buffer w t a)
+>       SizedBuffer (resizeBuffer buf :: Buffer w t Base a)
 
 Next we have functions which don't mess with the hidden parameters. In this case there's really only two things we can do: _alter_ the underlying buffer or _query_ the buffer to retrieve a value.
 
@@ -158,8 +169,8 @@ To alter the buffer, we take a buffer-altering function. Note the quantified typ
 > alterSizedBuffer
 >   :: forall a
 >    . ( Face a )
->   => (forall w t. (IsWidth w, IsTab t)
->       => Buffer w t a -> Buffer w t a)
+>   => (forall w t d. (IsWidth w, IsTab t, IsBase d)
+>       => Buffer w t d a -> Buffer w t d a)
 >   -> SizedBuffer a
 >   -> SizedBuffer a
 > alterSizedBuffer f (SizedBuffer buf) =
@@ -170,20 +181,31 @@ We also define a version taking an alter function returning a functor-wrapped va
 > alterSizedBufferF
 >   :: forall a f
 >    . ( Functor f, Face a )
->   => (forall w t. (IsWidth w, IsTab t)
->       => Buffer w t a -> f (Buffer w t a))
+>   => (forall w t d. (IsWidth w, IsTab t, IsBase d)
+>       => Buffer w t d a -> f (Buffer w t d a))
 >   -> SizedBuffer a
 >   -> f (SizedBuffer a)
 > alterSizedBufferF f (SizedBuffer buf) =
 >   fmap SizedBuffer (f buf)
+
+> alterSizedBuffer'
+>   :: forall a u
+>    . ( Face a )
+>   => (forall w t d. (IsWidth w, IsTab t)
+>       => Buffer w t Base a -> (Buffer w t Base a, u))
+>   -> SizedBuffer a
+>   -> (SizedBuffer a, u)
+> alterSizedBuffer' f (SizedBuffer buf) =
+>   let (buf', u) = f buf
+>   in (SizedBuffer buf', u)
 
 Finally, a utility which extracts a value from a sized buffer.
 
 > querySizedBuffer
 >   :: forall a b
 >    . ( Face a )
->   => (forall w t. (IsWidth w, IsTab t)
->       => Buffer w t a -> b)
+>   => (forall w t d. (IsWidth w, IsTab t, IsBase d)
+>       => Buffer w t d a -> b)
 >   -> SizedBuffer a
 >   -> b
 > querySizedBuffer f (SizedBuffer buf) =

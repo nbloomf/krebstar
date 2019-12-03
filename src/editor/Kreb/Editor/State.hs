@@ -97,11 +97,11 @@ instance ( Monad m ) => Functor (Hook m) where
 
 
 setWindowDim
-  :: (Int, Int) -> AppState m -> AppState m
-setWindowDim dim st =
+  :: EventId -> (Int, Int) -> AppState m -> AppState m
+setWindowDim eId dim st =
   let
     tabs =
-      setTabsDim dim $ tabbedBuffers st
+      setTabsDim eId dim $ tabbedBuffers st
   in st
     { windowDim     = dim
     , tabbedBuffers = tabs

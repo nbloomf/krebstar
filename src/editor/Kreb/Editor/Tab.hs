@@ -22,6 +22,7 @@ module Kreb.Editor.Tab (
 import Kreb.Editor.Settings
 import Kreb.Text.Buffer
 import Kreb.Text.Glyph
+import Kreb.Text.Rune
 import Kreb.Editor.Panel
 import Kreb.Struct.Valued
 import Kreb.Struct.FingerTree
@@ -37,9 +38,9 @@ data Tabs = Tabs
   } deriving (Eq, Show)
 
 setTabsDim
-  :: (Int, Int) -> Tabs -> Tabs
-setTabsDim dim (Tabs ts) =
-  Tabs $ fmap (setPanelDim dim) ts
+  :: EventId -> (Int, Int) -> Tabs -> Tabs
+setTabsDim eId dim (Tabs ts) =
+  Tabs $ fmap (setPanelDim eId dim) ts
 
 
 

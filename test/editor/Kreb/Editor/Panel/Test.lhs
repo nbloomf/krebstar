@@ -42,7 +42,7 @@
 >   let
 >     Just x = renderedPanel $ updateRenderedPanel
 >       defaultGlyphRenderSettings NormalMode tab $
->       alterPanel acts (initPanel "fakestdlib" dim initPanelDim tab)
+>       alterPanel (EventId 0 "test") acts (initPanel "fakestdlib" dim initPanelDim tab)
 >   in claimAll
 >     [ claimEqualNamed "lineLabels: "
 >         (lineLabels render) (lineLabels x)

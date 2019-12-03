@@ -11,6 +11,7 @@
 > 
 > import Kreb.Struct.Valued
 
+> import Kreb.Text.Rune
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.MeasureText
 
@@ -75,8 +76,8 @@
 >     fromChar = Cell . fromChar
 > 
 > instance
->   ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->   ) => Valued (MeasureText w t) (Cell a)
+>   ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a
+>   ) => Valued (MeasureText w t d) (Cell a)
 >   where
 >     value x = case x of
 >       Cell a -> value a
@@ -88,5 +89,5 @@
 >         , screenOffset       = mkNoNewlines [(1,Fixed1)]
 >         , screenCoords       = mkNoNewlines []
 >         , hasEOF             = True
->         , hasTrailingNewline = False
+>         , runeId             = Supremum
 >         }

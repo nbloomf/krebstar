@@ -271,6 +271,7 @@ library kreb-lang
 
     , kreb-check
     , kreb-format
+    , kreb-text
 
 test-suite kreb-lang-test
   default-language: Haskell2010
@@ -292,6 +293,7 @@ test-suite kreb-lang-test
 
     , kreb-check
     , kreb-lang
+    , kreb-text
 
 
 
@@ -431,6 +433,7 @@ executable kreblang
   build-depends:
       base >=4.7 && <5
     , kreb-lang
+    , kreb-text
 
 
 

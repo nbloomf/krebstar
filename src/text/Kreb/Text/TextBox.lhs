@@ -66,6 +66,7 @@ title: Text Boxes
 > import Kreb.Check
 > import Kreb.Control
 > import Kreb.Text.MeasureText
+> import Kreb.Text.Rune
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.Pigment
 > import Kreb.Text.Buffer
@@ -136,17 +137,18 @@ Definitely not useless are the functions for constructing text boxes. First we h
 And we can build a text box out of an arbitrary string:
 
 > stringTextBox
->   :: (Int, Int) -- ^ Screen dimensions: (Width, Height)
+>   :: EventId
+>   -> (Int, Int) -- ^ Screen dimensions: (Width, Height)
 >   -> Int        -- ^ Tab width
 >   -> String
 >   -> TextBox
-> stringTextBox (w,h) t str =
+> stringTextBox eId (w,h) t str =
 >   if (w <= 0) || (h <= 0) || (t <= 0) || (w < t)
 >     then error "emptyTextBox: panic (invalid dimensions)"
 >     else TextBox
 >       { textboxHeight     = h
 >       , textboxCursor     = (0,0)
->       , textboxBuffer     = makeSizedBuffer w t $ map plainGlyph str
+>       , textboxBuffer     = makeSizedBuffer eId w t $ map plainGlyph str
 >       , textboxOffset     = 0
 >       , textboxLabelBase  = 10
 >       , textboxSource     = Nothing
@@ -175,7 +177,7 @@ And an example for fun:
 > -- $
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello world!"
 > -- in getTextBoxWidth x
 > -- :}
@@ -196,7 +198,7 @@ And an example for fun:
 > -- $
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello world!"
 > -- in getTextBoxHeight x
 > -- :}
@@ -219,7 +221,7 @@ And an example for fun:
 > -- $
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello world!"
 > -- in getTextBoxTabStop x
 > -- :}
@@ -242,7 +244,7 @@ And an example for fun:
 > -- $
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello world!"
 > -- in getTextBoxBytes x
 > -- :}
@@ -265,7 +267,7 @@ And some examples for fun:
 > -- $
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello world!"
 > -- in getTextBoxLineCol x
 > -- :}
@@ -273,7 +275,7 @@ And some examples for fun:
 > --
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello there,\nworld!"
 > -- in getTextBoxLineCol x
 > -- :}
@@ -296,7 +298,7 @@ And some examples for fun:
 > -- $
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello world!"
 > -- in getTextBoxScreenCoords x
 > -- :}
@@ -304,7 +306,7 @@ And some examples for fun:
 > --
 > -- >>> :{
 > -- let
-> --   x = stringTextBox (8,3) 2
+> --   x = stringTextBox (EventId 0 "t") (8,3) 2
 > --     "hello there,\nworld!"
 > -- in getTextBoxScreenCoords x
 > -- :}
@@ -443,11 +445,11 @@ And some examples for fun:
 
 
 > mkTextBox
->   :: (Int, Int) -> Int
+>   :: EventId -> (Int, Int) -> Int
 >   -> [TextBoxAction]
 >   -> TextBox
-> mkTextBox (x,y) tab acts =
->   alterTextBox acts $ emptyTextBox (x,y) tab
+> mkTextBox eId (x,y) tab acts =
+>   alterTextBox eId acts $ emptyTextBox (x,y) tab
 
 
 
@@ -532,32 +534,33 @@ And some examples for fun:
 >     Positive x <- arb
 >     Positive y <- arb
 >     Positive t <- arb
->     mkTextBox (x,y) t <$> arb
+>     eId <- arb
+>     mkTextBox eId (x,y) t <$> arb
 
 
 
 
 > alterTextBox
->   :: [TextBoxAction]
+>   :: EventId -> [TextBoxAction]
 >   -> TextBox -> TextBox
-> alterTextBox acts box =
->   foldl (flip alterTextBoxPrimitive) box acts
+> alterTextBox eId acts box =
+>   foldl (flip (alterTextBoxPrimitive eId)) box acts
 
 
 
 > alterTextBoxPrimitive
->   :: TextBoxAction
+>   :: EventId -> TextBoxAction
 >   -> TextBox -> TextBox
-> alterTextBoxPrimitive act = case act of
->   TextBoxInsert c      -> textBoxInsert c
->   TextBoxInsertMany cs -> textBoxInsertMany cs
->   TextBoxBackspace     -> textBoxBackspace
+> alterTextBoxPrimitive eId act = case act of
+>   TextBoxInsert c      -> textBoxInsert eId c
+>   TextBoxInsertMany cs -> textBoxInsertMany eId cs
+>   TextBoxBackspace     -> textBoxBackspace eId
 >   TextBoxCursorDown    -> textboxCursorDown
 >   TextBoxCursorUp      -> textboxCursorUp
 >   TextBoxCursorRight   -> textboxCursorRight
 >   TextBoxCursorLeft    -> textboxCursorLeft
 >   TextBoxResize dim    -> textboxResize dim
->   TextBoxLoad path str -> textboxLoad path str
+>   TextBoxLoad path str -> textboxLoad eId path str
 >   TextBoxLeaveMark     -> textboxLeaveMark
 >   TextBoxClearMark     -> textboxClearMark
 >   TextBoxClear         -> textboxClear
@@ -583,9 +586,9 @@ And some examples for fun:
 
 
 > textboxLoad
->   :: FilePath -> String -> TextBox -> TextBox
-> textboxLoad path str box = box
->   { textboxBuffer = makeSizedBuffer
+>   :: EventId -> FilePath -> String -> TextBox -> TextBox
+> textboxLoad eId path str box = box
+>   { textboxBuffer = makeSizedBuffer eId
 >       (getTextBoxWidth box) (getTextBoxHeight box) (map fromChar str)
 >   , textboxOffset = 0
 >   , textboxCursor = (0,0)
@@ -618,16 +621,16 @@ And some examples for fun:
 
 
 > textBoxInsert
->   :: Glyph Char
+>   :: EventId -> Glyph Char
 >   -> TextBox -> TextBox
-> textBoxInsert c box =
+> textBoxInsert eId c box =
 >   let
 >     (x,y) = textboxCursor box
 >     l = textboxOffset box
 >     h = textboxHeight box
 > 
->     buf =
->       alterSizedBuffer (insertPointLeft c) $
+>     (buf, delta) =
+>       alterSizedBuffer' (insertPointLeft eId c) $
 >       alterSizedBuffer (movePointToScreenCoords (x, y+l)) $
 >       textboxBuffer box
 > 
@@ -646,20 +649,20 @@ And some examples for fun:
 >     }
 
 > textBoxInsertMany
->   :: [Glyph Char]
+>   :: EventId -> [Glyph Char]
 >   -> TextBox -> TextBox
-> textBoxInsertMany cs box =
->   foldl (flip textBoxInsert) box cs
+> textBoxInsertMany eId cs box =
+>   foldl (flip (textBoxInsert eId)) box cs
 
 > textBoxBackspace
->   :: TextBox -> TextBox
-> textBoxBackspace box =
+>   :: EventId -> TextBox -> TextBox
+> textBoxBackspace eId box =
 >   let
 >     (x,y) = textboxCursor box
 >     l = textboxOffset box
 > 
->     buf =
->       alterSizedBuffer deletePointLeft $
+>     (buf, delta) =
+>       alterSizedBuffer' (deletePointLeft eId) $
 >       alterSizedBuffer (movePointToScreenCoords (x, y+l)) $
 >       textboxBuffer box
 >     
@@ -855,16 +858,16 @@ Resizing should not change the logical coordinates of the focus.
 >   in DebugTextBox lb ln box
 
 > debugTextBoxActions
->   :: (Int, Int) -> Int -> [TextBoxAction]
+>   :: EventId -> (Int, Int) -> Int -> [TextBoxAction]
 >   -> (DebugTextBox, [(TextBoxAction, Maybe DebugTextBox)])
-> debugTextBoxActions dim tab acts =
+> debugTextBoxActions eId dim tab acts =
 >   let
->     box = mkTextBox dim tab []
+>     box = mkTextBox eId dim tab []
 >     f x as = case as of
 >       [] -> []
 >       b:bs ->
 >         let
->           y = alterTextBoxPrimitive b x
+>           y = alterTextBoxPrimitive eId b x
 >           z = if x == y
 >             then Nothing
 >             else Just $ debugTextBox y
@@ -894,10 +897,10 @@ Resizing should not change the logical coordinates of the focus.
 >         ]
 
 > writeDebugTextBoxActions
->   :: FilePath
+>   :: EventId -> FilePath
 >   -> (Int, Int) -> Int -> [TextBoxAction]
 >   -> IO ()
-> writeDebugTextBoxActions path dim tab acts =
+> writeDebugTextBoxActions eId path dim tab acts =
 >   writeFile path
 >     $ printDebugTextBoxActions
->     $ debugTextBoxActions dim tab acts
+>     $ debugTextBoxActions eId dim tab acts

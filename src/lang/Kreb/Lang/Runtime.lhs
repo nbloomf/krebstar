@@ -11,10 +11,11 @@
 > import Kreb.Lang.Expr
 > import Kreb.Lang.Type hiding (getTypeEnv)
 > import Kreb.Lang.Value
+> import Kreb.Text.Rune
 
 > data Actions m = Actions
 >   { _atomActions    :: M.Map Atom (Runtime m ())
->   , _builtinActions :: BuiltIn -> Runtime m ()
+>   , _builtinActions :: EventId -> BuiltIn -> Runtime m ()
 >   }
 
 > data RuntimeState m = RuntimeState
@@ -31,7 +32,7 @@
 
 > initRuntimeState
 >   :: ( Monad m )
->   => (String -> Maybe (Runtime m ()))
+>   => (EventId -> String -> Maybe (Runtime m ()))
 >   -> (String -> Maybe Scheme)
 >   -> RuntimeState m
 > initRuntimeState act arrow = RuntimeState
@@ -185,18 +186,18 @@
 
 > compileAction
 >   :: ( Monad m )
->   => Phrase -> Runtime m (Runtime m ())
-> compileAction x = case x of
+>   => EventId -> Phrase -> Runtime m (Runtime m ())
+> compileAction eId x = case x of
 >   Silence -> return (return ())
 >   Then word rest -> do
->     act1 <- lookupActionFor word
->     act2 <- compileAction rest
+>     act1 <- lookupActionFor eId word
+>     act2 <- compileAction eId rest
 >     return (act1 >> act2)
 
 > lookupActionFor
 >   :: ( Monad m )
->   => Word -> Runtime m (Runtime m ())
-> lookupActionFor word = case word of
+>   => EventId -> Word -> Runtime m (Runtime m ())
+> lookupActionFor eId word = case word of
 >   Noop -> return (return ())
 >   Quote phrase -> return $ mutateStack $ \stk ->
 >     Right $ Cons stk (V_Quote [Sus_Say phrase])
@@ -207,15 +208,15 @@
 >         WordNotDefined atom
 >       Just act -> return act
 >   BuiltIn builtin -> do
->     dict <- _builtinActions <$> getActions
+>     dict <- _builtinActions <$> getActions <*> pure eId
 >     return $ dict builtin
 
 
 > doActionFor
 >   :: ( Monad m )
->   => Phrase -> Runtime m ()
-> doActionFor phrase = do
->   action <- compileAction phrase
+>   => EventId -> Phrase -> Runtime m ()
+> doActionFor eId phrase = do
+>   action <- compileAction eId phrase
 >   action
 
 > inferType
@@ -280,8 +281,8 @@
 
 > builtinActions
 >   :: ( Monad m )
->   => (String -> Maybe (Runtime m ())) -> BuiltIn -> Runtime m ()
-> builtinActions custom z = case z of
+>   => (EventId -> String -> Maybe (Runtime m ())) -> EventId -> BuiltIn -> Runtime m ()
+> builtinActions custom eId z = case z of
 >   BuiltIn_Int k -> mutateStack $ \stk ->
 >     Right $ Cons stk (V_Prim $ Prim_Int k)
 >   BuiltIn_Char c -> mutateStack $ \stk ->
@@ -315,13 +316,13 @@
 >   BuiltIn_Apply -> do
 >     val <- popStack
 >     case val of
->       V_Quote s -> mapM_ applySuspension s
+>       V_Quote s -> mapM_ (applySuspension eId) s
 >       _ -> throwErr $ RTE $ ExpectedQuote
 > 
 >   BuiltIn_Repeat -> do
 >     num <- popNat
 >     sus <- popSuspension
->     sequence_ $ replicate num (mapM_ applySuspension sus)
+>     sequence_ $ replicate num (mapM_ (applySuspension eId) sus)
 > 
 >   BuiltIn_Quote -> mutateStack $ \stk ->
 >     case stk of
@@ -334,15 +335,15 @@
 >       _ -> Left StackHeadMismatch
 > 
 >   BuiltIn_Ext str ->
->     case custom str of
+>     case custom eId str of
 >       Nothing -> throwErr $ RTE $ BuiltInUnrecognized str
 >       Just act -> act
 
 > applySuspension
->   :: ( Monad m ) => Sus -> Runtime m ()
-> applySuspension x = case x of
+>   :: ( Monad m ) => EventId -> Sus -> Runtime m ()
+> applySuspension eId x = case x of
 >   Sus_Put v -> mutateStack $ \stk -> Right $ Cons stk v
->   Sus_Say p -> doActionFor p
+>   Sus_Say p -> doActionFor eId p
 
 > builtinTypes
 >   :: (String -> Maybe Scheme) -> BuiltIn -> Maybe Scheme

@@ -36,6 +36,7 @@ Introduction
 > import Kreb.Reflect.Nat
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.MeasureText
+> import Kreb.Text.Rune
 > 
 > import Kreb.Text.ScreenOffset.Test
 
@@ -60,22 +61,28 @@ MeasureText is a monoid
 > test_MeasureText_Monoid :: TestTree
 > test_MeasureText_Monoid =
 >   testGroup "MeasureText is a monoid"
->     [ prop_MeasureText_Monoid_laws "30/8" nat30 nat8
->     , prop_MeasureText_Monoid_laws "30/4" nat30 nat4
->     , prop_MeasureText_Monoid_laws "15/2" nat15 nat2
->     , prop_MeasureText_Monoid_laws "8/2" nat8 nat2
->     , prop_MeasureText_Monoid_laws "3/1" nat3 nat1
+>     [ prop_MeasureText_Monoid_laws "30/8/10" nat30 nat8 nat10
+>     , prop_MeasureText_Monoid_laws "30/4/10" nat30 nat4 nat10
+>     , prop_MeasureText_Monoid_laws "15/2/10" nat15 nat2 nat10
+>     , prop_MeasureText_Monoid_laws "8/2/10"  nat8  nat2 nat10
+>     , prop_MeasureText_Monoid_laws "3/1/10"  nat3  nat1 nat10
+> 
+>     , prop_MeasureText_Monoid_laws "30/8/100" nat30 nat8 nat100
+>     , prop_MeasureText_Monoid_laws "30/4/100" nat30 nat4 nat100
+>     , prop_MeasureText_Monoid_laws "15/2/100" nat15 nat2 nat100
+>     , prop_MeasureText_Monoid_laws "8/2/100"  nat8  nat2 nat100
+>     , prop_MeasureText_Monoid_laws "3/1/100"  nat3  nat1 nat100
 >     ]
 
 > prop_MeasureText_Monoid_laws
->   :: forall w t
->    . ( IsWidth w, IsTab t )
->   => String -> Proxy w -> Proxy t
+>   :: forall w t d
+>    . ( IsWidth w, IsTab t, IsBase d )
+>   => String -> Proxy w -> Proxy t -> Proxy d
 >   -> TestTree
-> prop_MeasureText_Monoid_laws name _ _ =
+> prop_MeasureText_Monoid_laws name _ _ _ =
 >   testGroup name
->     [ test_Semigroup_laws (Proxy :: Proxy (MeasureText w t))
->     , test_Monoid_laws (Proxy :: Proxy (MeasureText w t))
+>     [ test_Semigroup_laws (Proxy :: Proxy (MeasureText w t d))
+>     , test_Monoid_laws (Proxy :: Proxy (MeasureText w t d))
 >     ]
 
 

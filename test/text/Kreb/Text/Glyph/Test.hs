@@ -51,8 +51,8 @@ instance Show Ascii where
   show (Ascii c) = show c
 
 instance
-  ( IsWidth w, IsTab t
-  ) => Valued (MeasureText w t) Ascii where
+  ( IsWidth w, IsTab t, IsBase d
+  ) => Valued (MeasureText w t d) Ascii where
   value (Ascii c) = value c
 
 instance Arb Ascii where
@@ -80,8 +80,8 @@ instance
     show (NonNewline a) = show a
 
 instance
-  ( IsWidth w, IsTab t, Valued (MeasureText w t) a
-  ) => Valued (MeasureText w t) (NonNewline a)
+  ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a
+  ) => Valued (MeasureText w t d) (NonNewline a)
   where
     value (NonNewline a) = value a
 

@@ -11,6 +11,7 @@
 > import Kreb.Lang.Module
 > import Kreb.Lang.Error
 > import Kreb.Lang.Runtime
+> import Kreb.Text.Rune
 
 
 
@@ -26,15 +27,15 @@
 
 > interpret
 >   :: ( Monad m )
->   => Command -> Runtime m ()
-> interpret cmd = case cmd of
->   Declaration decl -> applyDecl decl
->   Query expr -> doActionFor expr
+>   => EventId -> Command -> Runtime m ()
+> interpret eId cmd = case cmd of
+>   Declaration decl -> applyDecl eId decl
+>   Query expr -> doActionFor eId expr
 
 > interpretAll
 >   :: ( Monad m )
->   => [Command] -> Runtime m ()
-> interpretAll = mapM_ interpret
+>   => EventId -> [Command] -> Runtime m ()
+> interpretAll eId = mapM_ (interpret eId)
 
 > {-
 

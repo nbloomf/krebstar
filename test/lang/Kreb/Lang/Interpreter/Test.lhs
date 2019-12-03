@@ -11,6 +11,8 @@
 
 > import Test.Tasty
 
+> import Kreb.Text
+
 > import Kreb.Lang.Type
 > import Kreb.Lang.Expr
 > import Kreb.Lang.Interpreter
@@ -47,7 +49,7 @@
 >   :: ([Command], Either ReplError DataStack)
 >   -> Check
 > prop_InterpretAll_examples (cs, result) =
->   let Id actual = runRuntime (interpretAll cs) (initRuntimeState (const Nothing) (const Nothing)) in
+>   let Id actual = runRuntime (interpretAll (EventId 0 "test") cs) (initRuntimeState (\_ _ -> Nothing) (const Nothing)) in
 >   case (result, actual) of
 >     (Left err1, Left err2) -> claimEqual err1 err2
 >     (Right st1, Right (st2, env2)) -> claimAll

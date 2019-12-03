@@ -79,20 +79,20 @@
 >       [ displayNeat ph, "\n", displayNeat st ]
 
 > updateHistory
->   :: ShellCommand -> Panel -> Panel
-> updateHistory cmd panel =
+>   :: EventId -> ShellCommand -> Panel -> Panel
+> updateHistory eId cmd panel =
 >   let
 >     append :: String -> [Glyph Char]
 >     append = map fromChar
 >   in panel
 >     { commandHistory = cmd : commandHistory panel
->     , histBox = alterTextBox [TextBoxInsertMany $ append ("$> " ++ displayNeat cmd ++ "\n\n")] $ histBox panel
+>     , histBox = alterTextBox eId [TextBoxInsertMany $ append ("$> " ++ displayNeat cmd ++ "\n\n")] $ histBox panel
 >     }
 
 > showDebugMessage
->   :: String -> Panel -> Panel
-> showDebugMessage msg panel = panel
->   { histBox = alterTextBox [TextBoxInsertMany $ map fromChar ("#> " ++ msg ++ "\n\n")] $ histBox panel
+>   :: EventId -> String -> Panel -> Panel
+> showDebugMessage eId msg panel = panel
+>   { histBox = alterTextBox eId [TextBoxInsertMany $ map fromChar ("#> " ++ msg ++ "\n\n")] $ histBox panel
 >   }
 
 > data PanelDim = PanelDim
@@ -190,20 +190,20 @@
 
 
 > setPanelDim
->   :: (Int, Int) -> Panel -> Panel
-> setPanelDim dim panel =
+>   :: EventId -> (Int, Int) -> Panel -> Panel
+> setPanelDim eId dim panel =
 >   let
 >     ComponentSizes{..} =
 >       computeComponentSizes dim panel
 >   in panel
 >     { textBox =
->         alterTextBox [TextBoxResize _textSize] $ textBox panel
+>         alterTextBox eId [TextBoxResize _textSize] $ textBox panel
 >     , histBox =
->         alterTextBox [TextBoxResize _historySize] $ histBox panel
+>         alterTextBox eId [TextBoxResize _historySize] $ histBox panel
 >     , cmdBox =
->         alterTextBox [TextBoxResize _commandSize] $ cmdBox panel
+>         alterTextBox eId [TextBoxResize _commandSize] $ cmdBox panel
 >     , statusBox =
->         alterTextBox [TextBoxResize _statusSize] $ statusBox panel
+>         alterTextBox eId [TextBoxResize _statusSize] $ statusBox panel
 >     }
 
 > data RenderedPanel = RenderedPanel
@@ -280,25 +280,25 @@
 >   deriving (Eq, Show)
 
 > alterPanel
->   :: [PanelAction]
+>   :: EventId -> [PanelAction]
 >   -> Panel -> Panel
-> alterPanel acts panel =
->   foldl (flip alterPanelPrimitive) panel acts
+> alterPanel eId acts panel =
+>   foldl (flip (alterPanelPrimitive eId)) panel acts
 
 
 
 > alterPanelPrimitive
->   :: PanelAction
+>   :: EventId -> PanelAction
 >   -> Panel -> Panel
-> alterPanelPrimitive act = case act of
+> alterPanelPrimitive eId act = case act of
 >   PanelAlterText as ->
->     panelAlterText as
+>     panelAlterText eId as
 
 >   PanelAlterCmd as ->
->     panelAlterCmd as
+>     panelAlterCmd eId as
 
 >   PanelClearCmd ->
->     panelClearCmd
+>     panelClearCmd eId
 
 
 
@@ -309,27 +309,27 @@
 -- ================= --
 
 > panelAlterText
->   :: [TextBoxAction]
+>   :: EventId -> [TextBoxAction]
 >   -> Panel -> Panel
-> panelAlterText as panel =
+> panelAlterText eId as panel =
 >   let box = textBox panel in
 >   panel
->     { textBox = alterTextBox as box
+>     { textBox = alterTextBox eId as box
 >     , textChanged = True
 >     }
 
 > panelAlterCmd
->   :: [TextBoxAction]
+>   :: EventId -> [TextBoxAction]
 >   -> Panel -> Panel
-> panelAlterCmd as panel =
+> panelAlterCmd eId as panel =
 >   let box = cmdBox panel in
->   panel { cmdBox = alterTextBox as box }
+>   panel { cmdBox = alterTextBox eId as box }
 
 > panelClearCmd
->   :: Panel -> Panel
-> panelClearCmd panel =
+>   :: EventId -> Panel -> Panel
+> panelClearCmd eId panel =
 >   let box = cmdBox panel in
->   panel { cmdBox = alterTextBox [TextBoxClear] box }
+>   panel { cmdBox = alterTextBox eId [TextBoxClear] box }
 
 
 

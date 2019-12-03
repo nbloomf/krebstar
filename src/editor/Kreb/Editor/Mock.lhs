@@ -90,7 +90,7 @@
 >       let mode = editorMode st
 >       mockGetNextEvent mode
 >   , _Eval = \_ st1 act -> do
->       result <- performActions mockEnv st1 act
+>       result <- performActions mockEnv st1 (error "mockReplParams: panic") act
 >       case result of
 >         Right st2 -> return (Right st2)
 >         Left sig -> return (Left sig)

@@ -582,6 +582,44 @@ And of course we have efficient operations for insertion and deletion. First at 
 >       Just (b, bs') -> MarkPoint (mempty, b, bs', y, cs)
 >     Just (_, as') -> MarkPoint (as', x, bs, y, cs)
 > 
+> deleteAtStart'
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe (TwoPointedList m a, a)
+> deleteAtStart' w = case w of
+>   Vacant -> Nothing
+>   PointOnly (as, x, bs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing ->
+>         Just (Vacant, x)
+>       Just (b, bs') ->
+>         Just (PointOnly (mempty, b, bs'), x)
+>     Just (a, as') ->
+>       Just (PointOnly (as', x, bs), a)
+>   Coincide (as, x, bs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing ->
+>         Just (Vacant, x)
+>       Just (b, bs') ->
+>         Just (Coincide (mempty, b, bs'), x)
+>     Just (a, as') ->
+>       Just (Coincide (as', x, bs), a)
+>   PointMark (as, x, bs, y, cs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing ->
+>         Just (Coincide (mempty, y, cs), x)
+>       Just (b, bs') ->
+>         Just (PointMark (mempty, b, bs', y, cs), x)
+>     Just (a, as') ->
+>       Just (PointMark (as', x, bs, y, cs), a)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.uncons as of
+>     Nothing -> case FT.uncons bs of
+>       Nothing ->
+>         Just (Coincide (mempty, y, cs), x)
+>       Just (b, bs') ->
+>         Just (MarkPoint (mempty, b, bs', y, cs), x)
+>     Just (a, as') ->
+>       Just (MarkPoint (as', x, bs, y, cs), a)
+> 
 > insertAtEnd
 >   :: ( Valued m a )
 >   => a -> TwoPointedList m a -> TwoPointedList m a
@@ -684,7 +722,26 @@ And next to the left and the right of the point.
 >   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc bs of
 >     Nothing -> Coincide (as, y, cs)
 >     Just (_, bs') -> MarkPoint (as, x, bs', y, cs)
-> 
+
+> deletePointLeft'
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe (TwoPointedList m a, a)
+> deletePointLeft' w = case w of
+>   Vacant ->
+>     Nothing
+>   PointOnly (as, x, bs) -> case FT.unsnoc as of
+>     Nothing -> Nothing
+>     Just (a, as') -> Just (PointOnly (as', x, bs), a)
+>   Coincide (as, x, bs) -> case FT.unsnoc as of
+>     Nothing -> Nothing
+>     Just (a, as') -> Just (Coincide (as', x, bs), a)
+>   PointMark (as, x, bs, y, cs) -> case FT.unsnoc as of
+>     Nothing -> Nothing
+>     Just (a, as') -> Just (PointMark (as', x, bs, y, cs), a)
+>   MarkPoint (as, x, bs, y, cs) -> case FT.unsnoc bs of
+>     Nothing -> Just (Coincide (as, y, cs), x)
+>     Just (b, bs') -> Just (MarkPoint (as, x, bs', y, cs), b)
+
 > insertPointRight
 >   :: ( Valued m a )
 >   => a -> TwoPointedList m a -> TwoPointedList m a
@@ -931,6 +988,50 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Just (value as <> value x)
 >   MarkPoint (as, x, bs, y, _) ->
 >     Just (value as <> value x <> value bs <> value y)
+> 
+> valuesAroundPoint
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe (m,m)
+> valuesAroundPoint w = case w of
+>   Vacant -> Nothing
+>   PointOnly (as, x, _) ->
+>     case FT.unsnoc as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (value z, value x)
+>   Coincide (as, x, _) ->
+>     case FT.unsnoc as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (value z, value x)
+>   PointMark (as, x, _, _, _) ->
+>     case FT.unsnoc as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (value z, value x)
+>   MarkPoint (_, x, bs, y, _) ->
+>     case FT.unsnoc bs of
+>       Nothing    -> Just (value x, value y)
+>       Just (z,_) -> Just (value z, value y)
+> 
+> valuesAroundStart
+>   :: ( Valued m a )
+>   => TwoPointedList m a -> Maybe (m,m)
+> valuesAroundStart w = case w of
+>   Vacant -> Nothing
+>   PointOnly (as, x, _) ->
+>     case FT.uncons as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (mempty, value z)
+>   Coincide (as, x, _) ->
+>     case FT.uncons as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (mempty, value z)
+>   PointMark (as, x, _, _, _) ->
+>     case FT.uncons as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (mempty, value z)
+>   MarkPoint (as, x, _, _, _) ->
+>     case FT.uncons as of
+>       Nothing    -> Just (mempty, value x)
+>       Just (z,_) -> Just (mempty, value z)
 > 
 > valueUpToMark
 >   :: ( Valued m a )

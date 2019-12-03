@@ -97,27 +97,27 @@
 
 > performActions
 >   :: ( Monad m )
->   => AppEnv m -> AppState m -> [Action]
+>   => AppEnv m -> AppState m -> EventId -> [Action]
 >   -> m (Either AppSignal (AppState m))
-> performActions env st acts = case acts of
+> performActions env st eId acts = case acts of
 >   [] -> return (Right st)
 >   a:as -> do
->     result <- performAction env st a
+>     result <- performAction env st eId a
 >     case result of
 >       Left sig -> return $ Left sig
->       Right st2 -> performActions env st2 as
+>       Right st2 -> performActions env st2 eId as
 
 
 > performAction
 >   :: ( Monad m )
->   => AppEnv m -> AppState m -> Action
+>   => AppEnv m -> AppState m -> EventId -> Action
 >   -> m (Either AppSignal (AppState m))
-> performAction env st act = case act of
+> performAction env st eId act = case act of
 >   NoOp -> return $
 >     Right st
 > 
 >   ShowDebug msg -> return $
->     Right $ alterActivePanel (showDebugMessage msg) st
+>     Right $ alterActivePanel (showDebugMessage eId msg) st
 > 
 >   Quit -> return $
 >     Left ExitNormally
@@ -127,99 +127,99 @@
 > 
 >   CharInsert c -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxInsert (fromChar c)]]) st
 > 
 >   CharInsertCmd c -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterCmd [TextBoxInsert (fromChar c)]]) st
 > 
 >   StringInsert cs -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]) st
 > 
 >   CharBackspace -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxBackspace]]) st
 > 
 >   CharBackspaceCmd -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterCmd [TextBoxBackspace]]) st
 > 
 >   CursorUp -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxCursorUp]]) st
 > 
 >   CursorDown -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxCursorDown]]) st
 > 
 >   CursorRight -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxCursorRight]]) st
 > 
 >   CursorLeft -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxCursorLeft]]) st
 > 
 >   LeaveMark -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxLeaveMark]]) st
 > 
 >   ClearMark -> return $
 >     Right $ alterActivePanel
->       (alterPanel
+>       (alterPanel eId
 >         [PanelAlterText [TextBoxClearMark]]) st
 > 
 >   WindowResize (w,h) -> return $
->     Right $ setWindowDim (w,h) st
+>     Right $ setWindowDim eId (w,h) st
 > 
 >   FileLoad path -> do
 >     let x = queryActivePanel (textboxHasChanged . getTextBox) st
 >     case x of
 >       Nothing -> return $ Right st
 >       Just True -> return $
->         Right $ alterActivePanel (showDebugMessage "Unsaved changes") st
+>         Right $ alterActivePanel (showDebugMessage eId "Unsaved changes") st
 >       Just False -> do
 >         read <- loadFile env path
 >         case read of
 >           Left err -> return $
->             Right $ alterActivePanel (showDebugMessage $ show err) st
+>             Right $ alterActivePanel (showDebugMessage eId $ show err) st
 >           Right contents -> return $
->             Right $ alterActivePanel (alterPanel [PanelAlterText [TextBoxLoad path contents]]) st
+>             Right $ alterActivePanel (alterPanel eId [PanelAlterText [TextBoxLoad path contents]]) st
 > 
 >   RunCmd -> do
 >     let
 >       cmd = queryActivePanel getPanelCmdString st
->       st2 = alterActivePanel (alterPanel
+>       st2 = alterActivePanel (alterPanel eId
 >         [PanelClearCmd]) st
 >     case cmd of
 >       Nothing -> return $
->         Right $ alterActivePanel (showDebugMessage "no command") st2
+>         Right $ alterActivePanel (showDebugMessage eId "no command") st2
 >       Just str -> do
->         r <- evalHook str st2
+>         r <- evalHook eId str st2
 >         case r of
 >           Left err -> do
 >             let
 >               msg = case err of
 >                 Left a -> displayNeat a
 >                 Right b -> displayNeat b
->               st3 = alterActivePanel (showDebugMessage (msg ++ "\n")) st2
+>               st3 = alterActivePanel (showDebugMessage eId (msg ++ "\n")) st2
 >             return $ Right st3
 >           Right st' -> return $ Right st'
 > 
 >   act -> return $
 >     Right $ alterActivePanel
->       (showDebugMessage $ "Not implemented: " ++ show act) st
+>       (showDebugMessage eId $ "Not implemented: " ++ show act) st
 
 
 
@@ -233,9 +233,9 @@
 
 > evalHook
 >   :: ( Monad m )
->   => String -> AppState m
+>   => EventId -> String -> AppState m
 >   -> m (Either (Either Error ReplError) (AppState m))
-> evalHook str st = case str of
+> evalHook eId str st = case str of
 >   ':':'t':' ':rest -> case runParser pPhrase rest of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
@@ -243,24 +243,24 @@
 >       case r of
 >         Left err -> return $ Left (Right err)
 >         Right tp -> return $ Right $
->           alterActivePanel (updateHistory (TypeQuery rest tp)) x
+>           alterActivePanel (updateHistory eId (TypeQuery rest tp)) x
 >   _ -> case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
->       (r, x) <- runHook st $ runRuntime (inferType ph >> doActionFor ph) (runtimeSt st)
+>       (r, x) <- runHook st $ runRuntime (inferType ph >> doActionFor eId ph) (runtimeSt st)
 >       case r of
 >         Left err -> return $ Left (Right err)
 >         Right ((), rts) -> do
 >           let dst = _rtStack rts
 >           return $ Right $
->             alterActivePanel (updateHistory (RunCommand ph dst)) x
+>             alterActivePanel (updateHistory eId (RunCommand ph dst)) x
 
 
 > loadStdLib
 >   :: ( Monad m )
->   => FilePath -> AppEnv m -> AppState m
+>   => FilePath -> AppEnv m -> AppState m -> EventId
 >   -> m (Either AppSignal (RuntimeState (Hook m)))
-> loadStdLib path env st1 = do
+> loadStdLib path env st1 eId = do
 >   readResult <- loadFile env path
 >   case readResult of
 >     Left ioErr -> return $ Left $ StdLibReadError ioErr
@@ -269,7 +269,7 @@
 >         Left err -> return $ Left $ StdLibParseError err
 >         Right ast -> do
 >           let Module ds = ast
->           (result, st2) <- runHook st1 $ runRuntime (applyDecls ds) (initRuntimeState (hookActions env) editorTypes)
+>           (result, st2) <- runHook st1 $ runRuntime (applyDecls eId ds) (initRuntimeState (hookActions env) editorTypes)
 >           return $ case result of
 >             Left err -> Left $ StdLibInterpretError err
 >             Right (_, rts) -> Right rts
@@ -277,8 +277,8 @@
 
 > runtimeState
 >   :: ( Monad m )
->   => AppEnv m -> RuntimeState (Hook m)
-> runtimeState env =
+>   => AppEnv m -> EventId -> RuntimeState (Hook m)
+> runtimeState env eId =
 >   initRuntimeState (hookActions env) editorTypes
 
 > editorTypes
@@ -320,31 +320,31 @@
 
 > hookActions
 >   :: ( Monad m )
->   => AppEnv m -> String -> Maybe (Runtime (Hook m) ())
-> hookActions env str = case str of
+>   => AppEnv m -> EventId -> String -> Maybe (Runtime (Hook m) ())
+> hookActions env eId str = case str of
 >   "#cursor_left" -> Just $ do
->     doHookActionM env (CursorLeft)
+>     doHookActionM env eId (CursorLeft)
 >   "#cursor_right" -> Just $ do
->     doHookActionM env (CursorRight)
+>     doHookActionM env eId (CursorRight)
 >   "#cursor_up" -> Just $ do
->     doHookActionM env (CursorUp)
+>     doHookActionM env eId (CursorUp)
 >   "#cursor_down" -> Just $ do
->     doHookActionM env (CursorDown)
+>     doHookActionM env eId (CursorDown)
 > 
 >   "#insert" -> Just $ do
 >     str <- popString
->     doHookActionM env (StringInsert str)
+>     doHookActionM env eId (StringInsert str)
 >   "#load_file" -> Just $ do
 >     path <- popString
->     doHookActionM env (FileLoad path)
+>     doHookActionM env eId (FileLoad path)
 >   _ -> Nothing
 
 > doHookActionM
 >   :: ( Monad m )
->   => AppEnv m -> Action -> Runtime (Hook m) ()
-> doHookActionM env act = Runtime $ \rts ->
+>   => AppEnv m -> EventId -> Action -> Runtime (Hook m) ()
+> doHookActionM env eId act = Runtime $ \rts ->
 >   Hook $ \st -> do
->     result <- performAction env st act
+>     result <- performAction env st eId act
 >     case result of
 >       Left sig -> return (Right ((), rts), st)
 >       Right st' -> return (Right ((), rts), st')

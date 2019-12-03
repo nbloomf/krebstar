@@ -19,13 +19,13 @@ Introduction
 > {-# LANGUAGE
 >     MultiParamTypeClasses
 >   , ScopedTypeVariables
+>   , FlexibleContexts
 > #-}
 > 
 > module Kreb.Text.MeasureText (
 >     MeasureText(..)
 >   , LineCol(..)
 >   , mText
->   , IsChar(..)
 > 
 >   , breakLineAtWidth
 >   , breakLinesAtWidth
@@ -36,17 +36,8 @@ Introduction
 > import Kreb.Check
 > import Kreb.Struct
 > 
+> import Kreb.Text.Rune
 > import Kreb.Text.ScreenOffset
-
-
-
-> class IsChar a where
->   toChar   :: a -> Char
->   fromChar :: Char -> a
-
-> instance IsChar Char where
->   toChar   = id
->   fromChar = id
 
 
 
@@ -89,7 +80,7 @@ We can give a monoid instance for these offsets:
 
 Putting this all together we have the `MeasureText` monoid.
 
-> data MeasureText w t = MeasureText
+> data MeasureText w t d = MeasureText
 >   { charCount          :: Int
 >   , byteCount          :: Int
 >   , logicalOffset      :: LineCol
@@ -97,31 +88,32 @@ Putting this all together we have the `MeasureText` monoid.
 >   , screenOffset       :: ScreenOffset w t
 >   , screenCoords       :: ScreenOffset w t
 >   , hasEOF             :: Bool
->   , hasTrailingNewline :: Bool
+>   , runeId             :: Augmented (RuneId d)
 >   } deriving (Eq, Show)
 > 
 > instance
->   ( IsWidth w, IsTab t
->   ) => Arb (MeasureText w t)
+>   ( IsWidth w, IsTab t, IsBase d
+>   ) => Arb (MeasureText w t d)
 >   where
 >     arb = do
 >       cs <- arb :: Seeded String
 >       return $ mconcat $ map value cs
 > 
 > instance
->   ( IsWidth w, IsTab t
->   ) => Prune (MeasureText w t)
+>   ( IsWidth w, IsTab t, IsBase d
+>   ) => Prune (MeasureText w t d)
 >   where
 >     prune _ = []
 > 
 > mText
 >   :: Int -> Int
 >   -> (Int, Int) -> (Int, Int)
->   -> Bool -> Bool
+>   -> Bool
 >   -> ScreenOffset w t
 >   -> ScreenOffset w t
->   -> MeasureText w t
-> mText c b (lcl,lcc) (lol,loc) p q sc so = MeasureText
+>   -> RuneId d
+>   -> MeasureText w t d
+> mText c b (lcl,lcc) (lol,loc) p sc so rid = MeasureText
 >   { charCount = c
 >   , byteCount = b
 >   , logicalOffset = LineCol lol loc
@@ -129,14 +121,14 @@ Putting this all together we have the `MeasureText` monoid.
 >   , screenOffset = so
 >   , screenCoords = sc
 >   , hasEOF = p
->   , hasTrailingNewline = q
+>   , runeId = Augmented rid
 >   }
 
 Note that for both logical and screen positions we maintain _offsets_ and _coordinates_ separately. Now for the monoid instance:
 
 > instance
->   ( IsWidth w, IsTab t
->   ) => Semigroup (MeasureText w t) where
+>   ( IsWidth w, IsTab t, IsBase d
+>   ) => Semigroup (MeasureText w t d) where
 >   m1 <> m2 = MeasureText
 >     { charCount =
 >         (charCount m1) + (charCount m2)
@@ -159,13 +151,12 @@ Note that for both logical and screen positions we maintain _offsets_ and _coord
 >           then (screenCoords m1)
 >           else (screenCoords m1) <> (screenOffset m1) <> (screenCoords m2)
 >     , hasEOF = (hasEOF m1) || (hasEOF m2)
->     , hasTrailingNewline =
->           hasTrailingNewline m2
+>     , runeId = max (runeId m1) (runeId m2)
 >     }
 > 
 > instance
->   ( IsWidth w, IsTab t
->   ) => Monoid (MeasureText w t) where
+>   ( IsWidth w, IsTab t, IsBase d
+>   ) => Monoid (MeasureText w t d) where
 >   mempty = MeasureText
 >     { charCount          = 0
 >     , byteCount          = 0
@@ -174,14 +165,23 @@ Note that for both logical and screen positions we maintain _offsets_ and _coord
 >     , screenOffset       = mempty
 >     , screenCoords       = mempty
 >     , hasEOF             = False
->     , hasTrailingNewline = False
+>     , runeId             = Infimum
 >     }
 
 And most importantly, we need a `Valued` instance for `Char` against `MeasureText`. Remember that the coordinates represent the position of the current character, while the offsets represent the relative position of the next character.
 
 > instance
->   ( IsWidth w, IsTab t
->   ) => Valued (MeasureText w t) Char where
+>   ( IsWidth w, IsTab t, IsBase d
+>   , Valued (MeasureText w t d) a
+>   ) => Valued (MeasureText w t d) (Rune d a)
+>   where
+>     value x =
+>       let v = value (getRuneValue x) :: MeasureText w t d
+>       in v { runeId = Augmented (getRuneId x) }
+
+> instance
+>   ( IsWidth w, IsTab t, IsBase d
+>   ) => Valued (MeasureText w t d) Char where
 >   value c = case c of
 >     '\n' -> MeasureText
 >       { charCount          = 1
@@ -191,7 +191,7 @@ And most importantly, we need a `Valued` instance for `Char` against `MeasureTex
 >       , screenOffset       = mkWithNewlines [] 1 []
 >       , screenCoords       = mkNoNewlines []
 >       , hasEOF             = False
->       , hasTrailingNewline = True
+>       , runeId             = Infimum
 >       }
 >     '\t' -> MeasureText
 >       { charCount          = 1
@@ -201,7 +201,7 @@ And most importantly, we need a `Valued` instance for `Char` against `MeasureTex
 >       , screenOffset       = mkNoNewlines [(1, Stretchy)]
 >       , screenCoords       = mkNoNewlines []
 >       , hasEOF             = False
->       , hasTrailingNewline = False
+>       , runeId             = Infimum
 >       }
 >     _ -> MeasureText
 >       { charCount          = 1
@@ -211,7 +211,7 @@ And most importantly, we need a `Valued` instance for `Char` against `MeasureTex
 >       , screenOffset       = mkNoNewlines [(1, charWidth c)]
 >       , screenCoords       = mkNoNewlines []
 >       , hasEOF             = False
->       , hasTrailingNewline = False
+>       , runeId             = Infimum
 >       }
 
 We need a utility for converting characters into spans and to byte counts:

@@ -20,6 +20,7 @@
 > import Kreb.Struct
 
 > import Kreb.Text.ScreenOffset
+> import Kreb.Text.Rune
 > import Kreb.Text.MeasureText
 > import Kreb.Text.Pigment
 
@@ -28,15 +29,15 @@
 >  { glyph :: a
 >  , fgColor :: Pigment
 >  , bgColor :: Pigment
->  } deriving (Eq, Show)
+>  } deriving (Eq, Ord, Show)
 
 > plainGlyph
 >   :: a -> Glyph a
 > plainGlyph c = Glyph c vividWhite dullBlack
 
 > instance
->  ( IsWidth w, IsTab t, Valued (MeasureText w t) a
->  ) => Valued (MeasureText w t) (Glyph a)
+>  ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a
+>  ) => Valued (MeasureText w t d) (Glyph a)
 >  where
 >    value (Glyph c _ _) = value c
 > 
