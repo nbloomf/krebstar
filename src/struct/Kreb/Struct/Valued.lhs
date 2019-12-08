@@ -29,7 +29,7 @@ Note that the `Valued` class does not impose any laws. It can't, really, because
 Now lets define a concrete monoid and `Valued` instance for testing. Note that while `Valued` is a many-to-many type class constraint, for most applications we'll want to define a specific monoid type `m` just for that purpose -- even if it's just a `newtype` wrapper around some other type. For example, here's a wrapper around `Int` that is a monoid under addition.
 
 > data Count
->   = Count Int
+>   = Count { unCount :: Int }
 >   deriving (Eq, Show, Generic)
 > 
 > instance Semigroup Count where

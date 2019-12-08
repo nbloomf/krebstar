@@ -54,6 +54,7 @@ title: Sequences
 >   , alterInit
 >   , alterLast
 >   , alterPoint
+>   , alterPointM
 > 
 >   , prepend
 >   , append
@@ -103,7 +104,7 @@ Nearly all of the functionality we want out of sequences is already provided by 
 > 
 > fromList
 >   :: [a] -> Sequence a
-> fromList = Sequence . OPL.makeFromList . fmap Item
+> fromList = Sequence . OPL.fromList . fmap Item
 
 ::: doctest
 
@@ -165,6 +166,10 @@ Because we've hidden the `Valued` constraint, we can give a real `Functor` insta
 > -- True
 
 :::
+
+> instance Traversable Sequence where
+>   traverse f (Sequence x) =
+>     Sequence <$> OPL.traverseOPL (fmap Item . f . unItem) x
 
 
 
@@ -435,6 +440,14 @@ And alter at the ends and the point.
 >   -> Sequence a -> Sequence a
 > alterPoint f =
 >   Sequence . OPL.alterPoint (fmap f) . unSequence
+
+> alterPointM
+>   :: ( Monad m )
+>   => (a -> m a)
+>   -> Sequence a -> m (Sequence a)
+> alterPointM f (Sequence seq) = do
+>   seq' <- OPL.alterPointM (\(Item x) -> fmap Item $ f x) seq
+>   return $ Sequence seq'
 
 
 

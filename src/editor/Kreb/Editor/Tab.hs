@@ -14,6 +14,8 @@ module Kreb.Editor.Tab (
   , alterActivePanelTabs
   , queryActivePanelTabs
 
+  , alterActivePanelTabsM
+
   , setTabsDim
 
   , debugShowTabs
@@ -38,9 +40,12 @@ data Tabs = Tabs
   } deriving (Eq, Show)
 
 setTabsDim
-  :: EventId -> (Int, Int) -> Tabs -> Tabs
-setTabsDim eId dim (Tabs ts) =
-  Tabs $ fmap (setPanelDim eId dim) ts
+  :: ( Monad m )
+  => EventId -> (Int, Int)
+  -> Tabs -> m Tabs
+setTabsDim eId dim (Tabs ts) = do
+  ts' <- mapM (setPanelDim eId dim) ts
+  return $ Tabs ts'
 
 
 
@@ -74,6 +79,12 @@ getAbsCursorPosTabs dim mode tabs =
     Just ts -> getAbsCursorPosPanel dim mode ts
 
 
+alterActivePanelTabsM
+  :: ( Monad m )
+  => (Panel -> m Panel)
+  -> Tabs -> m Tabs
+alterActivePanelTabsM f (Tabs x) =
+  Seq.alterPointM f x >>= (return . Tabs)
 
 alterActivePanelTabs
   :: (Panel -> Panel) -> Tabs -> Tabs

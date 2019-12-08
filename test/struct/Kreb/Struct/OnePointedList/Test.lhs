@@ -243,18 +243,18 @@ OnePointedList Test Suite
 >             ]
 > 
 >     , testKreb
->         "moveToInit as == makeFromList (toList as)" $
+>         "moveToInit as == fromList (toList as)" $
 >         \(as :: OnePointedList m a) ->
 >           claimEqual
 >             (moveToInit as)
->             (makeFromList (toList as))
+>             (fromList (toList as))
 > 
 >     , testKreb
->         "as == toList (makeFromList as)" $
+>         "as == toList (fromList as)" $
 >         \(xs :: [a]) ->
 >           claimEqual
 >             (xs)
->             (toList (makeFromList xs :: OnePointedList m a))
+>             (toList (fromList xs :: OnePointedList m a))
 > 
 >     , testKreb
 >         "prepend as (prepend bs cs) == prepend (prepend as bs) cs" $

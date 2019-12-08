@@ -80,12 +80,12 @@ Next we define some constructors for this type. We have the usual `empty` and `s
 > singleton a =
 >   PointOnly (mempty, a, mempty)
 
-We can also convert a list into a two-pointed list. This is analogous to `makeFromList` on one-pointed lists; the head of the input list becomes the point, and the tail the right context. We'll also implement a version of this constructor for finger trees.
+We can also convert a list into a two-pointed list. This is analogous to `fromList` on one-pointed lists; the head of the input list becomes the point, and the tail the right context. We'll also implement a version of this constructor for finger trees.
 
-> makeFromList
+> fromList
 >   :: ( Valued m a )
 >   => [a] -> TwoPointedList m a
-> makeFromList xs =
+> fromList xs =
 >   case xs of
 >     [] -> Vacant
 >     u:us -> PointOnly (mempty, u, FT.fromList us)

@@ -49,9 +49,9 @@
 >   | StringInsert String
 
 >   -- Load and Save
->   | FileSaveAs
->   | FileSave
 >   | FileLoad FilePath
+>   | FileSetPath
+>   | FileSave
 
 >   | LeaveMark
 >   | ClearMark
@@ -108,6 +108,14 @@
 >       Right st2 -> performActions env st2 eId as
 
 
+> -- rename this to doPanelActions
+> doPanelActions
+>   :: ( Monad m )
+>   => EventId -> AppState m -> [PanelAction m]
+>   -> m (Either AppSignal (AppState m))
+> doPanelActions eId st acts = fmap Right $
+>   alterActivePanelM (alterPanelM eId acts) st
+
 > performAction
 >   :: ( Monad m )
 >   => AppEnv m -> AppState m -> EventId -> Action
@@ -116,8 +124,8 @@
 >   NoOp -> return $
 >     Right st
 > 
->   ShowDebug msg -> return $
->     Right $ alterActivePanel (showDebugMessage eId msg) st
+>   ShowDebug msg -> fmap Right $
+>     alterActivePanelM (showDebugMessage eId msg) st
 > 
 >   Quit -> return $
 >     Left ExitNormally
@@ -125,86 +133,63 @@
 >   SetMode mode -> return $
 >     Right $ setEditorMode mode st
 > 
->   CharInsert c -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxInsert (fromChar c)]]) st
+>   CharInsert c -> doPanelActions eId st
+>     [PanelAlterText [TextBoxInsert (fromChar c)]]
 > 
->   CharInsertCmd c -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterCmd [TextBoxInsert (fromChar c)]]) st
+>   CharInsertCmd c -> doPanelActions eId st
+>     [PanelAlterCmd [TextBoxInsert (fromChar c)]]
 > 
->   StringInsert cs -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]) st
+>   StringInsert cs -> doPanelActions eId st
+>     [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]
 > 
->   CharBackspace -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxBackspace]]) st
+>   CharBackspace -> doPanelActions eId st
+>     [PanelAlterText [TextBoxBackspace]]
 > 
->   CharBackspaceCmd -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterCmd [TextBoxBackspace]]) st
+>   CharBackspaceCmd -> doPanelActions eId st
+>     [PanelAlterCmd [TextBoxBackspace]]
 > 
->   CursorUp -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxCursorUp]]) st
+>   CursorUp -> doPanelActions eId st
+>     [PanelAlterText [TextBoxCursorUp]]
 > 
->   CursorDown -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxCursorDown]]) st
+>   CursorDown -> doPanelActions eId st
+>     [PanelAlterText [TextBoxCursorDown]]
 > 
->   CursorRight -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxCursorRight]]) st
+>   CursorRight -> doPanelActions eId st
+>     [PanelAlterText [TextBoxCursorRight]]
 > 
->   CursorLeft -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxCursorLeft]]) st
+>   CursorLeft -> doPanelActions eId st
+>     [PanelAlterText [TextBoxCursorLeft]]
 > 
->   LeaveMark -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxLeaveMark]]) st
+>   LeaveMark -> doPanelActions eId st
+>     [PanelAlterText [TextBoxLeaveMark]]
 > 
->   ClearMark -> return $
->     Right $ alterActivePanel
->       (alterPanel eId
->         [PanelAlterText [TextBoxClearMark]]) st
+>   ClearMark -> doPanelActions eId st
+>     [PanelAlterText [TextBoxClearMark]]
 > 
->   WindowResize (w,h) -> return $
->     Right $ setWindowDim eId (w,h) st
+>   WindowResize (w,h) -> fmap Right $
+>     setWindowDim eId (w,h) st
 > 
 >   FileLoad path -> do
 >     let x = queryActivePanel (textboxHasChanged . getTextBox) st
 >     case x of
 >       Nothing -> return $ Right st
->       Just True -> return $
->         Right $ alterActivePanel (showDebugMessage eId "Unsaved changes") st
+>       Just True -> fmap Right $
+>         alterActivePanelM (showDebugMessage eId "Unsaved changes") st
 >       Just False -> do
 >         read <- loadFile env path
 >         case read of
->           Left err -> return $
->             Right $ alterActivePanel (showDebugMessage eId $ show err) st
->           Right contents -> return $
->             Right $ alterActivePanel (alterPanel eId [PanelAlterText [TextBoxLoad path contents]]) st
+>           Left err -> fmap Right $
+>             alterActivePanelM (showDebugMessage eId $ show err) st
+>           Right contents -> fmap Right $
+>             alterActivePanelM (alterPanelM eId
+>               [PanelAlterText [TextBoxLoad path contents]]) st
 > 
 >   RunCmd -> do
->     let
->       cmd = queryActivePanel getPanelCmdString st
->       st2 = alterActivePanel (alterPanel eId
->         [PanelClearCmd]) st
+>     let cmd = queryActivePanel getPanelCmdString st
+>     st2 <- alterActivePanelM (alterPanelM eId [PanelClearCmd]) st
 >     case cmd of
->       Nothing -> return $
->         Right $ alterActivePanel (showDebugMessage eId "no command") st2
+>       Nothing -> fmap Right $
+>         alterActivePanelM (showDebugMessage eId "no command") st2
 >       Just str -> do
 >         r <- evalHook eId str st2
 >         case r of
@@ -213,13 +198,11 @@
 >               msg = case err of
 >                 Left a -> displayNeat a
 >                 Right b -> displayNeat b
->               st3 = alterActivePanel (showDebugMessage eId (msg ++ "\n")) st2
->             return $ Right st3
+>             fmap Right $ alterActivePanelM (showDebugMessage eId (msg ++ "\n")) st2
 >           Right st' -> return $ Right st'
 > 
->   act -> return $
->     Right $ alterActivePanel
->       (showDebugMessage eId $ "Not implemented: " ++ show act) st
+>   act -> fmap Right $ alterActivePanelM
+>     (showDebugMessage eId $ "Not implemented: " ++ show act) st
 
 
 
@@ -242,8 +225,8 @@
 >       (r, x) <- runHook st $ evalRuntime (inferType ph) (runtimeSt st)
 >       case r of
 >         Left err -> return $ Left (Right err)
->         Right tp -> return $ Right $
->           alterActivePanel (updateHistory eId (TypeQuery rest tp)) x
+>         Right tp -> fmap Right $
+>           alterActivePanelM (updateHistory eId (TypeQuery rest tp)) x
 >   _ -> case runParser pPhrase str of
 >     Left err -> return $ Left (Left err)
 >     Right ph -> do
@@ -252,8 +235,8 @@
 >         Left err -> return $ Left (Right err)
 >         Right ((), rts) -> do
 >           let dst = _rtStack rts
->           return $ Right $
->             alterActivePanel (updateHistory eId (RunCommand ph dst)) x
+>           fmap Right $
+>             alterActivePanelM (updateHistory eId (RunCommand ph dst)) x
 
 
 > loadStdLib
@@ -313,8 +296,8 @@
 > 
 >   "#set_path" -> Just $
 >     ForAll (Vars [V "S"] []) $ Arrow
->       (Stack (V "S") [])
->       (Stack (V "S") [])
+>       (Stack (V "S") [TyCon $ C "String", TyCon $ C "@Eff"])
+>       (Stack (V "S") [TyCon $ C "@Eff"])
 > 
 >   _ -> Nothing
 

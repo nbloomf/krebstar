@@ -21,6 +21,8 @@ module Kreb.Editor.State (
   , alterActivePanel
   , queryActivePanel
 
+  , alterActivePanelM
+
   , setWindowDim
 ) where
 
@@ -97,12 +99,12 @@ instance ( Monad m ) => Functor (Hook m) where
 
 
 setWindowDim
-  :: EventId -> (Int, Int) -> AppState m -> AppState m
-setWindowDim eId dim st =
-  let
-    tabs =
-      setTabsDim eId dim $ tabbedBuffers st
-  in st
+  :: ( Monad m )
+  => EventId -> (Int, Int)
+  -> AppState m -> m (AppState m)
+setWindowDim eId dim st = do
+  tabs <- setTabsDim eId dim $ tabbedBuffers st
+  return $ st
     { windowDim     = dim
     , tabbedBuffers = tabs
     }
@@ -155,10 +157,20 @@ updateAbsCursorPos st =
 
 
 
-data AppStateAction
-  = AppStateAlterActivePanel [PanelAction]
+data AppStateAction (m :: * -> *)
+  = AppStateAlterActivePanel [PanelAction m]
   deriving (Eq, Show)
 
+
+
+alterActivePanelM
+  :: ( Monad m )
+  => (Panel -> m Panel)
+  -> AppState m -> m (AppState m)
+alterActivePanelM f st = do
+  let tabs = tabbedBuffers st
+  tabs' <- alterActivePanelTabsM f tabs
+  return st { tabbedBuffers = tabs' }
 
 
 

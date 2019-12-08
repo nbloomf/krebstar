@@ -38,6 +38,7 @@ title: Finger Trees
 > 
 >   , fmapFT
 >   , remeasure
+>   , traverseFT
 > 
 >   , cons
 >   , fromList
@@ -187,6 +188,19 @@ We can test our intuition for how `fmapSome` should behave with an example.
 
 :::
 
+> traverseSome
+>   :: ( Valued v1 a1, Valued v2 a2, Applicative f )
+>   => (a1 -> f a2) -> Some v1 a1 -> f (Some v2 a2)
+> traverseSome f w = case w of
+>   Only1 _ a1 ->
+>     only1 <$> f a1
+>   Only2 _ a1 a2 ->
+>     only2 <$> f a1 <*> f a2
+>   Only3 _ a1 a2 a3 ->
+>     only3 <$> f a1 <*> f a2 <*> f a3
+>   Only4 _ a1 a2 a3 a4 ->
+>     only4 <$> f a1 <*> f a2 <*> f a3 <*> f a4
+
 Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clarity). Here we do have a bona fide class instance because we don't need to use the smart constructors.
 
 > instance Foldable (Some m) where
@@ -282,6 +296,15 @@ From here we can give something like `fmap` for `Node`, again outside of the usu
 >     node2 (f u1) (f u2)
 >   Node3 _ u1 u2 u3 ->
 >     node3 (f u1) (f u2) (f u3)
+
+> traverseNode
+>   :: ( Valued v1 a1, Valued v2 a2, Applicative f )
+>   => (a1 -> f a2) -> Node v1 a1 -> f (Node v2 a2)
+> traverseNode f w = case w of
+>   Node2 _ u1 u2 ->
+>     node2 <$> f u1 <*> f u2
+>   Node3 _ u1 u2 u3 ->
+>     node3 <$> f u1 <*> f u2 <*> f u3
 
 And we need a `Foldable` instance:
 
@@ -502,6 +525,18 @@ With this version of `fmap` we can do something interesting. Mapping with `id` c
 >   . ( Valued m1 a, Valued m2 a )
 >  => FingerTree m1 a -> FingerTree m2 a
 > remeasure = fmapFT id
+
+> traverseFT
+>   :: ( Valued v1 a1, Valued v2 a2, Applicative f )
+>   => (a1 -> f a2) -> FingerTree v1 a1 -> f (FingerTree v2 a2)
+> traverseFT f w = case w of
+>   Stump -> pure stump
+>   Leaf _ a -> leaf <$> f a
+>   Branch _ as bs cs ->
+>     branch
+>       <$> traverseSome f as
+>       <*> traverseFT (traverseNode f) bs
+>       <*> traverseSome f cs
 
 
 

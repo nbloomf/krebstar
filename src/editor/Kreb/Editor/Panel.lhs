@@ -1,4 +1,4 @@
-> {-# LANGUAGE FlexibleContexts, RecordWildCards #-}
+> {-# LANGUAGE FlexibleContexts, RecordWildCards, KindSignatures #-}
 
 > module Kreb.Editor.Panel (
 >     Panel(renderedPanel)
@@ -6,7 +6,7 @@
 
 >   , initPanel
 
->   , alterPanel
+>   , alterPanelM
 >   , PanelAction(..)
 
 >   , PanelDim(..)
@@ -79,21 +79,26 @@
 >       [ displayNeat ph, "\n", displayNeat st ]
 
 > updateHistory
->   :: EventId -> ShellCommand -> Panel -> Panel
-> updateHistory eId cmd panel =
+>   :: ( Monad m )
+>   => EventId -> ShellCommand
+>   -> Panel -> m Panel
+> updateHistory eId cmd panel = do
 >   let
 >     append :: String -> [Glyph Char]
 >     append = map fromChar
->   in panel
+>   histBox' <- alterTextBoxM eId [TextBoxInsertMany $ append ("$> " ++ displayNeat cmd ++ "\n\n")] $ histBox panel
+>   return $ panel
 >     { commandHistory = cmd : commandHistory panel
->     , histBox = alterTextBox eId [TextBoxInsertMany $ append ("$> " ++ displayNeat cmd ++ "\n\n")] $ histBox panel
+>     , histBox = histBox'
 >     }
 
 > showDebugMessage
->   :: EventId -> String -> Panel -> Panel
-> showDebugMessage eId msg panel = panel
->   { histBox = alterTextBox eId [TextBoxInsertMany $ map fromChar ("#> " ++ msg ++ "\n\n")] $ histBox panel
->   }
+>   :: ( Monad m )
+>   => EventId -> String
+>   -> Panel -> m Panel
+> showDebugMessage eId msg panel = do
+>   histBox' <- alterTextBoxM eId [TextBoxInsertMany $ map fromChar ("#> " ++ msg ++ "\n\n")] $ histBox panel
+>   return $ panel { histBox = histBox' }
 
 > data PanelDim = PanelDim
 >   { _textLabelDim :: (Int, Int)
@@ -190,20 +195,22 @@
 
 
 > setPanelDim
->   :: EventId -> (Int, Int) -> Panel -> Panel
-> setPanelDim eId dim panel =
+>   :: ( Monad m )
+>   => EventId -> (Int, Int)
+>   -> Panel -> m Panel
+> setPanelDim eId dim panel = do
 >   let
 >     ComponentSizes{..} =
 >       computeComponentSizes dim panel
->   in panel
->     { textBox =
->         alterTextBox eId [TextBoxResize _textSize] $ textBox panel
->     , histBox =
->         alterTextBox eId [TextBoxResize _historySize] $ histBox panel
->     , cmdBox =
->         alterTextBox eId [TextBoxResize _commandSize] $ cmdBox panel
->     , statusBox =
->         alterTextBox eId [TextBoxResize _statusSize] $ statusBox panel
+>   textBox' <- alterTextBoxM eId [TextBoxResize _textSize] $ textBox panel
+>   histBox' <- alterTextBoxM eId [TextBoxResize _historySize] $ histBox panel
+>   cmdBox' <- alterTextBoxM eId [TextBoxResize _commandSize] $ cmdBox panel
+>   statusBox' <- alterTextBoxM eId [TextBoxResize _statusSize] $ statusBox panel
+>   return $ panel
+>     { textBox = textBox'
+>     , histBox = histBox'
+>     , cmdBox = cmdBox'
+>     , statusBox = statusBox'
 >     }
 
 > data RenderedPanel = RenderedPanel
@@ -273,32 +280,42 @@
 
 
 
-> data PanelAction
+> data PanelAction (m :: * -> *)
 >   = PanelAlterText [TextBoxAction]
 >   | PanelAlterCmd [TextBoxAction]
 >   | PanelClearCmd
 >   deriving (Eq, Show)
 
-> alterPanel
->   :: EventId -> [PanelAction]
->   -> Panel -> Panel
-> alterPanel eId acts panel =
->   foldl (flip (alterPanelPrimitive eId)) panel acts
+ > alterPanel
+ >   :: EventId -> [PanelAction m]
+ >   -> Panel -> Panel
+ > alterPanel eId acts panel =
+ >   foldl (flip (alterPanelPrimitive eId)) panel acts
+
+> alterPanelM
+>   :: ( Monad m )
+>   => EventId -> [PanelAction m]
+>   -> Panel -> m Panel
+> alterPanelM eId acts panel = case acts of
+>   [] -> return panel
+>   a:as ->
+>     alterPanelPrimitive eId a panel >>= alterPanelM eId as
 
 
 
 > alterPanelPrimitive
->   :: EventId -> PanelAction
->   -> Panel -> Panel
+>   :: ( Monad m )
+>   => EventId -> PanelAction m
+>   -> Panel -> m Panel
 > alterPanelPrimitive eId act = case act of
 >   PanelAlterText as ->
->     panelAlterText eId as
+>     panelAlterTextM eId as
 
 >   PanelAlterCmd as ->
->     panelAlterCmd eId as
+>     panelAlterCmdM eId as
 
 >   PanelClearCmd ->
->     panelClearCmd eId
+>     panelClearCmdM eId
 
 
 
@@ -308,28 +325,58 @@
 -- Primitive Actions --
 -- ================= --
 
-> panelAlterText
->   :: EventId -> [TextBoxAction]
->   -> Panel -> Panel
-> panelAlterText eId as panel =
->   let box = textBox panel in
->   panel
->     { textBox = alterTextBox eId as box
+> panelAlterTextM
+>   :: ( Monad m )
+>   => EventId -> [TextBoxAction]
+>   -> Panel -> m Panel
+> panelAlterTextM eId as panel = do
+>   box <- alterTextBoxM eId as (textBox panel)
+>   return $ panel
+>     { textBox = box
 >     , textChanged = True
 >     }
 
-> panelAlterCmd
->   :: EventId -> [TextBoxAction]
->   -> Panel -> Panel
-> panelAlterCmd eId as panel =
->   let box = cmdBox panel in
->   panel { cmdBox = alterTextBox eId as box }
+> panelAlterCmdM
+>   :: ( Monad m )
+>   => EventId -> [TextBoxAction]
+>   -> Panel -> m Panel
+> panelAlterCmdM eId as panel = do
+>   box <- alterTextBoxM eId as (cmdBox panel)
+>   return $ panel { cmdBox = box }
 
-> panelClearCmd
->   :: EventId -> Panel -> Panel
-> panelClearCmd eId panel =
->   let box = cmdBox panel in
->   panel { cmdBox = alterTextBox eId [TextBoxClear] box }
+> panelClearCmdM
+>   :: ( Monad m )
+>   => EventId
+>   -> Panel -> m Panel
+> panelClearCmdM eId panel = do
+>   box <- alterTextBoxM eId [TextBoxClear] (cmdBox panel)
+>   return $ panel { cmdBox = box }
+
+ > panelAlterText
+ >   :: ( Monad m )
+ >   => EventId -> [TextBoxAction]
+ >   -> Panel -> m Panel
+ > panelAlterText eId as panel = do
+ >   let box = textBox panel
+ >   return $ panel
+ >     { textBox = alterTextBox eId as box
+ >     , textChanged = True
+ >     }
+
+ > panelAlterCmd
+ >   :: ( Monad m )
+ >   => EventId -> [TextBoxAction]
+ >   -> Panel -> m Panel
+ > panelAlterCmd eId as panel = do
+ >   let box = cmdBox panel
+ >   return $ panel { cmdBox = alterTextBox eId as box }
+
+ > panelClearCmd
+ >   :: ( Monad m )
+ >   => EventId -> Panel -> m Panel
+ > panelClearCmd eId panel = do
+ >   let box = cmdBox panel
+ >   return $ panel { cmdBox = alterTextBox eId [TextBoxClear] box }
 
 
 

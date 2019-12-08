@@ -162,12 +162,12 @@ The actual definition of buffers builds on two other abstractions: two-pointed l
 >   }
 
 > instance
->   ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, Eq a
+>   ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, Eq a, IsChar a
 >   ) => Eq (Buffer w t d a)
 >   where
 >     (Buffer w1 _) == (Buffer w2 _) =
->       (map (fmap getRuneValue) $ Fold.toList w1)
->        == (map (fmap getRuneValue) $ Fold.toList w2)
+>       (map (toChar . fmap getRuneValue) $ Fold.toList w1)
+>        == (map (toChar . fmap getRuneValue) $ Fold.toList w2)
 
 > data BufferOp d a
 >   = BufferOpIns (Rune d a)
@@ -201,7 +201,7 @@ We also get the usual `empty` and `singleton` constructors.
 >    . ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, IsChar a )
 >   => EventId -> a -> Buffer w t d a
 > singleton eId a = Buffer
->   (TPL.makeFromList (map Cell (makeRunes eId [a]) ++ [ eof ])) RBT.empty
+>   (TPL.fromList (map Cell (makeRunes eId [a]) ++ [ eof ])) RBT.empty
 
 More generally, we can convert lists to buffers (and back again).
 
@@ -209,7 +209,7 @@ More generally, we can convert lists to buffers (and back again).
 >   :: forall w t d a
 >    . ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, IsChar a )
 >   => EventId -> [a] -> Buffer w t d a
-> fromList eId xs = Buffer (TPL.makeFromList $ concat
+> fromList eId xs = Buffer (TPL.fromList $ concat
 >   [ map Cell $ makeRunes eId xs, [ eof :: Cell (Rune d a) ] ]) RBT.empty
 > 
 > fromFingerTree
@@ -717,7 +717,7 @@ Likewise we can query the value at the point.
 >    . ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
 >   => Buffer w t d a -> Augmented (RuneId d)
 > getPointRuneId (Buffer w _) =
->   case TPL.valueUpToPoint w of
+>   case TPL.valueBeforePoint w of
 >     Nothing -> Infimum
 >     Just m -> runeId m
 
@@ -1113,7 +1113,7 @@ Finally, we'll also need to split the buffer at a given rune ID.
 >    . ( IsWidth w, IsTab t, IsBase d )
 >   => Augmented (RuneId d) -> MeasureText w t d -> Bool
 > atOrAfterRuneId rId m =
->   rId <= (runeId m)
+>   rId < (runeId m)
 
 And with this splitting in hand, we can apply reified buffer operations.
 
@@ -1147,6 +1147,24 @@ And with this splitting in hand, we can apply reified buffer operations.
 >         in if pId /= Augmented (getRuneId rune)
 >           then Buffer contents (RBT.insert rune remnants)
 >           else Buffer (TPL.deletePointLeft contents) (RBT.insert rune remnants)
+
+::: doctest
+
+> -- $
+> -- >>> :{
+> -- -- Delete and insert the same rune, but in different orders
+> -- let
+> --   rune = newRuneId (EventId 0 "foo") (Infimum, Supremum) 'a'
+> --   op1 = BufferOpDel rune
+> --   op2 = BufferOpIns rune
+> --   e = makeVacantBuffer nat8 nat2 nat3 (Proxy :: Proxy Char)
+> --   zig = applyBufferOp op1 (applyBufferOp op2 e)
+> --   zag = applyBufferOp op2 (applyBufferOp op1 e)
+> -- in zig == zag
+> -- :}
+> -- True
+
+:::
 
 
 
@@ -1505,7 +1523,7 @@ As usual, we wrap up this module with some helper code for writing tests. First 
 >       cs <- arb
 >       let
 >         meas = (runeId :: MeasureText w t d -> Augmented (RuneId d)) . (value :: Rune d a -> MeasureText w t d)
->         xs = TPL.makeFromList $ map Cell $ sortOn meas cs
+>         xs = TPL.fromList $ map Cell $ sortOn meas cs
 >       return $ Buffer (TPL.insertAtEnd (eof :: Cell (Rune d a)) xs) RBT.empty
 > 
 > instance
@@ -1560,10 +1578,10 @@ We also expose a function that converts a buffer into a list with all the gritty
 Finally we give a `Show` instance to match our structure-aware constructors. This is filed with the debugging methods because we won't need it in "production".
 
 > instance
->   ( Show a, IsWidth w, IsTab t, IsBase d, IsChar a
+>   ( Show a, IsWidth w, IsTab t, IsBase d, IsChar a, Ord a
 >   ) => Show (Buffer w t d a)
 >   where
->     show (Buffer w _) =
+>     show (Buffer w r) =
 >       let
 >         wid = showWidth (Proxy :: Proxy w)
 >         tab = showTab (Proxy :: Proxy t)
@@ -1571,6 +1589,7 @@ Finally we give a `Show` instance to match our structure-aware constructors. Thi
 >         TPL.Vacant -> concat
 >           [ "makeVacantBuffer"
 >           , wid, " ", tab
+>           , "\ndeleted: ", show $ RBT.toList r
 >           ]
 >         TPL.PointOnly (as, x, bs) -> concat
 >           [ "makePointOnlyBuffer "
@@ -1578,6 +1597,7 @@ Finally we give a `Show` instance to match our structure-aware constructors. Thi
 >           , show $ Fold.toList as, " "
 >           , show x, " "
 >           , show $ Fold.toList bs
+>           , "\ndeleted: ", show $ RBT.toList r
 >           ]
 >         TPL.Coincide (as, x, bs) -> concat
 >           [ "makeCoincide "
@@ -1585,6 +1605,7 @@ Finally we give a `Show` instance to match our structure-aware constructors. Thi
 >           , show $ Fold.toList as, " "
 >           , show x, " "
 >           , show $ Fold.toList bs
+>           , "\ndeleted: ", show $ RBT.toList r
 >           ]
 >         TPL.PointMark (as, x, bs, y, cs) -> concat
 >           [ "makePointMarkBuffer "
@@ -1594,6 +1615,7 @@ Finally we give a `Show` instance to match our structure-aware constructors. Thi
 >           , show $ Fold.toList bs, " "
 >           , show y, " "
 >           , show $ Fold.toList cs
+>           , "\ndeleted: ", show $ RBT.toList r
 >           ]
 >         TPL.MarkPoint (as, x, bs, y, cs) -> concat
 >           [ "makeMarkPointBuffer "
@@ -1603,4 +1625,5 @@ Finally we give a `Show` instance to match our structure-aware constructors. Thi
 >           , show $ Fold.toList bs, " "
 >           , show y, " "
 >           , show $ Fold.toList cs
+>           , "\ndeleted: ", show $ RBT.toList r
 >           ]

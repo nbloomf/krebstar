@@ -24,6 +24,9 @@
 
 >   , newRuneId
 
+>   , updateRuneEventId
+>   , updateRunesEventId
+
 >   , makeRunes
 >   , makeRunes2
 >   , makeRunes3
@@ -198,6 +201,19 @@
 >   (Augmented (RuneId x _ _), Augmented (RuneId y _ _)) ->
 >     Rune a (RuneId (chooseBetween x y) (toChar a) eId)
 
+> updateRuneEventId
+>   :: forall a d
+>    . ( IsBase d, IsChar a )
+>   => EventId -> Rune d a -> Rune d a
+> updateRuneEventId eId (Rune a (RuneId l c _)) =
+>   Rune a (RuneId l c eId)
+
+> updateRunesEventId
+>   :: forall a d f
+>    . ( IsBase d, IsChar a, Functor f )
+>   => EventId -> f (Rune d a) -> f (Rune d a)
+> updateRunesEventId eId = fmap (updateRuneEventId eId)
+
 > makeRunes
 >   :: forall a d
 >    . ( IsBase d, IsChar a )
@@ -369,12 +385,13 @@ Finds the largest integer strictly less than.
 >       Rune <$> pure a <*> (RuneId <$> arb <*> pure (toChar a) <*> arb)
 > 
 > instance
->   ( IsBase d, Prune a
+>   ( IsBase d, Prune a, IsChar a
 >   ) => Prune (Rune d a)
 >   where
->     prune (Rune a u) =
->       [ Rune a' u | a' <- prune a ] ++
->       [ Rune a u' | u' <- prune u ]
+>     prune (Rune a (RuneId u _ v)) =
+>       [ Rune a' (RuneId u (toChar a') v) | a' <- prune a ] ++
+>       [ Rune a (RuneId u' (toChar a) v) | u' <- prune u ] ++
+>       [ Rune a (RuneId u (toChar a) v') | v' <- prune v ]
 
 > data Augmented a
 >   = Augmented a

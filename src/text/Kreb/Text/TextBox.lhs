@@ -35,7 +35,7 @@ title: Text Boxes
 >   , textboxLabelWidth
 > 
 >   -- * Mutation
->   , alterTextBox
+>   , alterTextBoxM
 >   , TextBoxAction(..)
 > 
 >   -- * Queries
@@ -58,13 +58,14 @@ title: Text Boxes
 
 >   , DebugTextBox(..)
 >   , debugTextBox
->   , writeDebugTextBoxActions
 > ) where
 
 > import Data.List (unlines)
 
 > import Kreb.Check
 > import Kreb.Control
+> import qualified Kreb.Struct.PointedRoseTree as PRT
+> import qualified Kreb.Struct.RedBlackTree as RBT
 > import Kreb.Text.MeasureText
 > import Kreb.Text.Rune
 > import Kreb.Text.ScreenOffset
@@ -111,6 +112,9 @@ We represent this information with the following type.
 > 
 >   -- The cursor
 >   , textboxCursor     :: (Int, Int) -- ^ Relative cursor position
+> 
+>   -- The History
+>   , textboxHistory    :: Maybe (PRT.PointedRoseTree (RBT.RedBlackTree (BufferOp Base (Glyph Char))))
 >   } deriving (Eq, Show)
 
 The `Eq` and `Show` instances are just for testing. Under normal use we won't care about checking text boxes for equality, and the derived show instance is practically useless.
@@ -132,6 +136,7 @@ Definitely not useless are the functions for constructing text boxes. First we h
 >       , textboxLabelBase  = 10
 >       , textboxSource     = Nothing
 >       , textboxHasChanged = False
+>       , textboxHistory    = Nothing
 >       }
 
 And we can build a text box out of an arbitrary string:
@@ -153,6 +158,7 @@ And we can build a text box out of an arbitrary string:
 >       , textboxLabelBase  = 10
 >       , textboxSource     = Nothing
 >       , textboxHasChanged = False
+>       , textboxHistory    = Nothing
 >       }
 
 
@@ -445,11 +451,12 @@ And some examples for fun:
 
 
 > mkTextBox
->   :: EventId -> (Int, Int) -> Int
+>   :: ( Monad m )
+>   => EventId -> (Int, Int) -> Int
 >   -> [TextBoxAction]
->   -> TextBox
+>   -> m TextBox
 > mkTextBox eId (x,y) tab acts =
->   alterTextBox eId acts $ emptyTextBox (x,y) tab
+>   alterTextBoxM eId acts $ emptyTextBox (x,y) tab
 
 
 
@@ -529,32 +536,42 @@ And some examples for fun:
 >       map TextBoxInsertMany $ prune cs
 >     _ -> []
 
-> instance Arb TextBox where
->   arb = do
->     Positive x <- arb
->     Positive y <- arb
->     Positive t <- arb
->     eId <- arb
->     mkTextBox eId (x,y) t <$> arb
+ > instance Arb TextBox where
+ >   arb = do
+ >     Positive x <- arb
+ >     Positive y <- arb
+ >     Positive t <- arb
+ >     eId <- arb
+ >     mkTextBox eId (x,y) t <$> arb
 
 
 
 
-> alterTextBox
->   :: EventId -> [TextBoxAction]
->   -> TextBox -> TextBox
-> alterTextBox eId acts box =
->   foldl (flip (alterTextBoxPrimitive eId)) box acts
+ > alterTextBox
+ >   :: EventId -> [TextBoxAction]
+ >   -> TextBox -> TextBox
+ > alterTextBox eId acts box =
+ >   foldl (flip (alterTextBoxPrimitive eId)) box acts
+
+> alterTextBoxM
+>   :: ( Monad m )
+>   => EventId -> [TextBoxAction]
+>   -> TextBox -> m TextBox
+> alterTextBoxM eId acts box = case acts of
+>   [] -> return box
+>   a:as -> 
+>     alterTextBoxPrimitive eId a box >>= alterTextBoxM eId as
 
 
 
 > alterTextBoxPrimitive
->   :: EventId -> TextBoxAction
->   -> TextBox -> TextBox
+>   :: ( Monad m )
+>   => EventId -> TextBoxAction
+>   -> TextBox -> m TextBox
 > alterTextBoxPrimitive eId act = case act of
->   TextBoxInsert c      -> textBoxInsert eId c
->   TextBoxInsertMany cs -> textBoxInsertMany eId cs
->   TextBoxBackspace     -> textBoxBackspace eId
+>   TextBoxInsert c      -> textboxInsert eId c
+>   TextBoxInsertMany cs -> textboxInsertMany eId cs
+>   TextBoxBackspace     -> textboxBackspace eId
 >   TextBoxCursorDown    -> textboxCursorDown
 >   TextBoxCursorUp      -> textboxCursorUp
 >   TextBoxCursorRight   -> textboxCursorRight
@@ -574,8 +591,9 @@ And some examples for fun:
 -- ================= --
 
 > textboxClear
->   :: TextBox -> TextBox
-> textboxClear box = box
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
+> textboxClear box = return $ box
 >   { textboxBuffer = emptySizedBuffer
 >       (getTextBoxWidth box) (getTextBoxHeight box)
 >   , textboxOffset = 0
@@ -586,8 +604,10 @@ And some examples for fun:
 
 
 > textboxLoad
->   :: EventId -> FilePath -> String -> TextBox -> TextBox
-> textboxLoad eId path str box = box
+>   :: ( Monad m )
+>   => EventId -> FilePath -> String
+>   -> TextBox -> m TextBox
+> textboxLoad eId path str box = return $ box
 >   { textboxBuffer = makeSizedBuffer eId
 >       (getTextBoxWidth box) (getTextBoxHeight box) (map fromChar str)
 >   , textboxOffset = 0
@@ -598,32 +618,35 @@ And some examples for fun:
 
 
 > textboxLeaveMark
->   :: TextBox -> TextBox
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
 > textboxLeaveMark box =
 >   let
 >     buf =
 >       alterSizedBuffer (leaveMark) $
 >       textboxBuffer box
->   in box
+>   in return $ box
 >     { textboxBuffer = buf
 >     }
 
 > textboxClearMark
->   :: TextBox -> TextBox
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
 > textboxClearMark box =
 >   let
 >     buf =
 >       alterSizedBuffer (clearMark) $
 >       textboxBuffer box
->   in box
+>   in return $ box
 >     { textboxBuffer = buf
 >     }
 
 
-> textBoxInsert
->   :: EventId -> Glyph Char
->   -> TextBox -> TextBox
-> textBoxInsert eId c box =
+> textboxInsert
+>   :: ( Monad m )
+>   => EventId -> Glyph Char
+>   -> TextBox -> m TextBox
+> textboxInsert eId c box =
 >   let
 >     (x,y) = textboxCursor box
 >     l = textboxOffset box
@@ -641,22 +664,27 @@ And some examples for fun:
 >     (v', l') = if v >= l+h
 >       then (h-1, l+1)
 >       else (v-l, l)
->   in box
+>   in return $ box
 >     { textboxBuffer = buf
 >     , textboxCursor = (u,v')
 >     , textboxOffset = l'
 >     , textboxHasChanged = True
 >     }
 
-> textBoxInsertMany
->   :: EventId -> [Glyph Char]
->   -> TextBox -> TextBox
-> textBoxInsertMany eId cs box =
->   foldl (flip (textBoxInsert eId)) box cs
+> textboxInsertMany
+>   :: ( Monad m )
+>   => EventId -> [Glyph Char]
+>   -> TextBox -> m TextBox
+> textboxInsertMany eId cs box = case cs of
+>   [] -> return box
+>   a:as ->
+>     textboxInsert eId a box >>= textboxInsertMany eId as
 
-> textBoxBackspace
->   :: EventId -> TextBox -> TextBox
-> textBoxBackspace eId box =
+> textboxBackspace
+>   :: ( Monad m )
+>   => EventId
+>   -> TextBox -> m TextBox
+> textboxBackspace eId box =
 >   let
 >     (x,y) = textboxCursor box
 >     l = textboxOffset box
@@ -675,7 +703,7 @@ And some examples for fun:
 >         then (0, l-1)
 >         else (v-l, l)
 > 
->   in if (x,y+l) == (0,0)
+>   in return $ if (x,y+l) == (0,0)
 >     then box
 >     else box
 >       { textboxCursor = (u, v')
@@ -687,8 +715,9 @@ And some examples for fun:
 
 
 > textboxCursorDown
->   :: TextBox -> TextBox
-> textboxCursorDown box =
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
+> textboxCursorDown box = return $
 >   localSt box $ do
 >     (x,y) <- readSt getTextBoxCursor
 > 
@@ -718,8 +747,9 @@ And some examples for fun:
 >     editSt $ setTextBoxCursor (u, v')
 
 > textboxCursorUp
->   :: TextBox -> TextBox
-> textboxCursorUp box =
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
+> textboxCursorUp box = return $
 >   localSt box $ do
 >     (x,y) <- readSt getTextBoxCursor
 >     l <- readSt getTextBoxOffset
@@ -741,7 +771,8 @@ And some examples for fun:
 >     editSt $ setTextBoxCursor (u, v')
 
 > textboxCursorLeft
->   :: TextBox -> TextBox
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
 > textboxCursorLeft box =
 >   let
 >     l = textboxOffset box
@@ -758,15 +789,16 @@ And some examples for fun:
 >       if (v < l) && (l > 0)
 >         then (0, l-1)
 >         else (v-l, l)
->   in box
+>   in return $ box
 >     { textboxCursor = (u, v')
 >     , textboxOffset = l'
 >     , textboxBuffer = buf
 >     }
 
 > textboxCursorRight
->   :: TextBox -> TextBox
-> textboxCursorRight box =
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
+> textboxCursorRight box = return $
 >   localSt box $ do
 >     editSt $ editTextBoxBuffer $
 >       alterSizedBuffer (movePointRight)
@@ -792,8 +824,10 @@ And some examples for fun:
 Resizing should not change the logical coordinates of the focus.
 
 > textboxResize
->   :: (Int, Int) -> TextBox -> TextBox
-> textboxResize (w, h) box =
+>   :: ( Monad m )
+>   => (Int, Int)
+>   -> TextBox -> m TextBox
+> textboxResize (w, h) box = return $
 >   localSt box $ do
 >     pos <- readSt $
 >       querySizedBuffer getPointLineCol
@@ -857,50 +891,50 @@ Resizing should not change the logical coordinates of the focus.
 >   let (lb,_, ln, _, _) = renderTextBox box
 >   in DebugTextBox lb ln box
 
-> debugTextBoxActions
->   :: EventId -> (Int, Int) -> Int -> [TextBoxAction]
->   -> (DebugTextBox, [(TextBoxAction, Maybe DebugTextBox)])
-> debugTextBoxActions eId dim tab acts =
->   let
->     box = mkTextBox eId dim tab []
->     f x as = case as of
->       [] -> []
->       b:bs ->
->         let
->           y = alterTextBoxPrimitive eId b x
->           z = if x == y
->             then Nothing
->             else Just $ debugTextBox y
->         in (b, z) : f y bs
->   in (debugTextBox box, f box acts)
+ > debugTextBoxActions
+ >   :: EventId -> (Int, Int) -> Int -> [TextBoxAction]
+ >   -> (DebugTextBox, [(TextBoxAction, Maybe DebugTextBox)])
+ > debugTextBoxActions eId dim tab acts =
+ >   let
+ >     box = mkTextBox eId dim tab []
+ >     f x as = case as of
+ >       [] -> []
+ >       b:bs ->
+ >         let
+ >           y = alterTextBoxPrimitive eId b x
+ >           z = if x == y
+ >             then Nothing
+ >             else Just $ debugTextBox y
+ >         in (b, z) : f y bs
+ >   in (debugTextBox box, f box acts)
 
-> printDebugTextBoxActions
->   :: (DebugTextBox, [(TextBoxAction, Maybe DebugTextBox)]) -> String
-> printDebugTextBoxActions (init, steps) = unlines
->   [ "=== START ==="
->   , show init
->   , ""
->   , p $ zip steps [1..]
->   ]
->   where
->     p xs = case xs of
->       [] -> ""
->       ((a,b),k):ys -> unlines
->         [ "=== THEN (" ++ show k ++ ") ==="
->         , show a
->         , ""
->         , case b of
->             Nothing -> ">>> No Change <<<"
->             Just z -> show z
->         , ""
->         , p ys
->         ]
+ > printDebugTextBoxActions
+ >   :: (DebugTextBox, [(TextBoxAction, Maybe DebugTextBox)]) -> String
+ > printDebugTextBoxActions (init, steps) = unlines 
+ >   [ "=== START ==="
+ >   , show init
+ >   , ""
+ >   , p $ zip steps [1..]
+ >   ]
+ >   where
+ >     p xs = case xs of
+ >       [] -> ""
+ >       ((a,b),k):ys -> unlines
+ >         [ "=== THEN (" ++ show k ++ ") ==="
+ >         , show a
+ >         , ""
+ >         , case b of
+ >             Nothing -> ">>> No Change <<<"
+ >             Just z -> show z
+ >         , ""
+ >         , p ys
+ >         ]
 
-> writeDebugTextBoxActions
->   :: EventId -> FilePath
->   -> (Int, Int) -> Int -> [TextBoxAction]
->   -> IO ()
-> writeDebugTextBoxActions eId path dim tab acts =
->   writeFile path
->     $ printDebugTextBoxActions
->     $ debugTextBoxActions eId dim tab acts
+ > writeDebugTextBoxActions
+ >   :: EventId -> FilePath
+ >   -> (Int, Int) -> Int -> [TextBoxAction]
+ >   -> IO ()
+ > writeDebugTextBoxActions eId path dim tab acts =
+ >   writeFile path
+ >     $ printDebugTextBoxActions
+ >     $ debugTextBoxActions eId dim tab acts

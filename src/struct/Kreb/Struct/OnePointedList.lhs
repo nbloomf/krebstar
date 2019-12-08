@@ -103,10 +103,10 @@ As usual, we'll build up a theory of `OnePointedList`s by defining queries and o
 
 It's also natural to convert lists to `OnePointedList`s; we'll do this by interpreting the head of the list as the point, with the tail marching off to the right.
 
-> makeFromList
+> fromList
 >   :: ( Valued m a )
 >   => [a] -> OnePointedList m a
-> makeFromList xs = case xs of
+> fromList xs = case xs of
 >   [] -> Vacant
 >   x:xs -> Point (mempty, x, FT.fromList xs)
 
@@ -163,6 +163,16 @@ Another natural class instance we'd like for `OnePointedList` is `Functor`. Unfo
 
 Note that types built on top of `OnePointedList` which fix the `m` parameter can generally be given a proper `Functor` instance, which is given by `fmapList`.
 
+> traverseOPL
+>   :: ( Valued v1 a1, Valued v2 a2, Applicative f )
+>   => (a1 -> f a2) -> OnePointedList v1 a1 -> f (OnePointedList v2 a2)
+> traverseOPL f w = case w of
+>   Vacant -> pure Vacant
+>   Point (as, x, bs) -> 
+>     point <$> FT.traverseFT f as <*> f x <*> FT.traverseFT f bs
+>     where
+>       point as x bs = Point (as, x, bs)
+
 
 
 Queries
@@ -195,7 +205,7 @@ We can test our intuition about how `isEmpty` behaves with some examples.
 > -- >>> :{
 > -- let
 > --   x :: OnePointedList Count Char
-> --   x = makeFromList []
+> --   x = fromList []
 > -- in isEmpty x
 > -- :}
 > -- True
@@ -203,7 +213,7 @@ We can test our intuition about how `isEmpty` behaves with some examples.
 > -- >>> :{
 > -- let
 > --   x :: OnePointedList Count Char
-> --   x = makeFromList ['a','b']
+> --   x = fromList ['a','b']
 > -- in isEmpty x
 > -- :}
 > -- False
@@ -724,6 +734,16 @@ And some examples.
 > -- (True,True,True)
 
 :::
+
+> alterPointM
+>   :: ( Monad m, Valued v a )
+>   => (a -> m a)
+>   -> OnePointedList v a -> m (OnePointedList v a)
+> alterPointM f w = case w of
+>   Vacant -> return Vacant
+>   Point (as, x, bs) -> do
+>     y <- f x
+>     return $ Point (as, y, bs)
 
 
 

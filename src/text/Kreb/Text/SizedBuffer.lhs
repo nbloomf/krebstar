@@ -30,6 +30,8 @@ title: Sized Buffers
 >   , alterSizedBuffer'
 >   , alterSizedBufferF
 >   , querySizedBuffer
+> 
+>   , Base()
 > ) where
 > 
 > import Data.Proxy
@@ -91,7 +93,7 @@ We can also give `Eq` and `Show` instances for sized buffers, but these are only
 >       ]
 > 
 > instance
->   ( Show a, IsChar a
+>   ( Show a, IsChar a, Ord a
 >   ) => Show (SizedBuffer a)
 >   where
 >     show (SizedBuffer buf) = 
@@ -123,9 +125,10 @@ We're doing some weird stuff with type annotations here! But again, all the type
 > -- let
 > --   x :: SizedBuffer Char
 > --   x = emptySizedBuffer 8 2
-> -- in show x
+> -- in print x
 > -- :}
-> -- "SizedBuffer (makePointOnlyBuffer nat8 nat2 [] eof [])"
+> -- SizedBuffer (makePointOnlyBuffer nat8 nat2 [] eof []
+> -- deleted: [])
 > --
 > -- >>> :{
 > -- let

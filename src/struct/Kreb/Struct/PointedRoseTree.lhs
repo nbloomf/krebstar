@@ -5,6 +5,14 @@ title: Pointed Rose Trees
 > module Kreb.Struct.PointedRoseTree (
 >     PointedRoseTree()
 >   , rewind
+
+>   , sprout
+>   , graft
+
+>   , towardRoot
+>   , towardLeaf
+>   , branchLeft
+>   , branchRight
 > ) where
 
 > import Kreb.Check
@@ -37,6 +45,30 @@ title: Pointed Rose Trees
 >   Just (u, us) ->
 >     PointedRoseTree u Nothing
 >       (S.moveToInit $ S.prepend us $ S.insertInit a s) f b
+
+> sprout
+>   :: a -> PointedRoseTree a -> PointedRoseTree a
+> sprout x (PointedRoseTree t r s f b) = undefined
+
+> graft
+>   :: PointedRoseTree a -> PointedRoseTree a -> PointedRoseTree a
+> graft x y = undefined
+
+> towardRoot
+>   :: PointedRoseTree a -> PointedRoseTree a
+> towardRoot (PointedRoseTree t r s f b) = undefined
+
+> towardLeaf
+>   :: PointedRoseTree a -> PointedRoseTree a
+> towardLeaf (PointedRoseTree t r s f b) = undefined
+
+> branchLeft
+>   :: PointedRoseTree a -> PointedRoseTree a
+> branchLeft (PointedRoseTree t r s f b) = undefined
+
+> branchRight
+>   :: PointedRoseTree a -> PointedRoseTree a
+> branchRight (PointedRoseTree t r s f b) = undefined
 
 > instance
 >   ( Arb a

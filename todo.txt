@@ -1,41 +1,97 @@
 0.0.1 Checklist
 ===============
-- Apply buffer op
-  - split at rune id
-  - apply buffer op
-  - Test BufferOp (commutative, idempotent)
-  - pointed rose tree of sets of buffer ops
-  - get rid of d type parameter in measuretext
-- Move EventId to own module
-- Move augmented to own module (control?)
-- PointedRoseTree - need this for history tree
-- RoseTree - make the node a sequence: RoseTree a (Sequence a) (Sequence (RoseTree a))
-  - in our use case the trees will most often not have a high branching factor.
+
+No Thought Required
+-------------------
+- OPL
+  - fmapList in OPL should be fmapOPL
+  - Point should just take 3 constructors, not a triple
+  - Use v instead of m for measure parameter
+- FingerTree
+  - Use v instead of m for measure parameter
+- Move BufferOp to own module
+- Augmented
+  - Move to its own module (control? struct?)
+- TextBox
+  - Do not export raw field names
+- Rename App* to Editor*
+
+Cleanup Tasks
+-------------
+- Action
+  - Convert to monad style.
+  - loadFile logic belongs in TextBox.
+  - performAction should be a simple dispatcher
+  - signature of performAction should be -> (Maybe Signal, State)
+- ScreenCoords
+  - Make this a custom type rather than (Int, Int)
+- Run
+  - clean up signatures of render etc for passing in to ReplEnv in Run
+
+Blockers
+--------
+- PointedRoseTree
+  - Write navigation primitives
+- Invert sets of buffer ops
+
+Testing and Debugging
+---------------------
+- Make Panel, TextBox, and Editor tests active again
+- Write tests using mock environment
+- Test navigation primitives for PointedRoseTree
+  - towardRoot . towardLeaf == id
+- Get logging to work
+  - Enable with command line arg
+  - Use severity levels
+- Golden tests for batch mode
+
+Feature Projects
+----------------
+- Preferences
+  - Framework for storing and passing these
+  - Expose these as primitives in the language
+- Mouse Events
+  - Framework for handling these
+  - Handle this on the frontend and pass events
+- Undo/Redo
+  - 'undo as new operation'
+  - basic idea: the history is a pointed tree of sets of buffer ops representing 'do' operations
+  - point is on the 'most recently applied' do
+  - the buffer is the 'current state'
+  - to /undo/ a do operation, going back in time in the edit history, derive a new do operation
+    which cancels out the first. To /redo/ a do operation, derive a new do which 'has the same effect'
+    as the first (what this means exactly is not obvious to me right now)
+    use 'updateRuneEventId' for this
+      Insert -> Delete
+      Delete -> Insert after updating the event id
+  - tests: redo . undo == id, undo . redo == id
+- Cut/Copy/Paste
+- Save/Load
+- Batch frontend
+  - pass a list of language commands
+- HTTP backend
+- GUI frontend
+
+
+
+
+- Move EventId to own module (?)
 - OPL:
   - view init and view last
   - prepend and append
 - TextBox: Arrow up and down should 'remember' x coordinate
 - TextBox: reified edits are natural patch algebra primitives, make this explicit
   - all movement commands in terms of line/col position
-- TextBox: do not export raw field names
-- measuretext: get rid of hastrailingnewline
 - buffer: move mark to linecol/screenpos/screenline
 - adjustRegion :: (FT a -> FT a) -> Buffer a -> Buffer a
-- ScreenCoords: make a custom type, rather than (Int, Int)
 - concatenation for two-pointed lists; need both left and right biased versions
   - test for this
   - biased == which point/mark is preserved
-- rename makeFromList to fromList (OPL and TPL)
 - When a region loses focus the selection should highlight to a dimmer color
 - replace 'normal mode' with 'debug mode' (not sure about this idea)
   - record input events to interaction log
 - incremental regex for syntax highlighting. can this be a type parameter?
 - delimiter balancing with finger trees?
-- store document history.
-  - can we get more complex than linear history? - use pointed rose trees
-  - use patch algebra for this
-- Cut/Copy/Paste primitives
-  - use patch algebra for this
 - CLI
   - add "input mode" (kbd or mouse) to state
   - need to nail down mouse mode state
@@ -46,29 +102,18 @@
   - version of delete point left that deletes the region
 - NOTE: macos terminal swallows modifiers in Shift+UP and Shift+DOWN
 - Cell can be used to track several marks maybe
-- signature of performAction should be
-    -> (Maybe Signal, State)
-  - clean up signatures of render etc
-    for passing in to ReplEnv in Run
 - per panel reload of stdlib
-- interaction log: in output stack, where did @Eff go?
 
 Refactoring
-- make TextBox and Editor tests active again
 - page up and down, home and end
 - start the manual
-- File load and save (primitives and key bindings)
-- File close (warn if not saved)
 - Lang initial environment (and CL option)
-- Write tests using Mock monad
 - Color line numbers
-- headless mode
 - undo and redo
 - command history
 - load lang definitions from a file
 - primitive operations for setting preferences
 - command bar needs to understand :load, :reload, and :type
-
 - lang - an :explain command that shows word documentation
 
 
@@ -83,6 +128,10 @@ list dependencies
 - pandoc
 - pandoc-sidenote
 - shelltestrunner
+
+- load/save
+- cut/copy/paste
+- do/undo/redo
 
 
 options
@@ -106,8 +155,6 @@ format
 
 FEATURES TO IMPLEMENT IN ORDER OF PRIORITY
 ==========================================
-1. File load and save!!!!
-    - Show file name
 3. Respond to basic mouse click events
 4. Raw headless mode: list of actions
     - (v. useful for automated testing)
