@@ -11,6 +11,7 @@
 
 > import Kreb.Text
 
+> import Kreb.Effect
 > import Kreb.Format
 > import Kreb.Editor.State
 > import Kreb.Editor.Env
@@ -108,7 +109,6 @@
 >       Right st2 -> performActions env st2 eId as
 
 
-> -- rename this to doPanelActions
 > doPanelActions
 >   :: ( Monad m )
 >   => EventId -> AppState m -> [PanelAction m]
@@ -169,20 +169,8 @@
 >   WindowResize (w,h) -> fmap Right $
 >     setWindowDim eId (w,h) st
 > 
->   FileLoad path -> do
->     let x = queryActivePanel (textboxHasChanged . getTextBox) st
->     case x of
->       Nothing -> return $ Right st
->       Just True -> fmap Right $
->         alterActivePanelM (showDebugMessage eId "Unsaved changes") st
->       Just False -> do
->         read <- loadFile env path
->         case read of
->           Left err -> fmap Right $
->             alterActivePanelM (showDebugMessage eId $ show err) st
->           Right contents -> fmap Right $
->             alterActivePanelM (alterPanelM eId
->               [PanelAlterText [TextBoxLoad path contents]]) st
+>   FileLoad path -> doPanelActions eId st
+>     [PanelAlterText [TextBoxLoad (fileReader env) path]]
 > 
 >   RunCmd -> do
 >     let cmd = queryActivePanel getPanelCmdString st
@@ -244,7 +232,7 @@
 >   => FilePath -> AppEnv m -> AppState m -> EventId
 >   -> m (Either AppSignal (RuntimeState (Hook m)))
 > loadStdLib path env st1 eId = do
->   readResult <- loadFile env path
+>   readResult <- readFileWith (fileReader env) path
 >   case readResult of
 >     Left ioErr -> return $ Left $ StdLibReadError ioErr
 >     Right str -> do

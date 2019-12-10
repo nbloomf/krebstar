@@ -8,6 +8,7 @@ import qualified System.Console.Terminal.Size as TS
 import System.IO.Error
 import Control.Exception
 
+import Kreb.Effect
 import Kreb.Control
 import Kreb.Text
 import Kreb.Editor
@@ -89,30 +90,10 @@ appEnvIO = do
     -- Effect callbacks
     , AppEnv
       { logMessage = appendFile "/Users/nathan/code/ned/logs.txt"
-      , loadFile = loadFileIO
-      , saveFile = saveFileIO
+      , fileReader = fileReaderIO
+      , fileWriter = fileWriterIO
       }
     , (w0, h0)
     )
-
-
-
-loadFileIO :: FilePath -> IO (Either IOError String)
-loadFileIO path = catch read handle
-  where
-    read :: IO (Either IOError String)
-    read = fmap Right $ readFile path
-
-    handle :: IOError -> IO (Either IOError String)
-    handle err = return $ Left err
-
-saveFileIO :: FilePath -> String -> IO (Maybe IOError)
-saveFileIO path str = catch write handle
-  where
-    write :: IO (Maybe IOError)
-    write = writeFile path str >> return Nothing
-
-    handle :: IOError -> IO (Maybe IOError)
-    handle err = return $ Just err
 
 

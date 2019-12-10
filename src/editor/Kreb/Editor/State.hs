@@ -1,4 +1,4 @@
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE KindSignatures, StandaloneDeriving, UndecidableInstances #-}
 
 module Kreb.Editor.State (
     AppState(..)
@@ -29,6 +29,7 @@ module Kreb.Editor.State (
 import Data.List (unlines)
 import Control.Monad (ap)
 
+import Kreb.Effect
 import Kreb.Text
 import Kreb.Lang
 
@@ -159,7 +160,8 @@ updateAbsCursorPos st =
 
 data AppStateAction (m :: * -> *)
   = AppStateAlterActivePanel [PanelAction m]
-  deriving (Eq, Show)
+
+deriving instance (Show (FileReader m)) => Show (AppStateAction m)
 
 
 

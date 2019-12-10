@@ -16,7 +16,6 @@ Cleanup Tasks
 -------------
 - Action
   - Convert to monad style.
-  - loadFile logic belongs in TextBox.
   - performAction should be a simple dispatcher
   - signature of performAction should be -> (Maybe Signal, State)
 - ScreenCoords
@@ -26,10 +25,16 @@ Cleanup Tasks
 - OPL
   - Write alterInitA, alterLastA
   - Test alterPointA et al
+- TextBox
+  - Can we make alterTextBoxPrimitive generic to a class?
+- Make window dimensions a custom type instead of (Int, Int)
+- Put give effect functions a type (?)
+  - e.g. newtype FileReader m = FileReader { readFileWith :: FilePath -> m (Either IOError String) }
 
 Blockers
 --------
 - PointedRoseTree
+  - Derive definition with calculus
   - Write navigation primitives
 - Invert sets of buffer ops
 

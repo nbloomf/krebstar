@@ -15,6 +15,9 @@ title: Text Boxes
 
 > {-# LANGUAGE FlexibleContexts #-}
 > {-# LANGUAGE RecordWildCards #-}
+> {-# LANGUAGE KindSignatures #-}
+> {-# LANGUAGE StandaloneDeriving #-}
+> {-# LANGUAGE UndecidableInstances #-}
 > 
 > module Kreb.Text.TextBox (
 >     TextBox(..)
@@ -63,6 +66,7 @@ title: Text Boxes
 > import Data.List (unlines)
 
 > import Kreb.Check
+> import Kreb.Effect
 > import Kreb.Control
 > import qualified Kreb.Struct.PointedRoseTree as PRT
 > import qualified Kreb.Struct.RedBlackTree as RBT
@@ -453,7 +457,7 @@ And some examples for fun:
 > mkTextBox
 >   :: ( Monad m )
 >   => EventId -> (Int, Int) -> Int
->   -> [TextBoxAction]
+>   -> [TextBoxAction m]
 >   -> m TextBox
 > mkTextBox eId (x,y) tab acts =
 >   alterTextBoxM eId acts $ emptyTextBox (x,y) tab
@@ -484,7 +488,7 @@ And some examples for fun:
 
 
 
-> data TextBoxAction
+> data TextBoxAction (m :: * -> *)
 >   -- Text Manipulation
 >   = TextBoxInsert (Glyph Char)
 >   | TextBoxInsertMany [Glyph Char]
@@ -509,32 +513,35 @@ And some examples for fun:
 >   -- 
 >   | TextBoxResize (Int, Int)
 
->   | TextBoxLoad FilePath String
+>   | TextBoxLoad (FileReader m) FilePath
 >   | TextBoxClear
->   deriving (Eq, Show)
 
-> instance Arb TextBoxAction where
->   arb = selectFrom
->     [ TextBoxInsert <$> arb
->     , TextBoxInsertMany <$> arb
->     , return TextBoxBackspace
->     , return TextBoxCursorDown
->     , return TextBoxCursorUp
->     , return TextBoxCursorRight
->     , return TextBoxCursorLeft
->     , return TextBoxLeaveMark
->     , return TextBoxClearMark
->     , do
->         Positive w <- arb
->         Positive h <- arb
->         return $ TextBoxResize (w,h)
->     ]
-> 
-> instance Prune TextBoxAction where
->   prune x = case x of
->     TextBoxInsertMany cs ->
->       map TextBoxInsertMany $ prune cs
->     _ -> []
+> deriving instance
+>   ( Show (FileReader m)
+>   ) => Show (TextBoxAction m)
+
+ > instance Arb TextBoxAction where
+ >   arb = selectFrom
+ >     [ TextBoxInsert <$> arb
+ >     , TextBoxInsertMany <$> arb
+ >     , return TextBoxBackspace
+ >     , return TextBoxCursorDown
+ >     , return TextBoxCursorUp
+ >     , return TextBoxCursorRight
+ >     , return TextBoxCursorLeft
+ >     , return TextBoxLeaveMark
+ >     , return TextBoxClearMark
+ >     , do
+ >         Positive w <- arb
+ >         Positive h <- arb
+ >         return $ TextBoxResize (w,h)
+ >     ]
+ > 
+ > instance Prune TextBoxAction where
+ >   prune x = case x of
+ >     TextBoxInsertMany cs ->
+ >       map TextBoxInsertMany $ prune cs
+ >     _ -> []
 
  > instance Arb TextBox where
  >   arb = do
@@ -555,7 +562,7 @@ And some examples for fun:
 
 > alterTextBoxM
 >   :: ( Monad m )
->   => EventId -> [TextBoxAction]
+>   => EventId -> [TextBoxAction m]
 >   -> TextBox -> m TextBox
 > alterTextBoxM eId acts box = case acts of
 >   [] -> return box
@@ -566,21 +573,21 @@ And some examples for fun:
 
 > alterTextBoxPrimitive
 >   :: ( Monad m )
->   => EventId -> TextBoxAction
+>   => EventId -> TextBoxAction m
 >   -> TextBox -> m TextBox
 > alterTextBoxPrimitive eId act = case act of
->   TextBoxInsert c      -> textboxInsert eId c
->   TextBoxInsertMany cs -> textboxInsertMany eId cs
->   TextBoxBackspace     -> textboxBackspace eId
->   TextBoxCursorDown    -> textboxCursorDown
->   TextBoxCursorUp      -> textboxCursorUp
->   TextBoxCursorRight   -> textboxCursorRight
->   TextBoxCursorLeft    -> textboxCursorLeft
->   TextBoxResize dim    -> textboxResize dim
->   TextBoxLoad path str -> textboxLoad eId path str
->   TextBoxLeaveMark     -> textboxLeaveMark
->   TextBoxClearMark     -> textboxClearMark
->   TextBoxClear         -> textboxClear
+>   TextBoxInsert c         -> textboxInsert eId c
+>   TextBoxInsertMany cs    -> textboxInsertMany eId cs
+>   TextBoxBackspace        -> textboxBackspace eId
+>   TextBoxCursorDown       -> textboxCursorDown
+>   TextBoxCursorUp         -> textboxCursorUp
+>   TextBoxCursorRight      -> textboxCursorRight
+>   TextBoxCursorLeft       -> textboxCursorLeft
+>   TextBoxResize dim       -> textboxResize dim
+>   TextBoxLoad reader path -> textboxLoad eId reader path
+>   TextBoxLeaveMark        -> textboxLeaveMark
+>   TextBoxClearMark        -> textboxClearMark
+>   TextBoxClear            -> textboxClear
 
 
 
@@ -605,16 +612,23 @@ And some examples for fun:
 
 > textboxLoad
 >   :: ( Monad m )
->   => EventId -> FilePath -> String
+>   => EventId -> FileReader m -> FilePath
 >   -> TextBox -> m TextBox
-> textboxLoad eId path str box = return $ box
->   { textboxBuffer = makeSizedBuffer eId
->       (getTextBoxWidth box) (getTextBoxHeight box) (map fromChar str)
->   , textboxOffset = 0
->   , textboxCursor = (0,0)
->   , textboxSource = Just path
->   , textboxHasChanged = False
->   }
+> textboxLoad eId reader path box = do
+>   case textboxHasChanged box of
+>     True -> error "unsaved changes"
+>     False -> do
+>       read <- readFileWith reader path
+>       case read of
+>         Left err -> error "read error"
+>         Right content -> return $ box
+>           { textboxBuffer = makeSizedBuffer eId
+>               (getTextBoxWidth box) (getTextBoxHeight box) (map fromChar content)
+>           , textboxOffset = 0
+>           , textboxCursor = (0,0)
+>           , textboxSource = Just path
+>           , textboxHasChanged = False
+>           }
 
 
 > textboxLeaveMark
@@ -892,8 +906,8 @@ Resizing should not change the logical coordinates of the focus.
 >   in DebugTextBox lb ln box
 
  > debugTextBoxActions
- >   :: EventId -> (Int, Int) -> Int -> [TextBoxAction]
- >   -> (DebugTextBox, [(TextBoxAction, Maybe DebugTextBox)])
+ >   :: EventId -> (Int, Int) -> Int -> [TextBoxAction m]
+ >   -> (DebugTextBox, [(TextBoxAction m, Maybe DebugTextBox)])
  > debugTextBoxActions eId dim tab acts =
  >   let
  >     box = mkTextBox eId dim tab []

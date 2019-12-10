@@ -22,6 +22,8 @@
 >   , "src/check/Kreb/Check/Laws/Foldable.lhs"
 >   , "src/check/Kreb/Check/Laws/Ringlike.lhs"
 > 
+>   , "src/effect/Kreb/Effect.lhs"
+> 
 >   , "src/control/Kreb/Control.lhs"
 >   , "src/control/Kreb/Control/LocalSt.lhs"
 >   , "src/control/Kreb/Control/ReplT.lhs"

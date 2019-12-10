@@ -1,4 +1,4 @@
-> {-# LANGUAGE FlexibleContexts, RecordWildCards, KindSignatures #-}
+> {-# LANGUAGE FlexibleContexts, RecordWildCards, KindSignatures, StandaloneDeriving, UndecidableInstances #-}
 
 > module Kreb.Editor.Panel (
 >     Panel(renderedPanel)
@@ -32,6 +32,7 @@
 
 > import Data.List (unlines)
 
+> import Kreb.Effect
 > import Kreb.Format
 > import Kreb.Editor.Settings
 > import Kreb.Struct.FingerTree
@@ -281,10 +282,11 @@
 
 
 > data PanelAction (m :: * -> *)
->   = PanelAlterText [TextBoxAction]
->   | PanelAlterCmd [TextBoxAction]
+>   = PanelAlterText [TextBoxAction m]
+>   | PanelAlterCmd [TextBoxAction m]
 >   | PanelClearCmd
->   deriving (Eq, Show)
+
+> deriving instance (Show (FileReader m)) => Show (PanelAction m)
 
  > alterPanel
  >   :: EventId -> [PanelAction m]
@@ -327,7 +329,7 @@
 
 > panelAlterTextM
 >   :: ( Monad m )
->   => EventId -> [TextBoxAction]
+>   => EventId -> [TextBoxAction m]
 >   -> Panel -> m Panel
 > panelAlterTextM eId as panel = do
 >   box <- alterTextBoxM eId as (textBox panel)
@@ -338,7 +340,7 @@
 
 > panelAlterCmdM
 >   :: ( Monad m )
->   => EventId -> [TextBoxAction]
+>   => EventId -> [TextBoxAction m]
 >   -> Panel -> m Panel
 > panelAlterCmdM eId as panel = do
 >   box <- alterTextBoxM eId as (cmdBox panel)

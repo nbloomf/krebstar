@@ -2,10 +2,12 @@
 >     AppEnv(..)
 > ) where
 
+> import Kreb.Effect
+
 > -- Side effects are managed here.
 > data AppEnv m = AppEnv
 >   { logMessage :: String -> m ()
 > 
->   , loadFile :: FilePath -> m (Either IOError String)
->   , saveFile :: FilePath -> String -> m (Maybe IOError)
+>   , fileReader :: FileReader m
+>   , fileWriter :: FileWriter m
 >   }
