@@ -44,8 +44,8 @@ OnePointedList Test Suite
 >           (foldMap :: forall u n . (Monoid n) => (u -> n) -> OnePointedList Count u -> n)
 >           (foldr :: (Bool -> Bool -> Bool) -> Bool -> OnePointedList Count Bool -> Bool)
 >       , test_FoldableFunctor_laws_with
->           (fmapList :: (Bool -> Bool) -> OnePointedList Count Bool -> OnePointedList Count Bool)
->           (fmapList :: (Bool -> Bool) -> OnePointedList Count Bool -> OnePointedList Count Bool)
+>           (fmapOPL :: (Bool -> Bool) -> OnePointedList Count Bool -> OnePointedList Count Bool)
+>           (fmapOPL :: (Bool -> Bool) -> OnePointedList Count Bool -> OnePointedList Count Bool)
 >           (fold :: OnePointedList Count Bool -> Bool)
 >           (foldMap :: forall u n . (Monoid n) => (u -> n) -> OnePointedList Count u -> n)
 >       ]

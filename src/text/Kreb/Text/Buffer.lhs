@@ -139,6 +139,7 @@ title: Buffers
 > 
 > import Kreb.Text.ScreenOffset
 > import Kreb.Text.Rune
+> import Kreb.Text.Pigment
 > import Kreb.Text.MeasureText
 > import Kreb.Text.Glyph
 > import Kreb.Text.Cell
@@ -228,7 +229,8 @@ Due to the EOF sigil, detecting when a buffer is empty or a singleton is a littl
 
 > isEmpty
 >   :: forall w t d a
->    . ( Eq a, IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
+>    . ( IsChar a, Eq a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a )
 >   => Buffer w t d a -> Bool
 > isEmpty (Buffer w _) =
 >   case TPL.viewAtEnd w of
@@ -238,7 +240,8 @@ Due to the EOF sigil, detecting when a buffer is empty or a singleton is a littl
 > 
 > isSingleton
 >   :: forall w t d a
->    . ( Eq a, IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
+>    . ( IsChar a, Eq a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a )
 >   => Buffer w t d a -> Bool
 > isSingleton (Buffer w _) =
 >   case TPL.viewAtEnd w of
@@ -445,7 +448,8 @@ And we need left-biased insert and delete at the point.
 >   in (Buffer (TPL.insertPointLeft (Cell v) w) del, BufferOpIns v)
 > 
 > deletePointLeft
->   :: ( Ord a, IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
+>   :: ( IsChar a, Ord a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a )
 >   => EventId -> Buffer w t d a -> (Buffer w t d a, BufferOp d a)
 > deletePointLeft eId (Buffer w del) =
 >   case TPL.deletePointLeft' w of
@@ -526,7 +530,8 @@ We can also efficiently manipulate the start and end of the buffer.
 >         in prepend' y zs (op:ops)
 > 
 > deleteAtStart
->   :: ( Ord a, IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
+>   :: ( IsChar a, Ord a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a )
 >   => EventId -> Buffer w t d a -> (Buffer w t d a, BufferOp d a)
 > deleteAtStart eId (Buffer w del) =
 >   case TPL.viewAtEnd w of
@@ -573,7 +578,8 @@ We can also efficiently manipulate the start and end of the buffer.
 >         in append' y zs (op:ops)
 > 
 > deleteAtEnd
->   :: ( Ord a, IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
+>   :: ( IsChar a, Ord a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a )
 >   => EventId -> Buffer w t d a -> (Buffer w t d a, BufferOp d a)
 > deleteAtEnd eId (Buffer w del) =
 >   case TPL.viewAtEnd w of
@@ -598,7 +604,7 @@ We can also map over the entries in a buffer.
 >      , Valued (MeasureText w t d) a2 )
 >   => (a1 -> a2) -> Buffer w t d a1 -> Buffer w t d a2
 > mapBuffer f (Buffer c r) =
->   Buffer (TPL.fmapList (fmap (fmap f)) c) r
+>   Buffer (TPL.fmapTPL (fmap (fmap f)) c) r
 > 
 > mapRegion
 >   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
@@ -1119,7 +1125,8 @@ And with this splitting in hand, we can apply reified buffer operations.
 
 > applyBufferOp
 >   :: forall w t d a
->    . ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, Eq a, Ord a )
+>    . ( IsChar a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a, Eq a, Ord a )
 >   => BufferOp d a -> Buffer w t d a -> Buffer w t d a
 > applyBufferOp op buf = case op of
 >   BufferNoOp -> buf
@@ -1158,6 +1165,23 @@ And with this splitting in hand, we can apply reified buffer operations.
 > --   op1 = BufferOpDel rune
 > --   op2 = BufferOpIns rune
 > --   e = makeVacantBuffer nat8 nat2 nat3 (Proxy :: Proxy Char)
+> --   zig = applyBufferOp op1 (applyBufferOp op2 e)
+> --   zag = applyBufferOp op2 (applyBufferOp op1 e)
+> -- in zig == zag
+> -- :}
+> -- True
+> --
+> -- $
+> -- >>> :{
+> -- -- Delete and insert runes that differ only by a color in different orders
+> -- let
+> --   rune1 = newRuneId (EventId 0 "foo") (Infimum, Supremum) $
+> --     Glyph 'A' (gray24 0) (gray24 0)
+> --   rune2 = newRuneId (EventId 0 "foo") (Infimum, Supremum) $
+> --     Glyph 'A' (rgb6 0 0 0) (rgb6 0 0 0)
+> --   op1 = BufferOpIns rune1
+> --   op2 = BufferOpDel rune2
+> --   e = makeVacantBuffer nat8 nat2 nat3 (Proxy :: Proxy (Glyph Char))
 > --   zig = applyBufferOp op1 (applyBufferOp op2 e)
 > --   zag = applyBufferOp op2 (applyBufferOp op1 e)
 > -- in zig == zag
@@ -1559,7 +1583,8 @@ As usual, we wrap up this module with some helper code for writing tests. First 
 Next, recall that buffers need to satisfy some invariants: first of all they are built on finger trees, which have invariants of their own, but moreover the buffer must end with an EOF sigil. We expose a helper to check for this.
 
 > validate
->   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, Eq a )
+>   :: ( IsChar a, IsWidth w, IsTab t, IsBase d
+>      , Valued (MeasureText w t d) a, Eq a )
 >   => Buffer w t d a -> Bool
 > validate (Buffer w _) =
 >   case TPL.viewAtEnd w of

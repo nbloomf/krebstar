@@ -3,18 +3,14 @@
 
 No Thought Required
 -------------------
-- OPL
-  - fmapList in OPL should be fmapOPL
-  - Point should just take 3 constructors, not a triple
-  - Use v instead of m for measure parameter
-- FingerTree
-  - Use v instead of m for measure parameter
 - Move BufferOp to own module
 - Augmented
   - Move to its own module (control? struct?)
 - TextBox
   - Do not export raw field names
-- Rename App* to Editor*
+- Rename App* to Editor* (State/Env/etc)
+- Sequence
+  - alterPointM -> alterPointA
 
 Cleanup Tasks
 -------------
@@ -27,6 +23,9 @@ Cleanup Tasks
   - Make this a custom type rather than (Int, Int)
 - Run
   - clean up signatures of render etc for passing in to ReplEnv in Run
+- OPL
+  - Write alterInitA, alterLastA
+  - Test alterPointA et al
 
 Blockers
 --------
@@ -44,6 +43,7 @@ Testing and Debugging
   - Enable with command line arg
   - Use severity levels
 - Golden tests for batch mode
+- Increase number of generated cases
 
 Feature Projects
 ----------------

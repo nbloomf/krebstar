@@ -263,7 +263,21 @@
 
 > data Rune d a
 >   = Rune a (RuneId d)
->   deriving (Eq, Ord, Show)
+>   deriving Show
+
+> instance
+>   ( IsChar a
+>   ) => Eq (Rune d a)
+>   where
+>     (Rune a1 d1) == (Rune a2 d2) =
+>       (toChar a1 == toChar a2) && (d1 == d2)
+> 
+> instance
+>   ( IsChar a, IsBase d
+>   ) => Ord (Rune d a)
+>   where
+>     compare (Rune a1 d1) (Rune a2 d2) =
+>       compare (toChar a1, d1) (toChar a2, d2)
 
 > setEventId
 >   :: EventId -> Rune d a -> Rune d a

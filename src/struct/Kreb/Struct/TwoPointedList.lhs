@@ -49,16 +49,16 @@ Calling this type the second derivative of the list functor is a little too simp
 
 With `OnePointedList`, we used a triple to model a distinguished list item with its left and right contexts. For `TwoPointedList` things are a little more complicated; if both the point and the mark are present, we need to keep track of which is "on the left" in the list (or if they are distinct at all). If the mark is not present then our type degenerates to `OnePointedList`. We can model this with the following definition.
 
-> data TwoPointedList m a
+> data TwoPointedList v a
 >   = Vacant
 >   | PointOnly
->       (FT.FingerTree m a, a, FT.FingerTree m a)
+>       (FT.FingerTree v a, a, FT.FingerTree v a)
 >   | Coincide
->       (FT.FingerTree m a, a, FT.FingerTree m a)
+>       (FT.FingerTree v a, a, FT.FingerTree v a)
 >   | PointMark
->       (FT.FingerTree m a, a, FT.FingerTree m a, a, FT.FingerTree m a)
+>       (FT.FingerTree v a, a, FT.FingerTree v a, a, FT.FingerTree v a)
 >   | MarkPoint
->       (FT.FingerTree m a, a, FT.FingerTree m a, a, FT.FingerTree m a)
+>       (FT.FingerTree v a, a, FT.FingerTree v a, a, FT.FingerTree v a)
 >   deriving (Eq, Show)
 
 This is a little hairy! But consumers of this code should not have to worry about the details of how this type is implemented. The goal is to allow client code to treat a `TwoPointedList` like, well, a list of items with one and maybe a second read head.
@@ -71,28 +71,28 @@ Constructors
 Next we define some constructors for this type. We have the usual `empty` and `singleton` constructors for list-like types:
 
 > empty
->   ::TwoPointedList m a
+>   :: TwoPointedList v a
 > empty = Vacant
 > 
 > singleton
->   :: ( Valued m a )
->   => a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => a -> TwoPointedList v a
 > singleton a =
 >   PointOnly (mempty, a, mempty)
 
 We can also convert a list into a two-pointed list. This is analogous to `fromList` on one-pointed lists; the head of the input list becomes the point, and the tail the right context. We'll also implement a version of this constructor for finger trees.
 
 > fromList
->   :: ( Valued m a )
->   => [a] -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => [a] -> TwoPointedList v a
 > fromList xs =
 >   case xs of
 >     [] -> Vacant
 >     u:us -> PointOnly (mempty, u, FT.fromList us)
 > 
 > fromFingerTree
->   :: ( Valued m a )
->   => FT.FingerTree m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => FT.FingerTree v a -> TwoPointedList v a
 > fromFingerTree as =
 >   case FT.uncons as of
 >     Nothing -> Vacant
@@ -101,30 +101,30 @@ We can also convert a list into a two-pointed list. This is analogous to `fromLi
 For testing purposes it will be handy to have constructors which allow precise placement of the point and the mark. In principle these should not be used in real code, although there's no harm in it.
 
 > makePointOnly
->   :: ( Valued m a )
+>   :: ( Valued v a )
 >   => [a] -> a -> [a]
->   -> TwoPointedList m a
+>   -> TwoPointedList v a
 > makePointOnly as x bs =
 >   PointOnly ( FT.fromList as, x, FT.fromList bs )
 > 
 > makeCoincide
->   :: ( Valued m a )
+>   :: ( Valued v a )
 >   => [a] -> a -> [a]
->   -> TwoPointedList m a
+>   -> TwoPointedList v a
 > makeCoincide as x bs =
 >   Coincide ( FT.fromList as, x, FT.fromList bs )
 > 
 > makePointMark
->   :: ( Valued m a )
+>   :: ( Valued v a )
 >   => [a] -> a -> [a] -> a -> [a]
->   -> TwoPointedList m a
+>   -> TwoPointedList v a
 > makePointMark as x bs y cs = PointMark
 >   ( FT.fromList as, x, FT.fromList bs, y, FT.fromList cs )
 > 
 > makeMarkPoint
->   :: ( Valued m a )
+>   :: ( Valued v a )
 >   => [a] -> a -> [a] -> a -> [a]
->   -> TwoPointedList m a
+>   -> TwoPointedList v a
 > makeMarkPoint as x bs y cs = MarkPoint
 >   ( FT.fromList as, x, FT.fromList bs, y, FT.fromList cs )
 
@@ -135,9 +135,9 @@ Class Instances
 
 Since two-pointed lists are essentially lists, it's not surprising they have a `Foldable` instance.
 
-> instance Foldable (TwoPointedList m) where
+> instance Foldable (TwoPointedList v) where
 >   toList
->     :: TwoPointedList m a -> [a]
+>     :: TwoPointedList v a -> [a]
 >   toList w = case w of
 >     Vacant -> []
 >     PointOnly (as, x, bs) -> concat
@@ -151,7 +151,7 @@ Since two-pointed lists are essentially lists, it's not surprising they have a `
 > 
 >   foldr
 >     :: (a -> b -> b) -> b
->     -> TwoPointedList m a -> b
+>     -> TwoPointedList v a -> b
 >   foldr f e w = case w of
 >     Vacant -> e
 >     PointOnly (as, x, bs) ->
@@ -165,7 +165,7 @@ Since two-pointed lists are essentially lists, it's not surprising they have a `
 > 
 >   foldl
 >     :: (b -> a -> b) -> b
->     -> TwoPointedList m a -> b
+>     -> TwoPointedList v a -> b
 >   foldl f e w = case w of
 >     Vacant -> e
 >     PointOnly (as, x, bs) ->
@@ -179,11 +179,11 @@ Since two-pointed lists are essentially lists, it's not surprising they have a `
 
 We'd also like `TwoPointedList` to be a functor. But as was the case with `OnePointedList`, the extra `Valued` constraint means we can't express this as a proper type class. Instead we define a plain function which can be used to define proper `Functor` instances on types which specialize the value parameter.
 
-> fmapList
->   :: forall m1 m2 a1 a2
->    . ( Valued m1 a1, Valued m2 a2 )
->   => (a1 -> a2) -> TwoPointedList m1 a1 -> TwoPointedList m2 a2
-> fmapList f w = case w of
+> fmapTPL
+>   :: forall v1 v2 a1 a2
+>    . ( Valued v1 a1, Valued v2 a2 )
+>   => (a1 -> a2) -> TwoPointedList v1 a1 -> TwoPointedList v2 a2
+> fmapTPL f w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) ->
 >     PointOnly (FT.fmapFT f as, f x, FT.fmapFT f bs)
@@ -202,13 +202,13 @@ Queries
 Next we define some helper functions for extracting information from a two-pointed list. First we can define some simple predicates based on the constructor.
 
 > isEmpty
->   :: TwoPointedList m a -> Bool
+>   :: TwoPointedList v a -> Bool
 > isEmpty w = case w of
 >   Vacant -> True
 >   _ -> False
 > 
 > hasMark
->   :: TwoPointedList m a -> Bool
+>   :: TwoPointedList v a -> Bool
 > hasMark w = case w of
 >   PointOnly _ -> False
 >   _ -> True
@@ -216,8 +216,8 @@ Next we define some helper functions for extracting information from a two-point
 It will also be useful to detect when a two-pointed list has exactly one item in it.
 
 > isSingleton
->   :: ( Valued m a )
->   => TwoPointedList m a -> Bool
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Bool
 > isSingleton w = case w of
 >   PointOnly (as, _, bs) ->
 >     (FT.isEmpty as) && (FT.isEmpty bs)
@@ -228,8 +228,8 @@ It will also be useful to detect when a two-pointed list has exactly one item in
 We can also detect when the point is at the first or last position in the list.
 
 > isPointAtStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> Bool
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Bool
 > isPointAtStart w = case w of
 >   Vacant -> False
 >   PointOnly (as, _, _) ->
@@ -247,8 +247,8 @@ We can also detect when the point is at the first or last position in the list.
 >   MarkPoint _ -> False
 > 
 > isPointAtEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> Bool
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Bool
 > isPointAtEnd w = case w of
 >   Vacant -> False
 >   PointOnly (_, _, bs) -> case FT.unsnoc bs of
@@ -265,8 +265,8 @@ We can also detect when the point is at the first or last position in the list.
 We can do the same for the mark, although it's less clear when this would be useful outside of tests.
 
 > isMarkAtStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> Bool
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Bool
 > isMarkAtStart w = case w of
 >   Vacant -> False
 >   PointOnly _ -> False
@@ -281,8 +281,8 @@ We can do the same for the mark, although it's less clear when this would be use
 >       _ -> False
 > 
 > isMarkAtEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> Bool
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Bool
 > isMarkAtEnd w = case w of
 >   Vacant -> False
 >   PointOnly _ -> False
@@ -297,7 +297,7 @@ We can do the same for the mark, although it's less clear when this would be use
 And we'll need to read the item at the point and the mark.
 
 > readPoint
->   :: TwoPointedList m a -> Maybe a
+>   :: TwoPointedList v a -> Maybe a
 > readPoint w = case w of
 >   Vacant -> Nothing
 >   PointOnly (_, x, _) -> Just x
@@ -306,7 +306,7 @@ And we'll need to read the item at the point and the mark.
 >   MarkPoint (_, _, _, x, _) -> Just x
 > 
 > readMark
->   :: TwoPointedList m a -> Maybe a
+>   :: TwoPointedList v a -> Maybe a
 > readMark w = case w of
 >   Vacant -> Nothing
 >   PointOnly _ -> Nothing
@@ -326,8 +326,8 @@ When navigating a two-pointed list we need to be deliberate about what happens t
 We can move the point directly to the start or end position:
 
 > movePointToStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > movePointToStart w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> case FT.uncons as of
@@ -344,8 +344,8 @@ We can move the point directly to the start or end position:
 >     Just (a, as') -> PointMark (mempty, a, as', x, FT.snoc y bs <> cs)
 > 
 > movePointToEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > movePointToEnd w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> case FT.unsnoc bs of
@@ -364,8 +364,8 @@ We can move the point directly to the start or end position:
 And we can move the point left and right by one item.
 
 > movePointLeft
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > movePointLeft w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> case FT.unsnoc as of
@@ -382,8 +382,8 @@ And we can move the point left and right by one item.
 >     Just (b, bs') -> MarkPoint (as, x, bs', b, FT.cons y cs)
 > 
 > movePointRight
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > movePointRight w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> case FT.uncons bs of
@@ -419,8 +419,8 @@ And a few examples to test our understanding.
 We can perform the same actions on the mark. In this case, if the mark is not set the navigation primitives act like the identity.
 
 > moveMarkToStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > moveMarkToStart w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> PointOnly (as, x, bs)
@@ -435,8 +435,8 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 >     Just (a, as') -> MarkPoint (mempty, a, FT.snoc x as' <> bs, y, cs)
 > 
 > moveMarkToEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > moveMarkToEnd w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> PointOnly (as, x, bs)
@@ -451,8 +451,8 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 >     Just (c, cs') -> PointMark (FT.snoc x as <> bs, y, cs', c, mempty)
 > 
 > moveMarkLeft
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > moveMarkLeft w = case w of
 >   Vacant -> Vacant
 >   PointOnly z -> PointOnly z
@@ -467,8 +467,8 @@ We can perform the same actions on the mark. In this case, if the mark is not se
 >     Just (a, as') -> MarkPoint (as', a, FT.cons x bs, y, cs)
 > 
 > moveMarkRight
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > moveMarkRight w = case w of
 >   Vacant -> Vacant
 >   PointOnly z -> PointOnly z
@@ -490,8 +490,8 @@ Mutation
 Next we define our two main primitives for bringing the mark in and out of existence. The first introduces a mark if one doesn't already exist, and if it does, leaves it alone.
 
 > leaveMark
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > leaveMark w = case w of
 >   PointOnly (as, x, bs) -> Coincide (as, x, bs)
 >   _ -> w
@@ -499,8 +499,8 @@ Next we define our two main primitives for bringing the mark in and out of exist
 The second primitive clears the mark by resorbing it into the rest of the list.
 
 > clearMark
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > clearMark w = case w of
 >   Vacant ->
 >     Vacant
@@ -516,8 +516,8 @@ The second primitive clears the mark by resorbing it into the rest of the list.
 And of course we have efficient operations for insertion and deletion. First at the start and end -- these are analogous to `cons/snoc` and `uncons/unsnoc` on ordinary lists, but we give them different names.
 
 > insertAtStart
->   :: ( Valued m a )
->   => a -> TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => a -> TwoPointedList v a -> TwoPointedList v a
 > insertAtStart u w = case w of
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
@@ -531,8 +531,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     MarkPoint (FT.cons u as, x, bs, y, cs)
 > 
 > viewAtStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe (a, TwoPointedList m a)
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe (a, TwoPointedList v a)
 > viewAtStart w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, bs) -> Just $ case FT.uncons as of
@@ -557,8 +557,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     Just (a, as') -> (a, MarkPoint (as', x, bs, y, cs))
 > 
 > deleteAtStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > deleteAtStart w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> case FT.uncons as of
@@ -583,8 +583,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     Just (_, as') -> MarkPoint (as', x, bs, y, cs)
 > 
 > deleteAtStart'
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe (TwoPointedList m a, a)
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe (TwoPointedList v a, a)
 > deleteAtStart' w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, bs) -> case FT.uncons as of
@@ -621,8 +621,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 >       Just (MarkPoint (as', x, bs, y, cs), a)
 > 
 > insertAtEnd
->   :: ( Valued m a )
->   => a -> TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => a -> TwoPointedList v a -> TwoPointedList v a
 > insertAtEnd u w = case w of
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
@@ -636,8 +636,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     MarkPoint (as, x, bs, y, FT.snoc u cs)
 > 
 > viewAtEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe (a, TwoPointedList m a)
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe (a, TwoPointedList v a)
 > viewAtEnd w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, bs) -> Just $ case FT.unsnoc bs of
@@ -662,8 +662,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 >     Just (c, cs') -> (c, MarkPoint (as, x, bs, y, cs'))
 > 
 > deleteAtEnd
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > deleteAtEnd w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) -> case FT.unsnoc bs of
@@ -690,8 +690,8 @@ And of course we have efficient operations for insertion and deletion. First at 
 And next to the left and the right of the point.
 
 > insertPointLeft
->   :: ( Valued m a )
->   => a -> TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => a -> TwoPointedList v a -> TwoPointedList v a
 > insertPointLeft u w = case w of
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
@@ -705,8 +705,8 @@ And next to the left and the right of the point.
 >     MarkPoint (as, x, FT.snoc u bs, y, cs)
 > 
 > deletePointLeft
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > deletePointLeft w = case w of
 >   Vacant ->
 >     Vacant
@@ -724,8 +724,8 @@ And next to the left and the right of the point.
 >     Just (_, bs') -> MarkPoint (as, x, bs', y, cs)
 
 > deletePointLeft'
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe (TwoPointedList m a, a)
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe (TwoPointedList v a, a)
 > deletePointLeft' w = case w of
 >   Vacant ->
 >     Nothing
@@ -743,8 +743,8 @@ And next to the left and the right of the point.
 >     Just (b, bs') -> Just (MarkPoint (as, x, bs', y, cs), b)
 
 > insertPointRight
->   :: ( Valued m a )
->   => a -> TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => a -> TwoPointedList v a -> TwoPointedList v a
 > insertPointRight u w = case w of
 >   Vacant ->
 >     PointOnly (mempty, u, mempty)
@@ -758,8 +758,8 @@ And next to the left and the right of the point.
 >     MarkPoint (as, x, bs, y, FT.cons u cs)
 > 
 > deletePointRight
->   :: ( Valued m a )
->   => TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> TwoPointedList v a
 > deletePointRight w = case w of
 >   Vacant ->
 >     Vacant
@@ -799,9 +799,9 @@ So our region editing operations will all be _left biased_, affecting the left e
 To start, here's a left-biased region version of `fmap`.
 
 > alterRegionL
->   :: forall m a
->    . ( Valued m a )
->   => (a -> a) -> TwoPointedList m a -> TwoPointedList m a
+>   :: forall v a
+>    . ( Valued v a )
+>   => (a -> a) -> TwoPointedList v a -> TwoPointedList v a
 > alterRegionL f w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) ->
@@ -832,10 +832,10 @@ An example of `alterRegionL` is useful here.
 The next simplest operation simply extracts the region.
 
 > copyRegionL
->   :: forall m a
->    . ( Valued m a )
->   => TwoPointedList m a
->   -> Maybe (FT.FingerTree m a)
+>   :: forall v a
+>    . ( Valued v a )
+>   => TwoPointedList v a
+>   -> Maybe (FT.FingerTree v a)
 > copyRegionL w = case w of
 >   Vacant -> Nothing
 >   PointOnly _ -> Nothing
@@ -846,10 +846,10 @@ The next simplest operation simply extracts the region.
 Our next region operation is _cut_. This removes the region, returning it along with the remainder of the list spliced together. Notably, after a cut operation the remaining list no longer has a mark set. The only tricky case is when the point and mark coincide with each other.
 
 > cutRegionL
->   :: forall m a
->    . ( Valued m a )
->   => TwoPointedList m a
->   -> Maybe (FT.FingerTree m a, TwoPointedList m a)
+>   :: forall v a
+>    . ( Valued v a )
+>   => TwoPointedList v a
+>   -> Maybe (FT.FingerTree v a, TwoPointedList v a)
 > cutRegionL w = case w of
 >   Vacant -> Nothing
 >   PointOnly _ -> Nothing
@@ -868,9 +868,9 @@ Our next region operation is _cut_. This removes the region, returning it along 
 Finally, we have _insert_. We'd like insert and cut to be as close to inverses of each other as possible, although this is tricky; I think the best we can hope for is that cut is a left inverse of insert "up to a clearing of the mark".
 
 > insertRegionL
->   :: forall m a
->    . ( Valued m a )
->   => FT.FingerTree m a -> TwoPointedList m a -> TwoPointedList m a
+>   :: forall v a
+>    . ( Valued v a )
+>   => FT.FingerTree v a -> TwoPointedList v a -> TwoPointedList v a
 > insertRegionL us w = case FT.uncons us of
 >   Nothing -> w
 >   Just (u, us') -> case w of
@@ -929,8 +929,8 @@ Measurement
 As with one-pointed lists, it will be handy to have access to the accumulated value annotations at the point, mark, and end of a two-pointed list. First we define a `Valued` instance, which gives us the accumulated value at the end.
 
 > instance
->   ( Valued m a
->   ) => Valued m (TwoPointedList m a)
+>   ( Valued v a
+>   ) => Valued v (TwoPointedList v a)
 >   where
 >     value w = case w of
 >       Vacant -> mempty
@@ -946,8 +946,8 @@ As with one-pointed lists, it will be handy to have access to the accumulated va
 We can also extract the accumulated value at the point and the mark. These return a `Maybe` to account for the case where the mark (or point!) is not set.
 
 > valueBeforePoint
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe m
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe v
 > valueBeforePoint w = case w of
 >   Vacant ->
 >     Nothing
@@ -961,8 +961,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Just (value as <> value x <> value bs)
 > 
 > valueAtPoint
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe m
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe v
 > valueAtPoint w = case w of
 >   Vacant -> Nothing
 >   PointOnly (_, x, _) ->
@@ -975,8 +975,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Just (value y)
 > 
 > valueUpToPoint
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe m
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe v
 > valueUpToPoint w = case w of
 >   Vacant ->
 >     Nothing
@@ -990,8 +990,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Just (value as <> value x <> value bs <> value y)
 > 
 > valuesAroundPoint
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe (m,m)
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe (v,v)
 > valuesAroundPoint w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, _) ->
@@ -1012,8 +1012,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 >       Just (z,_) -> Just (value z, value y)
 > 
 > valuesAroundStart
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe (m,m)
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe (v,v)
 > valuesAroundStart w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, _) ->
@@ -1034,8 +1034,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 >       Just (z,_) -> Just (mempty, value z)
 > 
 > valueUpToMark
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe m
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe v
 > valueUpToMark w = case w of
 >   Vacant ->
 >     Nothing
@@ -1049,8 +1049,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 >     Just (value as <> value x)
 > 
 > valueAtMark
->   :: ( Valued m a )
->   => TwoPointedList m a -> Maybe m
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> Maybe v
 > valueAtMark w = case w of
 >   Vacant -> Nothing
 >   PointOnly _ -> Nothing
@@ -1064,8 +1064,8 @@ We can also extract the accumulated value at the point and the mark. These retur
 Finally, we can remeasure a two-pointed list. This will be especially useful for working with text buffers, where the value will encode type level parameters.
 
 > remeasure
->   :: ( Valued m1 a, Valued m2 a )
->   => TwoPointedList m1 a -> TwoPointedList m2 a
+>   :: ( Valued v1 a, Valued v2 a )
+>   => TwoPointedList v1 a -> TwoPointedList v2 a
 > remeasure w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) ->
@@ -1085,8 +1085,8 @@ Splitting
 We can convert a two-pointed list back into a finger tree; this looks sort of like integration at the type level.
 
 > integrate
->   :: ( Valued m a )
->   => TwoPointedList m a -> FT.FingerTree m a
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> FT.FingerTree v a
 > integrate w = case w of
 >   Vacant ->
 >     mempty
@@ -1102,10 +1102,10 @@ We can convert a two-pointed list back into a finger tree; this looks sort of li
 Conversely, we can use split on finger trees to manipulate the point and mark of a two-pointed list. This is the operation that makes two-pointed lists practical; with an appropriate value annotation we can use it to get log complexity random access.
 
 > split
->   :: ( Valued m a )
->   => (m -> Bool)       -- point predicate
->   -> Maybe (m -> Bool) -- mark predicate
->   -> TwoPointedList m a -> Maybe (TwoPointedList m a)
+>   :: ( Valued v a )
+>   => (v -> Bool)       -- point predicate
+>   -> Maybe (v -> Bool) -- mark predicate
+>   -> TwoPointedList v a -> Maybe (TwoPointedList v a)
 > split pointP q w =
 >   let xs = integrate w
 >   in case FT.split pointP xs of
@@ -1123,9 +1123,9 @@ Conversely, we can use split on finger trees to manipulate the point and mark of
 We also provide a splitting function that preserves the mark.
 
 > splitPoint
->   :: ( Valued m a )
->   => (m -> Bool) -- point predicate
->   -> TwoPointedList m a -> Maybe (TwoPointedList m a)
+>   :: ( Valued v a )
+>   => (v -> Bool) -- point predicate
+>   -> TwoPointedList v a -> Maybe (TwoPointedList v a)
 > splitPoint pointP w = case w of
 >   Vacant -> Nothing
 >   PointOnly (as, x, bs) ->
@@ -1185,8 +1185,8 @@ Some examples:
 While we're here, it is also useful to convert two-pointed lists to ordinary lists with the accumulated value annotation.
 
 > toAnnotatedList
->   :: ( Valued m a )
->   => TwoPointedList m a -> [(a,m)]
+>   :: ( Valued v a )
+>   => TwoPointedList v a -> [(a,v)]
 > toAnnotatedList =
 >   FT.toAnnotatedList . integrate
 
@@ -1198,9 +1198,9 @@ Concatenation
 It also makes sense to combine two-pointed lists with other structures in a few ways. In addition to being useful as utility functions, these concatenation operators fit nicely into the theory.
 
 > prependFT
->   :: ( Valued m a )
->   => FT.FingerTree m a
->   -> TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => FT.FingerTree v a
+>   -> TwoPointedList v a -> TwoPointedList v a
 > prependFT xs w = case w of
 >   Vacant -> case FT.unsnoc xs of
 >     Nothing -> Vacant
@@ -1215,9 +1215,9 @@ It also makes sense to combine two-pointed lists with other structures in a few 
 >     MarkPoint (xs <> as, x, bs, y, cs)
 > 
 > appendFT
->   :: ( Valued m a )
->   => FT.FingerTree m a
->   -> TwoPointedList m a -> TwoPointedList m a
+>   :: ( Valued v a )
+>   => FT.FingerTree v a
+>   -> TwoPointedList v a -> TwoPointedList v a
 > appendFT xs w = case w of
 >   Vacant -> case FT.uncons xs of
 >     Nothing -> Vacant
@@ -1239,8 +1239,8 @@ Testing and Debugging
 We end with some utility code. First, we need some class instances for interoperating with our property testing library.
 
 > instance
->   ( Arb a, Valued m a
->   ) => Arb (TwoPointedList m a)
+>   ( Arb a, Valued v a
+>   ) => Arb (TwoPointedList v a)
 >   where
 >     arb = pickFrom5
 >       ( pure Vacant
@@ -1251,8 +1251,8 @@ We end with some utility code. First, we need some class instances for interoper
 >       )
 > 
 > instance
->   ( Prune a, Valued m a
->   ) => Prune (TwoPointedList m a)
+>   ( Prune a, Valued v a
+>   ) => Prune (TwoPointedList v a)
 >   where
 >     prune w = case w of
 >       Vacant -> []
@@ -1276,8 +1276,8 @@ We end with some utility code. First, we need some class instances for interoper
 And finally, since two-pointed lists are built out of finger trees, it will be handy to have a function checking that the underlying structure is valid.
 
 > validate
->   :: ( Eq m, Valued m a )
->   => TwoPointedList m a -> Bool
+>   :: ( Eq v, Valued v a )
+>   => TwoPointedList v a -> Bool
 > validate w = case w of
 >   Vacant -> True
 >   PointOnly (as, _, bs) ->

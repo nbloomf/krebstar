@@ -76,7 +76,7 @@ title: Finger Trees
 Introduction
 ------------
 
-The most basic requirement of a text editor is surely that it provide some mechanism for modeling and manipulating strings of characters. This mechanism had better be pretty robust and efficient, too, at least for common operations, since it will be doing most of the work during everyday use. Several different data structures have been developed for this purpose, including gap buffers and piece tables, but not all of them translate cleanly to a language like Haskell where mutation is very strictly controlled and evaluation is lazy by default.
+The most basic requirement of a text editor is surely that it provide Some vechanism for modeling and manipulating strings of characters. This mechanism had better be pretty robust and efficient, too, at least for common operations, since it will be doing most of the work during everyday use. Several different data structures have been developed for this purpose, including gap buffers and piece tables, but not all of them translate cleanly to a language like Haskell where mutation is very strictly controlled and evaluation is lazy by default.
 
 Choosing a data structure is all about making tradeoffs. We think about our particular application and what data and operations it needs, then choose a structure that makes those operations efficient. With that in mind, what exactly do we need for our simple text editor? I can think of a few things.
 
@@ -103,65 +103,65 @@ Finger trees have nested data of two forms: the _fingers_, which provide amortiz
 
 First for the fingers. The number of values on each end ranges from one to four. Why four? The short answer is that this is the number required to make the complexity proofs work out; it provides just the right balance between _immediate access_ at the fingers and _deep nesting_ in the branches. The Hinze and Paterson paper has the details. We represent the fingers with the following `Some` type.^[Some is also a sum.]
 
-> data Some m a
->   = Only1 m a
->   | Only2 m a a
->   | Only3 m a a a
->   | Only4 m a a a a
+> data Some v a
+>   = Only1 v a
+>   | Only2 v a a
+>   | Only3 v a a a
+>   | Only4 v a a a a
 >   deriving (Eq, Show)
 
 Note the `m` parameter; this is the cached monoidal value of the internal data. Specifically the value of a `Some` is the product of the values of its internal data.
 
 > instance
->   ( Monoid m
->   ) => Valued m (Some m a)
+>   ( Monoid v
+>   ) => Valued v (Some v a)
 >   where
 >     value w = case w of
->       Only1 m _ -> m
->       Only2 m _ _ -> m
->       Only3 m _ _ _ -> m
->       Only4 m _ _ _ _ -> m
+>       Only1 v _ -> v
+>       Only2 v _ _ -> v
+>       Only3 v _ _ _ -> v
+>       Only4 v _ _ _ _ -> v
 
 To maintain the invariant that our cached value is accurate, it's important that we only create `Some` values using the following _smart constructors_. The `Valued` class here is essential; this is where the `Monoid` instance on `m` is enforced.
 
 > only1
->   :: ( Valued m a )
->   => a -> Some m a
-> only1 a1 = Only1 m a1
->   where m = value a1
+>   :: ( Valued v a )
+>   => a -> Some v a
+> only1 a1 = Only1 v a1
+>   where v = value a1
 > 
 > only2
->   :: ( Valued m a )
->   => a -> a -> Some m a
+>   :: ( Valued v a )
+>   => a -> a -> Some v a
 > only2 a1 a2 =
 >   let
->     m = mconcat
+>     v = mconcat
 >       [ value a1, value a2 ]
->   in Only2 m a1 a2 
+>   in Only2 v a1 a2 
 > 
 > only3
->   :: ( Valued m a )
->   => a -> a -> a -> Some m a
+>   :: ( Valued v a )
+>   => a -> a -> a -> Some v a
 > only3 a1 a2 a3 =
 >   let
->     m = mconcat
+>     v = mconcat
 >       [ value a1, value a2, value a3 ]
->   in Only3 m a1 a2 a3 
+>   in Only3 v a1 a2 a3 
 > 
 > only4
->   :: ( Valued m a )
->   => a -> a -> a -> a -> Some m a
+>   :: ( Valued v a )
+>   => a -> a -> a -> a -> Some v a
 > only4 a1 a2 a3 a4 =
 >   let
->     m = mconcat
+>     v = mconcat
 >       [ value a1, value a2, value a3, value a4 ]
->   in Only4 m a1 a2 a3 a4 
+>   in Only4 v a1 a2 a3 a4 
 
 These constructors are not exposed outside this module since they are only used in the internal representation. For instance, we use them to define something like `fmap` for `Some` -- although we can't use the `Functor` typeclass for this due to the `Valued` constraint. (A common theme for types based on finger trees.)
 
 > fmapSome
->   :: ( Valued m1 a1, Valued m2 a2 )
->   => (a1 -> a2) -> Some m1 a1 -> Some m2 a2
+>   :: ( Valued v1 a1, Valued v2 a2 )
+>   => (a1 -> a2) -> Some v1 a1 -> Some v2 a2
 > fmapSome f x = case x of
 >   Only1 _ u1 ->
 >     only1 (f u1)
@@ -203,9 +203,9 @@ We can test our intuition for how `fmapSome` should behave with an example.
 
 Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clarity). Here we do have a bona fide class instance because we don't need to use the smart constructors.
 
-> instance Foldable (Some m) where
+> instance Foldable (Some v) where
 >   toList
->     :: Some m a -> [a]
+>     :: Some v a -> [a]
 >   toList w = case w of
 >     Only1 _ a1 -> [a1]
 >     Only2 _ a1 a2 -> [a1, a2]
@@ -213,7 +213,7 @@ Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clar
 >     Only4 _ a1 a2 a3 a4 -> [a1, a2, a3, a4]
 > 
 >   foldr
->     :: (a -> b -> b) -> b -> Some m a -> b
+>     :: (a -> b -> b) -> b -> Some v a -> b
 >   foldr f b w = case w of
 >     Only1 _ a1 ->
 >       f a1 b
@@ -225,7 +225,7 @@ Next we have a `Foldable` instance (this is where we use `InstanceSigs` for clar
 >       f a1 (f a2 (f a3 (f a4 b)))
 > 
 >   foldl
->     :: (b -> a -> b) -> b -> Some m a -> b
+>     :: (b -> a -> b) -> b -> Some v a -> b
 >   foldl f b w = case w of
 >     Only1 _ a1 ->
 >       f b a1
@@ -253,44 +253,44 @@ This instance is mainly used as a helper for defining the instance for `FingerTr
 
 Next we have a nested tree type. Finger trees are basically rearranged 2-3 trees, and the nested `Node` type represents internal branching nodes of this sort.
 
-> data Node m a
->  = Node2 m a a
->  | Node3 m a a a
+> data Node v a
+>  = Node2 v a a
+>  | Node3 v a a a
 >  deriving (Eq, Show)
 
 Again we cache the value of the internal data, using smart constructors to maintain the integrity of the cache.
 
 > instance
->   ( Monoid m
->   ) => Valued m (Node m a)
+>   ( Monoid v
+>   ) => Valued v (Node v a)
 >   where
 >     value w = case w of
->       Node2 m _ _ -> m
->       Node3 m _ _ _ -> m
+>       Node2 v _ _ -> v
+>       Node3 v _ _ _ -> v
 > 
 > node2
->   :: ( Valued m a )
->   => a -> a -> Node m a
+>   :: ( Valued v a )
+>   => a -> a -> Node v a
 > node2 a1 a2 =
 >   let
->     m = mconcat
+>     v = mconcat
 >       [ value a1, value a2 ]
->   in Node2 m a1 a2
+>   in Node2 v a1 a2
 > 
 > node3
->   :: ( Valued m a )
->   => a -> a -> a -> Node m a
+>   :: ( Valued v a )
+>   => a -> a -> a -> Node v a
 > node3 a1 a2 a3 =
 >   let
->     m = mconcat
+>     v = mconcat
 >       [ value a1, value a2, value a3 ]
->   in Node3 m a1 a2 a3
+>   in Node3 v a1 a2 a3
 
 From here we can give something like `fmap` for `Node`, again outside of the usual typeclass because of the `Valued` constraint.
 
 > fmapNode
->   :: ( Valued m1 a1, Valued m2 a2 )
->   => (a1 -> a2) -> Node m1 a1 -> Node m2 a2
+>   :: ( Valued v1 a1, Valued v2 a2 )
+>   => (a1 -> a2) -> Node v1 a1 -> Node v2 a2
 > fmapNode f x = case x of
 >   Node2 _ u1 u2 ->
 >     node2 (f u1) (f u2)
@@ -308,15 +308,15 @@ From here we can give something like `fmap` for `Node`, again outside of the usu
 
 And we need a `Foldable` instance:
 
-> instance Foldable (Node m) where
+> instance Foldable (Node v) where
 >   toList
->     :: Node m a -> [a]
+>     :: Node v a -> [a]
 >   toList w = case w of
 >     Node2 _ a1 a2 -> [a1, a2]
 >     Node3 _ a1 a2 a3 -> [a1, a2, a3]
 > 
 >   foldr
->     :: (a -> b -> b) -> b -> Node m a -> b
+>     :: (a -> b -> b) -> b -> Node v a -> b
 >   foldr f b w = case w of
 >     Node2 _ a1 a2 ->
 >       f a1 (f a2 b)
@@ -324,7 +324,7 @@ And we need a `Foldable` instance:
 >       f a1 (f a2 (f a3 b))
 > 
 >   foldl
->     :: (b -> a -> b) -> b -> Node m a -> b
+>     :: (b -> a -> b) -> b -> Node v a -> b
 >   foldl f b w = case w of
 >     Node2 _ a1 a2 ->
 >       f (f b a1) a2
@@ -334,8 +334,8 @@ And we need a `Foldable` instance:
 Finally, note that `Node` can be thought of as a strict subset of `Some`. We use a helper function, `toSome`, to make this formal.
 
 > toSome
->   :: ( Valued m a )
->   => Node m a -> Some m a
+>   :: ( Valued v a )
+>   => Node v a -> Some v a
 > toSome w = case w of
 >   Node2 _ a1 a2 -> only2 a1 a2
 >   Node3 _ a1 a2 a3 -> only3 a1 a2 a3
@@ -347,41 +347,41 @@ Finger Trees
 
 Now for the big show. A finger tree is either empty, or consists of a single node (with its cached value), or has some left and right fingers with a nested finger tree in the middle (with the cached product of their values).
 
-> data FingerTree m a
+> data FingerTree v a
 >   = Stump
->   | Leaf m a
->   | Branch m
->       (Some m a)                -- left fingers
->       (FingerTree m (Node m a)) -- nested tree
->       (Some m a)                -- right fingers
+>   | Leaf v a
+>   | Branch v
+>       (Some v a)                -- left fingers
+>       (FingerTree v (Node v a)) -- nested tree
+>       (Some v a)                -- right fingers
 
-Note that the second type parameter of the outer appearance of `FingerTree` is simply `a`, while on the inner appearance it is `Node m a`. This is polymorphic recursion, and it took me a while to wrap my head around what it means.
+Note that the second type parameter of the outer appearance of `FingerTree` is simply `a`, while on the inner appearance it is `Node v a`. This is polymorphic recursion, and it took me a while to wrap my head around what it means.
 
 As with `Some` and `Node`, `FingerTree` inherits an instance of `Valued` and to maintain integrity we must only use smart constructors to define them.
 
 > instance
->   ( Valued m a
->   ) => Valued m (FingerTree m a)
+>   ( Valued v a
+>   ) => Valued v (FingerTree v a)
 >   where
 >     value w = case w of
 >       Stump          -> mempty
->       Leaf   m _     -> m
->       Branch m _ _ _ -> m
+>       Leaf   v _     -> v
+>       Branch v _ _ _ -> v
 > 
 > stump
->   :: FingerTree m a
+>   :: FingerTree v a
 > stump = Stump
 > 
 > leaf
->   :: ( Valued m a )
->   => a -> FingerTree m a
+>   :: ( Valued v a )
+>   => a -> FingerTree v a
 > leaf a = Leaf m a
 >   where m = value a
 > 
 > branch
->   :: ( Valued m a )
->   => Some m a -> FingerTree m (Node m a) -> Some m a
->   -> FingerTree m a
+>   :: ( Valued v a )
+>   => Some v a -> FingerTree v (Node v a) -> Some v a
+>   -> FingerTree v a
 > branch heads mids lasts =
 >   let
 >      m = mconcat
@@ -391,19 +391,19 @@ As with `Some` and `Node`, `FingerTree` inherits an instance of `Valued` and to 
 These constructors are useful inside this module, where we know (and need to know) the internal structure of a finger tree. But outside this module it will be more useful to expose constructors with less concrete names.
 
 > empty
->   :: FingerTree m a
+>   :: FingerTree v a
 > empty = stump
 > 
 > singleton
->   :: ( Valued m a )
->   => a -> FingerTree m a
+>   :: ( Valued v a )
+>   => a -> FingerTree v a
 > singleton = leaf
 
 Also, just as every `Node` can be converted into a `Some`, every `Some` can be converted to a `FingerTree`. This conversion will come in handy later so we define it here, but this code is not exposed outside of this module.
 
 > someToFingerTree
->   :: ( Valued m a )
->   => Some m a -> FingerTree m a
+>   :: ( Valued v a )
+>   => Some v a -> FingerTree v a
 > someToFingerTree w = case w of
 >   Only1 _ a1 ->
 >     leaf a1
@@ -415,8 +415,8 @@ Also, just as every `Node` can be converted into a `Some`, every `Some` can be c
 >     branch (only2 a1 a2) stump (only2 a3 a4)
 > 
 > maybeSomeToFingerTree
->   :: ( Valued m a )
->   => Maybe (Some m a) -> FingerTree m a
+>   :: ( Valued v a )
+>   => Maybe (Some v a) -> FingerTree v a
 > maybeSomeToFingerTree w = case w of
 >   Nothing -> stump
 >   Just z -> someToFingerTree z
@@ -429,14 +429,14 @@ Queries
 Next we define some simple structural queries on finger trees. We can detect whether the tree is empty or a singleton.
 
 > isEmpty
->   :: FingerTree m a -> Bool
+>   :: FingerTree v a -> Bool
 > isEmpty x = case x of
 >   Stump -> True
 >   _     -> False
 > 
 > isSingleton
->   :: ( Valued m a )
->   => FingerTree m a -> Bool
+>   :: ( Valued v a )
+>   => FingerTree v a -> Bool
 > isSingleton x = case x of
 >   Leaf _ _ -> True
 >   _        -> False
@@ -444,7 +444,7 @@ Next we define some simple structural queries on finger trees. We can detect whe
 Next we define very basic queries for reading the first or last item in a nonempty finger tree. Recall that efficient access to these items is the point of the finger. (These are very basic; we'll define much more powerful _destructors_ which generalize this behavior in a bit.)
 
 > readInit
->   :: FingerTree m a -> Maybe a
+>   :: FingerTree v a -> Maybe a
 > readInit w = case w of
 >   Stump -> Nothing
 >   Leaf _ a -> Just a
@@ -455,7 +455,7 @@ Next we define very basic queries for reading the first or last item in a nonemp
 >     Only4 _ a _ _ _ -> Just a
 > 
 > readLast
->   :: FingerTree m a -> Maybe a
+>   :: FingerTree v a -> Maybe a
 > readLast w = case w of
 >   Stump -> Nothing
 >   Leaf _ a -> Just a
@@ -472,9 +472,9 @@ Class Instances
 
 It isn't too surprising that we have a `Foldable` instance for finger trees.
 
-> instance Foldable (FingerTree m) where
+> instance Foldable (FingerTree v) where
 >   toList
->     :: FingerTree m a -> [a]
+>     :: FingerTree v a -> [a]
 >   toList w = case w of
 >     Stump -> []
 >     Leaf _ a -> [a]
@@ -482,7 +482,7 @@ It isn't too surprising that we have a `Foldable` instance for finger trees.
 >       [ toList as1, concatMap toList as2, toList as3 ]
 > 
 >   foldr
->     :: (a -> b -> b) -> b -> FingerTree m a -> b
+>     :: (a -> b -> b) -> b -> FingerTree v a -> b
 >   foldr f b w = case w of
 >     Stump -> b
 >     Leaf _ a -> f a b
@@ -491,7 +491,7 @@ It isn't too surprising that we have a `Foldable` instance for finger trees.
 >         (foldr (flip (foldr f)) (foldr f b as3) as2) as1
 > 
 >   foldl
->     :: (b -> a -> b) -> b -> FingerTree m a -> b
+>     :: (b -> a -> b) -> b -> FingerTree v a -> b
 >   foldl f b w = case w of
 >     Stump -> b
 >     Leaf _ a -> f b a
@@ -501,15 +501,15 @@ It isn't too surprising that we have a `Foldable` instance for finger trees.
 
 Note that we didn't derive the `Eq` instance for `FingerTree`. This is because in some sense the tree structure itself is only incidental, used for maintaining the fingers and caching values. The meat of the structure is the left-to-right traversal of the leaf nodes and fingers, and the derived (structural) equality instance would be too granular. To get around this we'll instead check for equality on `FingerTree`s by converting to lists first, using the `Foldable` instance.
 
-> instance (Eq a) => Eq (FingerTree m a) where
+> instance (Eq a) => Eq (FingerTree v a) where
 >   a == b = (toList a) == (toList b)
 
 We'd also like for finger trees to be a functor. Unfortunately this can't be expressed in the Haskell type system (as far as I know) due to the `Valued` class constraint. We can however define a bespoke `fmap`-like function on finger trees.
 
 > fmapFT
->   :: forall m1 m2 a1 a2
->    . ( Valued m1 a1, Valued m2 a2 )
->   => (a1 -> a2) -> FingerTree m1 a1 -> FingerTree m2 a2
+>   :: forall v1 v2 a1 a2
+>    . ( Valued v1 a1, Valued v2 a2 )
+>   => (a1 -> a2) -> FingerTree v1 a1 -> FingerTree v2 a2
 > fmapFT f x = case x of
 >   Stump -> stump
 >   Leaf _ a -> leaf (f a)
@@ -521,9 +521,9 @@ We'd also like for finger trees to be a functor. Unfortunately this can't be exp
 With this version of `fmap` we can do something interesting. Mapping with `id` can swap out the cached value monoid.
 
 > remeasure
->  :: forall m1 m2 a
->   . ( Valued m1 a, Valued m2 a )
->  => FingerTree m1 a -> FingerTree m2 a
+>  :: forall v1 v2 a
+>   . ( Valued v1 a, Valued v2 a )
+>  => FingerTree v1 a -> FingerTree v2 a
 > remeasure = fmapFT id
 
 > traverseFT
@@ -548,8 +548,8 @@ In this section we'll implement four of the most important functions on finger t
 The traditional name for appending an item to a list is _cons_, after the Lisp function for this operation. Given a finger tree, if the left end does not have a full complement of fingers then `cons` is a constant time operation. If it does, then we take some of the fingers and recursively `cons` them as a node to the inner tree. This is the first place where the magic numbers 4 and 3, for the numbers of fingers and children per node, respectively, become important.
 
 > cons
->  :: ( Valued m a )
->  => a -> FingerTree m a -> FingerTree m a
+>  :: ( Valued v a )
+>  => a -> FingerTree v a -> FingerTree v a
 > cons u w = case w of
 >  Stump -> leaf u
 >  Leaf _ a -> branch (only1 u) stump (only1 a)
@@ -566,8 +566,8 @@ The traditional name for appending an item to a list is _cons_, after the Lisp f
 With `cons` in hand we can now write a helper for converting lists into finger trees; this is handy for testing.
 
 > fromList
->  :: ( Valued m a )
->  => [a] -> FingerTree m a
+>  :: ( Valued v a )
+>  => [a] -> FingerTree v a
 > fromList = foldr cons stump
 
 At this point we can also test some interesting examples.
@@ -596,14 +596,14 @@ At this point we can also test some interesting examples.
 
 Before moving on, with `fromList` in hand we can also give a convenient `Show` instance. Note that the derived instance would include a lot of superfluous information about the internal structure of the tree.
 
-> instance (Show a) => Show (FingerTree m a) where
+> instance (Show a) => Show (FingerTree v a) where
 >   show a = "fromList " ++ show (toList a)
 
 The mirror operation -- appending on the right -- is defined similarly. This is called `snoc`.
 
 > snoc
->  :: ( Valued m a )
->  => a -> FingerTree m a -> FingerTree m a
+>  :: ( Valued v a )
+>  => a -> FingerTree v a -> FingerTree v a
 > snoc u w = case w of
 >  Stump -> leaf u
 >  Leaf _ a -> branch (only1 a) stump (only1 u)
@@ -620,8 +620,8 @@ The mirror operation -- appending on the right -- is defined similarly. This is 
 With `snoc` we can reverse the tree.
 
 > reverse
->   :: ( Valued m a )
->   => FingerTree m a -> FingerTree m a
+>   :: ( Valued v a )
+>   => FingerTree v a -> FingerTree v a
 > reverse = foldr snoc mempty
 
 For example:
@@ -645,9 +645,9 @@ For example:
 Like `cons`, `uncons` is very fast if the left side of the tree has fingers to spare. But if not, we have to do a kind of recursive borrowing.^[Think "borrow" as in the usual algorithm for subtracting natural numbers.]
 
 > uncons
->   :: ( Valued m a )
->   => FingerTree m a
->   -> Maybe (a, FingerTree m a)
+>   :: ( Valued v a )
+>   => FingerTree v a
+>   -> Maybe (a, FingerTree v a)
 > uncons w = case w of
 >   Stump -> Nothing
 >   Leaf _ a -> Just (a, stump)
@@ -656,9 +656,9 @@ Like `cons`, `uncons` is very fast if the left side of the tree has fingers to s
 >     in Just (a, borrowL as as2 as3)
 >   where
 >     uncons'
->       :: ( Valued m a )
->       => Some m a
->       -> (a, Maybe (Some m a))
+>       :: ( Valued v a )
+>       => Some v a
+>       -> (a, Maybe (Some v a))
 >     uncons' w = case w of
 >       Only1 _ a1 -> (a1, Nothing)
 >       Only2 _ a1 a2 -> (a1, Just (only1 a2))
@@ -666,11 +666,11 @@ Like `cons`, `uncons` is very fast if the left side of the tree has fingers to s
 >       Only4 _ a1 a2 a3 a4 -> (a1, Just (only3 a2 a3 a4))
 > 
 > borrowL
->  :: ( Valued m a )
->  => Maybe (Some m a)
->  -> FingerTree m (Node m a)
->  -> Some m a
->  -> FingerTree m a
+>  :: ( Valued v a )
+>  => Maybe (Some v a)
+>  -> FingerTree v (Node v a)
+>  -> Some v a
+>  -> FingerTree v a
 > borrowL w as2 as3 = case w of
 >  Just as1 -> branch as1 as2 as3
 >  Nothing -> case uncons as2 of
@@ -680,8 +680,8 @@ Like `cons`, `uncons` is very fast if the left side of the tree has fingers to s
 With `uncons`, we can define an alternate version of `toList` (from the `Foldable` class) that also returns the accumulated value annotations. This will be handy in a few places.
 
 > toAnnotatedList
->  :: ( Valued m a )
->  => FingerTree m a -> [(a,m)]
+>  :: ( Valued v a )
+>  => FingerTree v a -> [(a,v)]
 > toAnnotatedList xs = foo mempty xs
 >  where
 >    foo e z = case uncons z of
@@ -693,9 +693,9 @@ With `uncons`, we can define an alternate version of `toList` (from the `Foldabl
 And there's an analogous partner for `snoc`.
 
 > unsnoc
->   :: ( Valued m a )
->   => FingerTree m a
->   -> Maybe (a, FingerTree m a)
+>   :: ( Valued v a )
+>   => FingerTree v a
+>   -> Maybe (a, FingerTree v a)
 > unsnoc w = case w of
 >   Stump -> Nothing
 >   Leaf _ a -> Just (a, stump)
@@ -704,9 +704,9 @@ And there's an analogous partner for `snoc`.
 >     in Just (a, borrowR as1 as2 as)
 >   where
 >     unsnoc'
->       :: ( Valued m a )
->       => Some m a
->       -> (a, Maybe (Some m a))
+>       :: ( Valued v a )
+>       => Some v a
+>       -> (a, Maybe (Some v a))
 >     unsnoc' w = case w of
 >       Only1 _ a1 -> (a1, Nothing)
 >       Only2 _ a1 a2 -> (a2, Just (only1 a1))
@@ -714,11 +714,11 @@ And there's an analogous partner for `snoc`.
 >       Only4 _ a1 a2 a3 a4 -> (a4, Just (only3 a1 a2 a3))
 > 
 > borrowR
->  :: ( Valued m a )
->  => Some m a
->  -> FingerTree m (Node m a)
->  -> Maybe (Some m a)
->  -> FingerTree m a
+>  :: ( Valued v a )
+>  => Some v a
+>  -> FingerTree v (Node v a)
+>  -> Maybe (Some v a)
+>  -> FingerTree v a
 > borrowR as1 as2 w = case w of
 >  Just as3 -> branch as1 as2 as3
 >  Nothing -> case unsnoc as2 of
@@ -752,11 +752,11 @@ Concatenation
 Despite the name, finger trees are really list-like, and on such structures it's typically handy to be able to append one list to another. The fancy word for this is _concatenation_. Before defining concatenation proper, we start with a generalized version that takes an additional list of elements to insert between the concatenands.
 
 > concatWithList
->  :: ( Valued m a )
->  => FingerTree m a
+>  :: ( Valued v a )
+>  => FingerTree v a
 >  -> [a]
->  -> FingerTree m a
->  -> FingerTree m a
+>  -> FingerTree v a
+>  -> FingerTree v a
 > concatWithList u as v = case u of
 >  Stump -> foldr cons v as
 >  Leaf _ a -> cons a (foldr cons v as)
@@ -768,8 +768,8 @@ Despite the name, finger trees are really list-like, and on such structures it's
 >      in branch us1 (concatWithList us2 (toNodes ns) vs2) vs3
 >   where
 >     toNodes
->       :: ( Valued m a )
->       => [a] -> [Node m a]
+>       :: ( Valued v a )
+>       => [a] -> [Node v a]
 >     toNodes w = case w of
 >       [] -> []
 >       [a1, a2] -> [node2 a1 a2]
@@ -798,26 +798,26 @@ We can test this with an example.
 Now the real `cat` is a specialization of `concatWithList`, and along with `empty` makes the type of finger trees into a monoid.
 
 > instance
->  ( Valued m a
->  ) => Semigroup (FingerTree m a)
+>  ( Valued v a
+>  ) => Semigroup (FingerTree v a)
 >  where
 >    u <> v = concatWithList u [] v
 > 
 > instance
->  ( Valued m a
->  ) => Monoid (FingerTree m a)
+>  ( Valued v a
+>  ) => Monoid (FingerTree v a)
 >  where
 >    mempty = empty
 
 We end with a kind of generalized `join` on finger trees. The intuition behind `inflateWith` is that each entry in an input finger tree is expanded to a subsequence.
 
 > inflateWith
->   :: forall m1 m2 a b
->    . ( Valued m1 a, Valued m2 b )
->   => (a -> [b]) -> FingerTree m1 a -> FingerTree m2 b
+>   :: forall v1 v2 a b
+>    . ( Valued v1 a, Valued v2 b )
+>   => (a -> [b]) -> FingerTree v1 a -> FingerTree v2 b
 > inflateWith f w = inflate w
 >   where
->     inflate :: FingerTree m1 a -> FingerTree m2 b
+>     inflate :: FingerTree v1 a -> FingerTree v2 b
 >     inflate w = case uncons w of
 >       Nothing -> mempty
 >       Just (a, as) -> (fromList (f a)) <> inflate as
@@ -840,9 +840,9 @@ It's natural to wonder why this is a useful thing to do. Well, for a judiciously
 First we need a version of this operation on the fingers. This is pretty tedious because we're essentially using brute force to make sure the output satisfies the splitting properties. (`splitSome` is only used inside this module.) Tedious though it is, note that `splitSome` has constant complexity.
 
 > splitSome
->  :: ( Valued m a )
->  => (m -> Bool) -> m -> Some m a
->  -> Maybe (Maybe (Some m a), a, Maybe (Some m a))
+>  :: ( Valued v a )
+>  => (v -> Bool) -> v -> Some v a
+>  -> Maybe (Maybe (Some v a), a, Maybe (Some v a))
 > splitSome p i w = case w of
 >  Only1 _ a1 ->
 >    let v1 = i <> (value a1) in
@@ -896,9 +896,9 @@ We use the cached value at each node to decide whether to continue the search do
 Note also that the input to `splitWithContext` needs to satisfy a precondition: the value of the entire finger tree should be true. This is (I think) what guarantees that the search will succeed.
 
 > splitWithContext
->  :: ( Valued m a )
->  => m -> (m -> Bool) -> FingerTree m a
->  -> Maybe (FingerTree m a, a, FingerTree m a)
+>  :: ( Valued v a )
+>  => v -> (v -> Bool) -> FingerTree v a
+>  -> Maybe (FingerTree v a, a, FingerTree v a)
 > splitWithContext i p w =
 >   if p i
 >     then case uncons w of
@@ -953,10 +953,10 @@ Note also that the input to `splitWithContext` needs to satisfy a precondition: 
 Now the general `split` function just specializes `splitWithContext` to the identity.
 
 > split
->  :: ( Valued m a )
->  => (m -> Bool)
->  -> FingerTree m a
->  -> Maybe (FingerTree m a, a, FingerTree m a)
+>  :: ( Valued v a )
+>  => (v -> Bool)
+>  -> FingerTree v a
+>  -> Maybe (FingerTree v a, a, FingerTree v a)
 > split p w = splitWithContext mempty p w
 
 Now's a good time for some examples.
@@ -1015,41 +1015,41 @@ Testing and Debugging
 Finally we define some utilities to help with testing. First, to interoperate with our testing framework, we need `FingerTree` to be an instance of some type classes.
 
 > instance
->   ( Arb a, Valued m a
->   ) => Arb (FingerTree m a)
+>   ( Arb a, Valued v a
+>   ) => Arb (FingerTree v a)
 >   where
 >     arb = fromList <$> arb
 > 
 > instance
->   ( Prune a, Valued m a
->   ) => Prune (FingerTree m a)
+>   ( Prune a, Valued v a
+>   ) => Prune (FingerTree v a)
 >   where
 >     prune =
 >       map fromList . prune . toList
 > 
 > instance
->   ( CoArb a, Valued m a
->   ) => CoArb (FingerTree m a)
+>   ( CoArb a, Valued v a
+>   ) => CoArb (FingerTree v a)
 >   where
 >     coarb x = coarb (toList x)
 > 
 > instance
->   ( MakeTo a, Valued m a
->   ) => MakeTo (FingerTree m a)
+>   ( MakeTo a, Valued v a
+>   ) => MakeTo (FingerTree v a)
 >   where
 >     makeTo = makeToExtendWith
 >       makeTo toList fromList
 
-Next, recall that our finger tree type has an internal invariant that needs to be maintained in order for the complexity and correctness proofs of our algorithms to hold. Namely, the cached monoidal value at each node must be the product of the monoidal values of the node's contents. We introduce a function (only used for testing) to check this. Note how polymorphic recursion makes this a little tricky.
+Next, recall that our finger tree type has an internal invariant that needs to be maintained in order for the complexity and correctness proofs of our algorithms to hold. Namely, the cached monoidal value at each Node vust be the product of the monoidal values of the node's contents. We introduce a function (only used for testing) to check this. Note how polymorphic recursion makes this a little tricky.
 
 > validate
->   :: ( Eq m, Valued m a )
->   => FingerTree m a -> Bool
+>   :: ( Eq v, Valued v a )
+>   => FingerTree v a -> Bool
 > validate = validateNested (const True)
 >   where
 >     validateNested
->       :: ( Eq m, Valued m a )
->       => (a -> Bool) -> FingerTree m a -> Bool
+>       :: ( Eq v, Valued v a )
+>       => (a -> Bool) -> FingerTree v a -> Bool
 >     validateNested valid xs = case xs of
 >       Stump ->
 >         True
@@ -1063,36 +1063,36 @@ Next, recall that our finger tree type has an internal invariant that needs to b
 >         ]
 > 
 >     validateSome
->       :: ( Eq m, Valued m a )
->       => (a -> Bool) -> Some m a -> Bool
+>       :: ( Eq v, Valued v a )
+>       => (a -> Bool) -> Some v a -> Bool
 >     validateSome valid x = case x of
->       Only1 m a1 -> and
->         [ m == value a1
+>       Only1 v a1 -> and
+>         [ v == value a1
 >         , valid a1
 >         ]
->       Only2 m a1 a2 -> and
->         [ m == mconcat [ value a1, value a2 ]
+>       Only2 v a1 a2 -> and
+>         [ v == mconcat [ value a1, value a2 ]
 >         , valid a1, valid a2
 >         ]
->       Only3 m a1 a2 a3 -> and
->         [ m == mconcat [ value a1, value a2, value a3 ]
+>       Only3 v a1 a2 a3 -> and
+>         [ v == mconcat [ value a1, value a2, value a3 ]
 >         , valid a1, valid a2, valid a3
 >         ]
->       Only4 m a1 a2 a3 a4 -> and
->         [ m == mconcat [ value a1, value a2, value a3, value a4 ]
+>       Only4 v a1 a2 a3 a4 -> and
+>         [ v == mconcat [ value a1, value a2, value a3, value a4 ]
 >         , valid a1, valid a2, valid a3, valid a4
 >         ]
 > 
 >     validateNode
->       :: ( Eq m, Valued m a )
->       => (a -> Bool) -> Node m a -> Bool
+>       :: ( Eq v, Valued v a )
+>       => (a -> Bool) -> Node v a -> Bool
 >     validateNode valid x = case x of
->       Node2 m a1 a2 -> and
->         [ m == mconcat [ value a1, value a2 ]
+>       Node2 v a1 a2 -> and
+>         [ v == mconcat [ value a1, value a2 ]
 >         , valid a1, valid a2
 >         ]
->       Node3 m a1 a2 a3 -> and
->         [ m == mconcat [ value a1, value a2, value a3 ]
+>       Node3 v a1 a2 a3 -> and
+>         [ v == mconcat [ value a1, value a2, value a3 ]
 >         , valid a1, valid a2, valid a3
 >         ]
 

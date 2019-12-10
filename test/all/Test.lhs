@@ -20,8 +20,8 @@
 >   putStrLn "\n\n\x1b[1;32mRunning property tests\x1b[0;39;49m"
 >   setEnv "TASTY_NUM_THREADS" "6"
 >   setEnv "TASTY_HIDE_SUCCESSES" "TRUE"
->   setEnv "TASTY_KREBCHECK_MAX_SIZE" "500"
->   setEnv "TASTY_KREBCHECK_TESTS" "1500"
+>   setEnv "TASTY_KREBCHECK_MAX_SIZE" "1000"
+>   setEnv "TASTY_KREBCHECK_TESTS" "5000"
 >   putStrLn "\n"
 >   defaultMain $
 >     testGroup "All Tests"

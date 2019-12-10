@@ -151,7 +151,7 @@ Because we've hidden the `Valued` constraint, we can give a real `Functor` insta
 
 > instance Functor Sequence where
 >   fmap f (Sequence x) =
->     Sequence $ OPL.fmapList (fmap f) x
+>     Sequence $ OPL.fmapOPL (fmap f) x
 
 ::: doctest
 
@@ -446,7 +446,7 @@ And alter at the ends and the point.
 >   => (a -> m a)
 >   -> Sequence a -> m (Sequence a)
 > alterPointM f (Sequence seq) = do
->   seq' <- OPL.alterPointM (\(Item x) -> fmap Item $ f x) seq
+>   seq' <- OPL.alterPointA (\(Item x) -> fmap Item $ f x) seq
 >   return $ Sequence seq'
 
 

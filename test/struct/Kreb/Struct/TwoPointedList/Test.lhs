@@ -40,8 +40,8 @@ title: Kreb.Struct.TwoPointedList.Test
 >           (foldMap :: forall u n . (Monoid n) => (u -> n) -> TwoPointedList Count u -> n)
 >           (foldr :: (Bool -> Bool -> Bool) -> Bool -> TwoPointedList Count Bool -> Bool)
 >       , test_FoldableFunctor_laws_with
->           (fmapList :: (Bool -> Bool) -> TwoPointedList Count Bool -> TwoPointedList Count Bool)
->           (fmapList :: (Bool -> Bool) -> TwoPointedList Count Bool -> TwoPointedList Count Bool)
+>           (fmapTPL :: (Bool -> Bool) -> TwoPointedList Count Bool -> TwoPointedList Count Bool)
+>           (fmapTPL :: (Bool -> Bool) -> TwoPointedList Count Bool -> TwoPointedList Count Bool)
 >           (fold :: TwoPointedList Count Bool -> Bool)
 >           (foldMap :: forall u n . (Monoid n) => (u -> n) -> TwoPointedList Count u -> n)
 >       ]
