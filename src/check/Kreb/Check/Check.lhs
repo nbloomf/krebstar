@@ -125,6 +125,20 @@ Outcome of a single test case
 >     then reject "expected False but got True"
 >     else accept
 
+> claimTrueBecause
+>   :: String -> Bool -> Check
+> claimTrueBecause msg p =
+>   if p
+>     then accept
+>     else reject msg
+> 
+> claimFalseBecause
+>   :: String -> Bool -> Check
+> claimFalseBecause msg p =
+>   if p
+>     then reject msg
+>     else accept
+
 > claimEqual
 >   :: ( Eq a, Show a )
 >   => a -> a -> Check

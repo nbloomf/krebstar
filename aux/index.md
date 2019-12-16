@@ -54,6 +54,8 @@ Appendices
     1. [Run Length Encoding](html/RunLengthEncoding.html)
     1. [Two-Pointed Lists](html/TwoPointedList.html)
     1. [Red-Black Trees](html/RedBlackTree.html)
+    1. [Rose Trees](html/RoseTree.html)
+    1. [Pointed Rose Trees](html/PointedRoseTree.html)
 1. Testing Library
 1. Bibliography
 1. Colophon

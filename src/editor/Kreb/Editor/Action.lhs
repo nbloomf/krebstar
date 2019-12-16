@@ -120,77 +120,79 @@
 >   :: ( Monad m )
 >   => AppEnv m -> AppState m -> EventId -> Action
 >   -> m (Either AppSignal (AppState m))
-> performAction env st eId act = case act of
->   NoOp -> return $
->     Right st
+> performAction env st eId act = do
+>   logMessageWith (logWriter env) Debug_ $ show act
+>   case act of
+>     NoOp -> return $
+>       Right st
 > 
->   ShowDebug msg -> fmap Right $
->     alterActivePanelM (showDebugMessage eId msg) st
+>     ShowDebug msg -> fmap Right $
+>       alterActivePanelM (showDebugMessage eId msg) st
 > 
->   Quit -> return $
->     Left ExitNormally
+>     Quit -> return $
+>       Left ExitNormally
 > 
->   SetMode mode -> return $
->     Right $ setEditorMode mode st
+>     SetMode mode -> return $
+>       Right $ setEditorMode mode st
 > 
->   CharInsert c -> doPanelActions eId st
->     [PanelAlterText [TextBoxInsert (fromChar c)]]
+>     CharInsert c -> doPanelActions eId st
+>       [PanelAlterText [TextBoxInsert (fromChar c)]]
 > 
->   CharInsertCmd c -> doPanelActions eId st
->     [PanelAlterCmd [TextBoxInsert (fromChar c)]]
+>     CharInsertCmd c -> doPanelActions eId st
+>       [PanelAlterCmd [TextBoxInsert (fromChar c)]]
 > 
->   StringInsert cs -> doPanelActions eId st
->     [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]
+>     StringInsert cs -> doPanelActions eId st
+>       [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]
 > 
->   CharBackspace -> doPanelActions eId st
->     [PanelAlterText [TextBoxBackspace]]
+>     CharBackspace -> doPanelActions eId st
+>       [PanelAlterText [TextBoxBackspace]]
 > 
->   CharBackspaceCmd -> doPanelActions eId st
->     [PanelAlterCmd [TextBoxBackspace]]
+>     CharBackspaceCmd -> doPanelActions eId st
+>       [PanelAlterCmd [TextBoxBackspace]]
 > 
->   CursorUp -> doPanelActions eId st
->     [PanelAlterText [TextBoxCursorUp]]
+>     CursorUp -> doPanelActions eId st
+>       [PanelAlterText [TextBoxCursorUp]]
 > 
->   CursorDown -> doPanelActions eId st
->     [PanelAlterText [TextBoxCursorDown]]
+>     CursorDown -> doPanelActions eId st
+>       [PanelAlterText [TextBoxCursorDown]]
 > 
->   CursorRight -> doPanelActions eId st
->     [PanelAlterText [TextBoxCursorRight]]
+>     CursorRight -> doPanelActions eId st
+>       [PanelAlterText [TextBoxCursorRight]]
 > 
->   CursorLeft -> doPanelActions eId st
->     [PanelAlterText [TextBoxCursorLeft]]
+>     CursorLeft -> doPanelActions eId st
+>       [PanelAlterText [TextBoxCursorLeft]]
 > 
->   LeaveMark -> doPanelActions eId st
->     [PanelAlterText [TextBoxLeaveMark]]
+>     LeaveMark -> doPanelActions eId st
+>       [PanelAlterText [TextBoxLeaveMark]]
 > 
->   ClearMark -> doPanelActions eId st
->     [PanelAlterText [TextBoxClearMark]]
+>     ClearMark -> doPanelActions eId st
+>       [PanelAlterText [TextBoxClearMark]]
 > 
->   WindowResize (w,h) -> fmap Right $
->     setWindowDim eId (w,h) st
+>     WindowResize (w,h) -> fmap Right $
+>       setWindowDim eId (w,h) st
 > 
->   FileLoad path -> doPanelActions eId st
->     [PanelAlterText [TextBoxLoad (fileReader env) path]]
+>     FileLoad path -> doPanelActions eId st
+>       [PanelAlterText [TextBoxLoad (fileReader env) path]]
 > 
->   RunCmd -> do
->     let cmd = queryActivePanel getPanelCmdString st
->     st2 <- alterActivePanelM (alterPanelM eId [PanelClearCmd]) st
->     case cmd of
->       Nothing -> fmap Right $
->         alterActivePanelM (showDebugMessage eId "no command") st2
->       Just str -> do
->         r <- evalHook eId str st2
->         case r of
->           Left err -> do
->             let
->               msg = case err of
->                 Left a -> displayNeat a
->                 Right b -> displayNeat b
->             fmap Right $ alterActivePanelM (showDebugMessage eId (msg ++ "\n")) st2
->           Right st' -> return $ Right st'
+>     RunCmd -> do
+>       let cmd = queryActivePanel getPanelCmdString st
+>       st2 <- alterActivePanelM (alterPanelM eId [PanelClearCmd]) st
+>       case cmd of
+>         Nothing -> fmap Right $
+>           alterActivePanelM (showDebugMessage eId "no command") st2
+>         Just str -> do
+>           r <- evalHook eId str st2
+>           case r of
+>             Left err -> do
+>               let
+>                 msg = case err of
+>                   Left a -> displayNeat a
+>                   Right b -> displayNeat b
+>               fmap Right $ alterActivePanelM (showDebugMessage eId (msg ++ "\n")) st2
+>             Right st' -> return $ Right st'
 > 
->   act -> fmap Right $ alterActivePanelM
->     (showDebugMessage eId $ "Not implemented: " ++ show act) st
+>     act -> fmap Right $ alterActivePanelM
+>       (showDebugMessage eId $ "Not implemented: " ++ show act) st
 
 
 

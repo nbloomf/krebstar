@@ -11,3 +11,4 @@
 > import qualified Kreb.Struct.RoseTree as RT
 > import qualified Kreb.Struct.PointedRoseTree as PRT
 > import qualified Kreb.Struct.RedBlackTree as RBT
+> import qualified Kreb.Struct.FiniteMap as FM

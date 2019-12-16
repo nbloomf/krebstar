@@ -23,6 +23,8 @@
 >   , "src/check/Kreb/Check/Laws/Ringlike.lhs"
 > 
 >   , "src/effect/Kreb/Effect.lhs"
+>   , "src/effect/Kreb/Effect/Data.lhs"
+>   , "src/effect/Kreb/Effect/Mock.lhs"
 > 
 >   , "src/control/Kreb/Control.lhs"
 >   , "src/control/Kreb/Control/LocalSt.lhs"
@@ -30,6 +32,7 @@
 >   , "src/control/Kreb/Control/Trans.lhs"
 >   , "src/control/Kreb/Control/StateT.lhs"
 >   , "src/control/Kreb/Control/EnvT.lhs"
+>   , "src/control/Kreb/Control/Identity.lhs"
 > 
 >   , "src/reflect/Kreb/Reflect.lhs"
 >   , "src/reflect/Kreb/Reflect/Nat.lhs"
@@ -44,6 +47,7 @@
 >   , "src/struct/Kreb/Struct/RoseTree.lhs"
 >   , "src/struct/Kreb/Struct/PointedRoseTree.lhs"
 >   , "src/struct/Kreb/Struct/RedBlackTree.lhs"
+>   , "src/struct/Kreb/Struct/FiniteMap.lhs"
 > 
 >   , "src/text/Kreb/Text.lhs"
 >   , "src/text/Kreb/Text/ScreenOffset.lhs"

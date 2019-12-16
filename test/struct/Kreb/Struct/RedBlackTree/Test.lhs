@@ -13,6 +13,7 @@ title: Kreb.Struct.RedBlackTree.Test
 >     test_RedBlackTree
 > ) where
 > 
+> import Prelude hiding (lookup)
 > import Data.Proxy
 > import Data.List (sort, nub)
 > 
@@ -34,6 +35,15 @@ title: Kreb.Struct.RedBlackTree.Test
 > test_RedBlackTree_properties name _ =
 >   testGroup ("RedBlackTree: " ++ name)
 >     [ testKreb
+>         "isEmpty empty == True" $
+>         claimTrue (isEmpty (empty :: RedBlackTree a))
+> 
+>     , testKreb
+>         "isEmpty (singleton a) == False" $
+>         \(a :: a) ->
+>           claimFalse (isEmpty (singleton a))
+> 
+>     , testKreb
 >         "member a empty == False" $
 >         \(a :: a) ->
 >           claimFalse (member a (empty :: RedBlackTree a))
@@ -119,4 +129,19 @@ title: Kreb.Struct.RedBlackTree.Test
 >         \(as :: RedBlackTree a) ->
 >           claimAll
 >             [ claimEqual (nub (sort (toList $ delete a as))) (toList (delete a as)) | a <- toList as ]
+> 
+>     , testKreb
+>         "lookup a empty == Nothing" $
+>         \(a :: a) ->
+>           claimEqual (lookup a (empty :: RedBlackTree a)) Nothing
+> 
+>     , testKreb
+>         "lookup a (singleton a) == Just a" $
+>         \(a :: a) ->
+>           claimEqual (lookup a (singleton a)) (Just a)
+> 
+>     , testKreb
+>         "lookup a (delete a as) == Nothing" $
+>         \(a :: a) (as :: RedBlackTree a) ->
+>           claimEqual (lookup a (delete a as)) Nothing
 >     ]

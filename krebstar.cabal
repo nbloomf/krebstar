@@ -69,20 +69,6 @@ test-suite kreb-check-test
 
 
 
--- =========== --
--- Kreb Effect --
--- =========== --
-
-library kreb-effect
-  default-language: Haskell2010
-  hs-source-dirs: src/effect
-  exposed-modules:
-      Kreb.Effect
-  build-depends:
-      base >=4.7 && <5
-
-
-
 -- ============ --
 -- Kreb Control --
 -- ============ --
@@ -97,6 +83,7 @@ library kreb-control
     , Kreb.Control.EnvT
     , Kreb.Control.ReplT
     , Kreb.Control.Trans
+    , Kreb.Control.Identity
   build-depends:
       base >=4.7 && <5
 
@@ -167,6 +154,7 @@ library kreb-struct
     , Kreb.Struct.RoseTree
     , Kreb.Struct.PointedRoseTree
     , Kreb.Struct.RedBlackTree
+    , Kreb.Struct.FiniteMap
   build-depends:
       base >=4.7 && <5
 
@@ -195,6 +183,25 @@ test-suite kreb-struct-test
 
     , kreb-check
     , kreb-struct
+
+
+
+-- =========== --
+-- Kreb Effect --
+-- =========== --
+
+library kreb-effect
+  default-language: Haskell2010
+  hs-source-dirs: src/effect
+  exposed-modules:
+      Kreb.Effect
+    , Kreb.Effect.Data
+    , Kreb.Effect.Mock
+  build-depends:
+      base >=4.7 && <5
+    , time >=1.8.0.2
+    , kreb-struct
+    , kreb-check
 
 
 
@@ -325,6 +332,7 @@ library kreb-editor
     , Kreb.Editor.Action
     , Kreb.Editor.State
     , Kreb.Editor.Env
+    , Kreb.Editor.Preferences
     , Kreb.Editor.Monad
     , Kreb.Editor.Panel
     , Kreb.Editor.Settings
@@ -529,6 +537,7 @@ test-suite kreb-test
     , Kreb.Struct.RoseTree.Test
     , Kreb.Struct.PointedRoseTree.Test
     , Kreb.Struct.RedBlackTree.Test
+    , Kreb.Struct.FiniteMap.Test
     , Kreb.Text.Buffer.Test
     , Kreb.Text.Glyph.Test
     , Kreb.Text.Rune.Test
@@ -536,6 +545,7 @@ test-suite kreb-test
     , Kreb.Text.ScreenOffset.Test
     , Kreb.Text.TextBox.Test
     , Kreb.Editor.Panel.Test
+    , Kreb.Editor.Mock.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -545,8 +555,10 @@ test-suite kreb-test
     , doctest >=0.16.0.1
 
     , kreb-check
+    , kreb-control
     , kreb-reflect
     , kreb-struct
     , kreb-text
     , kreb-lang
     , kreb-editor
+    , kreb-effect

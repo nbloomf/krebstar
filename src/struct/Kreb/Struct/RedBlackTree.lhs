@@ -29,15 +29,21 @@ title: Red-Black Trees
 > module Kreb.Struct.RedBlackTree (
 >     RedBlackTree()
 >   , empty
+>   , isEmpty
 >   , member
+>   , lookup
 >   , toList
 >   , maxElt
 > 
 >   , insert
 >   , fromList
+>   , singleton
 > 
 >   , delete
+>   , upsert
 > ) where
+> 
+> import Prelude hiding (lookup)
 > 
 > import Kreb.Check
 
@@ -239,6 +245,11 @@ Defining the empty tree is straightforward:
 
 > empty :: RedBlackTree a
 > empty = Root E
+> 
+> isEmpty :: RedBlackTree a -> Bool
+> isEmpty (Root x) = case x of
+>   E -> True
+>   T _ _ _ _ -> False
 
 As is querying for membership.
 
@@ -257,6 +268,24 @@ As is querying for membership.
 >         LT -> member' l
 >         EQ -> True
 >         GT -> member' r
+
+A slight alteration of `member` gives `lookup`; instead of returning whether or not a given item is in the tree, we return the copy of the item from the tree. When equality is structural this is not interesting, but if two values can be "equal" without _really_ being equal this can do useful work.
+
+> lookup
+>   :: forall a
+>    . ( Ord a )
+>   => a -> RedBlackTree a -> Maybe a
+> lookup x (Root t) = lookup' t
+>   where
+>     lookup'
+>       :: ( Ord a )
+>       => CT n c a -> Maybe a
+>     lookup' w = case w of
+>       E -> Nothing
+>       T _ l u r -> case compare x u of
+>         LT -> lookup' l
+>         EQ -> Just u
+>         GT -> lookup' r
 
 While we're here, we can also convert a red-black tree to a list, preserving the left-to-right order of the items in the tree.
 
@@ -369,6 +398,11 @@ And with `insert` in hand we can finally see some interesting examples!
 > -- (T B (T R (T B E 1 E) 2 (T B E 3 E)) 4 (T B E 5 E))
 
 :::
+
+> singleton
+>   :: ( Ord a )
+>   => a -> RedBlackTree a
+> singleton a = insert a empty
 
 
 
@@ -541,6 +575,12 @@ And we can check some examples.
 > -- False
 
 :::
+
+> upsert
+>   :: forall a
+>    . ( Ord a )
+>   => a -> RedBlackTree a -> RedBlackTree a
+> upsert a = insert a . delete a
 
 
 

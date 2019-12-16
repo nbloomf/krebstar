@@ -11,13 +11,22 @@ No Thought Required
 - Rename App* to Editor* (State/Env/etc)
 - Sequence
   - alterPointM -> alterPointA
+- Need Identity monad
 
 Cleanup Tasks
 -------------
 - Action
+  - Don't have separate text/command actions; instead pass the mode to the handler.
+- initAppState
+  - don't pass in the initial runtime state; load it (?)
+    - more generally need to figure out how lang deals with env/modules/reloading
+- In ReplParams for both real and mocked runs, need to increment the event ID on every eval
+- RedBlackTree
+  - write tests for upsert
+- Action
   - Convert to monad style.
   - performAction should be a simple dispatcher
-  - signature of performAction should be -> (Maybe Signal, State)
+  - signature of performAction should be -> (Maybe Signal, State) (not sure about this, means refactoring replT)
 - ScreenCoords
   - Make this a custom type rather than (Int, Int)
 - Run
@@ -28,8 +37,9 @@ Cleanup Tasks
 - TextBox
   - Can we make alterTextBoxPrimitive generic to a class?
 - Make window dimensions a custom type instead of (Int, Int)
-- Put give effect functions a type (?)
-  - e.g. newtype FileReader m = FileReader { readFileWith :: FilePath -> m (Either IOError String) }
+- Preferences
+  - Define this, put it on the editor state object
+  - start with the stdlib path (cf. Run)
 
 Blockers
 --------
@@ -42,6 +52,7 @@ Testing and Debugging
 ---------------------
 - Make Panel, TextBox, and Editor tests active again
 - Write tests using mock environment
+  - Clean up the two mocks: effect mocks and repl mocks
 - Test navigation primitives for PointedRoseTree
   - towardRoot . towardLeaf == id
 - Get logging to work
@@ -52,12 +63,14 @@ Testing and Debugging
 
 Feature Projects
 ----------------
+- Map data structure
 - Preferences
   - Framework for storing and passing these
   - Expose these as primitives in the language
 - Mouse Events
   - Framework for handling these
-  - Handle this on the frontend and pass events
+  - pass a "layout" representation to eventMapping (see Run and Handler)
+  - Can interpret click coords in Handler and pass events
 - Undo/Redo
   - 'undo as new operation'
   - basic idea: the history is a pointed tree of sets of buffer ops representing 'do' operations

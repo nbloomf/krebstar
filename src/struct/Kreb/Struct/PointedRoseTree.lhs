@@ -2,6 +2,15 @@
 title: Pointed Rose Trees
 ---
 
+::: contents
+* [Introduction](#introduction): The problem we're solving
+* [Calculating Types](#calculating-types): Programming with Calculus!
+:::
+
+
+
+::: frontmatter
+
 > module Kreb.Struct.PointedRoseTree (
 >     PointedRoseTree()
 >   , rewind
@@ -18,6 +27,64 @@ title: Pointed Rose Trees
 > import Kreb.Check
 > import qualified Kreb.Struct.Sequence as S
 > import qualified Kreb.Struct.RoseTree as RT
+
+:::
+
+
+
+Introduction
+------------
+
+
+
+Calculating Types
+-----------------
+
+foo fofofo
+
+
+$$L(a) = 1 + a L(a)$$
+
+$$\begin{eqnarray}
+L'(a)
+ & = & \frac{\mathrm{d}}{\mathrm{d}a}(1 + a L(a)) \\
+ & = & L(a) + a L'(a) \\
+\end{eqnarray}$$
+
+$$L'(a) - a L'(a) = L(a)$$
+
+$$L'(a) = \frac{L(a)}{1 - a}$$
+
+$$\begin{eqnarray}
+\frac{1}{1 - a}
+ & = & 1 + a + a^2 + a^3 + \cdots \\
+ & = & L(a) \\
+\end{eqnarray}$$
+
+$$L'(a) = L(a) L(a)$$
+
+$$a L'(a) = a L(a) L(a)$$
+
+$$R(a) = a L(a) L(R(a))$$
+
+$$\begin{eqnarray}
+R'(a)
+ & = & \frac{\mathrm{d}}{\mathrm{d}a}(a L(a) L(R(a))) \\
+ & = & L(a) L(R(a)) + a L'(a) L(R(a)) + a L(a) \frac{\mathrm{d}}{\mathrm{d}a}(L(R(a))) \\
+ & = & L(a) L(R(a)) + a L'(a) L(R(a)) + a L(a) L'(R(a)) R'(a) \\
+\end{eqnarray}$$
+
+$$R'(a) - a L(a) L'(R(a)) R'(a) = L(a) L(R(a)) + a L'(a) L(R(a))$$
+
+$$\begin{eqnarray}
+R'(a)
+ & = & \frac{L(a) L(R(a)) + a L'(a) L(R(a))}{1 - a L(a) L'(R(a))} \\
+ & = & \frac{L(a) L(R(a)) + a L(a) L(a) L(R(a))}{1 - a L(a) L(R(a)) L(R(a))} \\
+ & = & L(a) L(R(a)) \frac{1 + a L(a)}{1 - a L(a) L(R(a)) L(R(a))} \\
+ & = & (1 + a L(a)) L(a) L(R(a)) L( a L(a) L(R(a)) L(R(a)) ) \\
+\end{eqnarray}$$
+
+$$a R'(a) = a (1 + a L(a)) L(a) L(R(a)) L(a L(a) L(R(a)) L(R(a)))$$
 
 > data PointedRoseTree a = PointedRoseTree
 >   { thorn

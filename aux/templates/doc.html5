@@ -18,6 +18,7 @@ $endif$
 $for(css)$
   <link rel="stylesheet" href="$css$">
 $endfor$
+  <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
 </head>
 <body>
 <article>

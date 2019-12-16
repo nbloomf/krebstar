@@ -30,5 +30,5 @@
 >       , kreb_struct_test_suite
 >       , kreb_text_test_suite
 >       , kreb_lang_test_suite
->   --    , kreb_editor_test_suite
+>       , kreb_editor_test_suite
 >       ]

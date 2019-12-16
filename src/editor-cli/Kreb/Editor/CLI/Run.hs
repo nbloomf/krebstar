@@ -5,8 +5,7 @@ module Kreb.Editor.CLI.Run (
 import Graphics.Vty
 import qualified System.Console.Terminal.Size as TS
 
-import System.IO.Error
-import Control.Exception
+import System.IO
 
 import Kreb.Effect
 import Kreb.Control
@@ -18,27 +17,14 @@ import Kreb.Editor.CLI.Handler
 
 
 
+-- this path should go in preferences
 consoleIO :: FilePath -> IO ()
 consoleIO stdLibPath = do
   (replParams, env, dim) <- appEnvIO
-  let panelDim = initPanelDim dim
   let eId = EventId 0 "init"
-  runKrebEd replParams env (initAppState stdLibPath panelDim (runtimeState env eId) dim) loopReplT
+  runKrebEd replParams env eId stdLibPath dim
 
-initPanelDim
-  :: (Int, Int) -> PanelDim
-initPanelDim (width, height) =
-  let
-    w1 = max 4 $ width `div` 2
-    w2 = width - w1 - 1
-    h = height
-  in PanelDim
-    { _textLabelDim = (2, h-2)
-    , _textDim = (w1-3, h-2)
-    , _historyDim = (w2, h-4)
-    , _commandDim = (w2, 1)
-    , _statusDim = (width, 1)
-    }
+
 
 
 getTerminalSize :: IO (Int, Int)
@@ -64,6 +50,10 @@ appEnvIO = do
     render st =
       update vty (imageAppState st)
 
+  let logPath = "/Users/nathan/code/krebstar/zzz.txt"
+  writeFile logPath ""
+  logHandle <- openFile logPath WriteMode
+
   return
     -- Loop callbacks
     ( ReplParams
@@ -80,8 +70,10 @@ appEnvIO = do
       , _Eval = \env st act -> do
           let eId = EventId 0 "foo"
           performActions env st eId act
-      , _Print = \_ st -> render $ updateStateCache st
+      , _Print = \_ st ->
+          render $ updateStateCache st
       , _Exit = \sig -> do
+          hClose logHandle
           shutdown vty
           case sig of
             ExitNormally -> return ()
@@ -89,7 +81,7 @@ appEnvIO = do
       }
     -- Effect callbacks
     , AppEnv
-      { logMessage = appendFile "/Users/nathan/code/ned/logs.txt"
+      { logWriter = logWriterIO logHandle
       , fileReader = fileReaderIO
       , fileWriter = fileWriterIO
       }

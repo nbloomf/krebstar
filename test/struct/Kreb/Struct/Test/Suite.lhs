@@ -10,6 +10,7 @@
 > import Kreb.Struct.RoseTree.Test
 > import Kreb.Struct.PointedRoseTree.Test
 > import Kreb.Struct.RedBlackTree.Test
+> import Kreb.Struct.FiniteMap.Test
 
 > kreb_struct_test_suite :: TestTree
 > kreb_struct_test_suite =
@@ -22,4 +23,5 @@
 >     , test_RoseTree
 >     , test_PointedRoseTree
 >     , test_RedBlackTree
+>     , test_FiniteMap
 >     ]

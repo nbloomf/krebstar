@@ -2,11 +2,12 @@
 
 module Kreb.Editor.State (
     AppState(..)
-  , initAppState
   , EditorMode(..)
 
   , Hook(..)
   , liftHook
+
+  , initPanelDim
 
   , renderDebugMessage
 
@@ -59,18 +60,23 @@ instance Show (AppState m) where
     , "tabbedBuffers = ", show $ tabbedBuffers st
     ]
 
-initAppState :: FilePath -> PanelDim -> RuntimeState (Hook m) -> (Int, Int) -> AppState m
-initAppState stdLib dim rts (w,h) = AppState
-  { windowDim            = (w,h)
-  , editorMode           = NormalMode
-  , absCursorPos         = (0,0)
-  , tabWidth             = 4
-  , tabbedBuffers        = initTabs "" (w,h) dim 4
-  , glyphRenderSettings  = defaultGlyphRenderSettings
 
-  , runtimeSt            = rts { _rtStack = Cons Empty V_Eff }
-  , stdLibPath           = stdLib
-  }
+
+-- does this belong here?
+initPanelDim
+  :: (Int, Int) -> PanelDim
+initPanelDim (width, height) =
+  let
+    w1 = max 4 $ width `div` 2
+    w2 = width - w1 - 1
+    h = height
+  in PanelDim
+    { _textLabelDim = (2, h-2)
+    , _textDim = (w1-3, h-2)
+    , _historyDim = (w2, h-4)
+    , _commandDim = (w2, 1)
+    , _statusDim = (width, 1)
+    }
 
 newtype Hook m a = Hook
   { unHook :: AppState m -> m (a, AppState m)
