@@ -33,6 +33,7 @@
 >   , "src/control/Kreb/Control/StateT.lhs"
 >   , "src/control/Kreb/Control/EnvT.lhs"
 >   , "src/control/Kreb/Control/Identity.lhs"
+>   , "src/control/Kreb/Control/LiftIO.lhs"
 > 
 >   , "src/reflect/Kreb/Reflect.lhs"
 >   , "src/reflect/Kreb/Reflect/Nat.lhs"

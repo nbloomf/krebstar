@@ -1,9 +1,7 @@
 > {-# LANGUAGE FlexibleInstances #-}
 
 > module Kreb.Effect.Data (
->     LiftIO(..)
-> 
->   , FileReader(..)
+>     FileReader(..)
 >   , fileReaderIO
 > 
 >   , FileWriter(..)
@@ -19,14 +17,9 @@
 > import Data.Time.Clock.POSIX (getPOSIXTime)
 > import Data.List (lines)
 > import Control.Exception
-
-
-
-> class (Monad m) => LiftIO m where
->   liftIO :: IO a -> m a
 > 
-> instance LiftIO IO where
->   liftIO = id
+> import Kreb.Control.LiftIO
+
 
 
 

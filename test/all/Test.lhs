@@ -9,7 +9,7 @@
 > import Kreb.Struct.Test.Suite
 > import Kreb.Text.Test.Suite
 > import Kreb.Lang.Test.Suite
-> import Kreb.Editor.Test.Suite
+> import Kreb.Editor.Core.Test.Suite
 > import Kreb.DocTest.Test.Suite
 
 > main :: IO ()

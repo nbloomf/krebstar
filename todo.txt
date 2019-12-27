@@ -11,16 +11,10 @@ No Thought Required
 - Rename App* to Editor* (State/Env/etc)
 - Sequence
   - alterPointM -> alterPointA
-- Need Identity monad
 
 Cleanup Tasks
 -------------
-- Action
-  - Don't have separate text/command actions; instead pass the mode to the handler.
-- initAppState
-  - don't pass in the initial runtime state; load it (?)
-    - more generally need to figure out how lang deals with env/modules/reloading
-- In ReplParams for both real and mocked runs, need to increment the event ID on every eval
+- Move rendering from core into console UI
 - RedBlackTree
   - write tests for upsert
 - Action
@@ -57,16 +51,13 @@ Testing and Debugging
   - towardRoot . towardLeaf == id
 - Get logging to work
   - Enable with command line arg
-  - Use severity levels
 - Golden tests for batch mode
-- Increase number of generated cases
 
 Feature Projects
 ----------------
-- Map data structure
 - Preferences
   - Framework for storing and passing these
-  - Expose these as primitives in the language
+  - Expose these as primitives in the language(?)
 - Mouse Events
   - Framework for handling these
   - pass a "layout" representation to eventMapping (see Run and Handler)

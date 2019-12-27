@@ -5,4 +5,4 @@
 > import qualified Kreb.Struct as Struct
 > import Kreb.Text
 > import qualified Kreb.Lang as Lang
-> import Kreb.Editor
+> import Kreb.Editor.Core

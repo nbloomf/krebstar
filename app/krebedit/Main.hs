@@ -6,7 +6,7 @@ import System.Environment
 import System.IO
 import System.Exit
 
-import Kreb.Editor.CLI
+import Kreb.Editor.TUI
 
 main :: IO ()
 main = do

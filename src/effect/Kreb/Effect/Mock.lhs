@@ -6,6 +6,7 @@
 > import qualified Kreb.Struct.FiniteMap as FM
 > import Kreb.Effect.Data
 > import Kreb.Check
+> import Kreb.Control.LiftIO
 
 
 
@@ -127,6 +128,7 @@
 >   { _filesystem :: MockFilesystem
 >   , _stdio :: MockStdio
 >   , _events :: [ev]
+>   , _ioerror :: Maybe String
 >   } deriving (Eq, Show)
 > 
 > initMockWorld :: [ev] -> MockWorld ev
@@ -134,6 +136,7 @@
 >   { _filesystem = emptyMockFilesystem
 >   , _stdio = emptyMockStdio
 >   , _events = es
+>   , _ioerror = Nothing
 >   }
 > 
 > withMockFilesystem
@@ -153,15 +156,70 @@
 > emptyMockFilesystem :: MockFilesystem
 > emptyMockFilesystem = MockFilesystem FM.empty
 
-> _filesystem_is_empty
->   :: MockWorld ev -> Bool
-> _filesystem_is_empty =
->   FM.isEmpty . unMockFilesystem . _filesystem
 
-> _stdout_is_empty
->   :: MockWorld ev -> Bool
-> _stdout_is_empty =
->   (== []) . _stdout . _stdio
+
+> claimFilesystemIsEmpty
+>   :: MockWorld ev -> Check
+> claimFilesystemIsEmpty w =
+>   let fs = _filesystem w
+>   in if FM.isEmpty $ unMockFilesystem fs
+>     then accept
+>     else reject
+>       ("Expected filesystem to be empty but got:\n" ++ show fs)
+> 
+> claimFilesystemEquals
+>   :: MockWorld ev -> MockFilesystem -> Check
+> claimFilesystemEquals w fs =
+>   claimEqualNamed "Filesystem: " (_filesystem w) fs
+
+> claimStdoutIsEmpty
+>   :: MockWorld ev -> Check
+> claimStdoutIsEmpty w =
+>   case _stdout $ _stdio w of
+>     [] -> accept
+>     ls -> reject
+>       ("Expected stdout to be empty but got:\n" ++ concat ls)
+> 
+> claimStdoutEquals
+>   :: MockWorld ev -> [String] -> Check
+> claimStdoutEquals w ls =
+>   claimEqualNamed "Stdout: " (_stdout $ _stdio w) ls
+
+> claimStderrIsEmpty
+>   :: MockWorld ev -> Check
+> claimStderrIsEmpty w =
+>   case _stderr $ _stdio w of
+>     [] -> accept
+>     ls -> reject
+>       ("Expected stderr to be empty but got:\n" ++ concat ls)
+> 
+> claimStderrEquals
+>   :: MockWorld ev -> [String] -> Check
+> claimStderrEquals w ls =
+>   claimEqualNamed "Stderr: " (_stderr $ _stdio w) ls
+
+> claimNoIOErrors
+>   :: MockWorld ev -> Check
+> claimNoIOErrors w =
+>   case _ioerror w of
+>     Nothing -> accept
+>     Just err -> reject $ "Unexpected IO error: " ++ err
+> 
+> claimHasIOError
+>   :: MockWorld ev -> String -> Check
+> claimHasIOError w msg =
+>   case _ioerror w of
+>     Just err -> claimEqual err msg
+>     Nothing -> reject $ "Expecting IO error: " ++ msg
+> 
+> claimHasSomeIOError
+>   :: MockWorld ev -> Check
+> claimHasSomeIOError w =
+>   case _ioerror w of
+>     Just _ -> accept
+>     Nothing -> reject "Expecting some IO error"
+
+
 
 > data MockStdio = MockStdio
 >   { _stdin :: [String]
@@ -258,6 +316,12 @@
 > setMockStdio std =
 >   alterMockWorld (\w -> w { _stdio = std })
 
+> setIOError
+>   :: ( Monad m )
+>   => String -> Mock ev m ()
+> setIOError msg =
+>   alterMockWorld (\w -> w { _ioerror = Just msg })
+
 > fileReaderMock
 >   :: ( Monad m )
 >   => FileReader (Mock ev m)
@@ -266,6 +330,9 @@
 >   chi <- getChaos
 >   let (result, fs') = _read_file chi fs path
 >   setMockFilesystem fs'
+>   case result of
+>     Left err -> setIOError (show err)
+>     Right _ -> return ()
 >   return result
 
 > fileWriterMock
@@ -276,17 +343,23 @@
 >   chi <- getChaos
 >   let (result, fs') = _write_file chi fs path contents
 >   setMockFilesystem fs'
+>   case result of
+>     Just err -> setIOError (show err)
+>     Nothing -> return ()
 >   return result
 
 > logWriterMock
 >   :: ( Monad m )
 >   => LogWriter (Mock ev m)
 > logWriterMock = LogWriter $ \sev msg -> do
->   let msgs = map ((show sev) ++) $ lines msg
+>   let msgs = map ((show sev ++ " ") ++) $ lines msg
 >   std <- getMockStdio
 >   chi <- getChaos
 >   let (result, std') = each (_write_stderr chi) std msgs
 >   setMockStdio std'
+>   case result of
+>     Just err -> setIOError (show err)
+>     Nothing -> return ()
 >   return result
 >   where
 >     each :: (c -> a -> (Maybe b, c)) -> c -> [a] -> (Maybe b, c)

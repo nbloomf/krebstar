@@ -84,6 +84,7 @@ library kreb-control
     , Kreb.Control.ReplT
     , Kreb.Control.Trans
     , Kreb.Control.Identity
+    , Kreb.Control.LiftIO
   build-depends:
       base >=4.7 && <5
 
@@ -202,6 +203,7 @@ library kreb-effect
     , time >=1.8.0.2
     , kreb-struct
     , kreb-check
+    , kreb-control
 
 
 
@@ -319,25 +321,25 @@ test-suite kreb-lang-test
 
 
 
--- =========== --
--- Kreb Editor --
--- =========== --
+-- ================ --
+-- Kreb Editor Core --
+-- ================ --
 
-library kreb-editor
+library kreb-editor-core
   default-language: Haskell2010
-  hs-source-dirs: src/editor
+  hs-source-dirs: src/editor-core
   exposed-modules:
-      Kreb.Editor
-    , Kreb.Editor.Signal
-    , Kreb.Editor.Action
-    , Kreb.Editor.State
-    , Kreb.Editor.Env
-    , Kreb.Editor.Preferences
-    , Kreb.Editor.Monad
-    , Kreb.Editor.Panel
-    , Kreb.Editor.Settings
-    , Kreb.Editor.Tab
-    , Kreb.Editor.Mock
+      Kreb.Editor.Core
+    , Kreb.Editor.Core.Signal
+    , Kreb.Editor.Core.Action
+    , Kreb.Editor.Core.State
+    , Kreb.Editor.Core.Env
+    , Kreb.Editor.Core.Preferences
+    , Kreb.Editor.Core.Monad
+    , Kreb.Editor.Core.Panel
+    , Kreb.Editor.Core.Settings
+    , Kreb.Editor.Core.Tab
+    , Kreb.Editor.Core.Mock
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.8.10.2
@@ -353,11 +355,11 @@ library kreb-editor
 test-suite kreb-editor-test
   default-language: Haskell2010
   type: exitcode-stdio-1.0
-  hs-source-dirs: test/editor
-  main-is: Kreb/Editor/Test.lhs
+  hs-source-dirs: test/editor-core
+  main-is: Kreb/Editor/Core/Test.lhs
   other-modules:
-      Kreb.Editor.Test.Suite
-    , Kreb.Editor.Panel.Test
+      Kreb.Editor.Core.Test.Suite
+    , Kreb.Editor.Core.Panel.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -368,27 +370,29 @@ test-suite kreb-editor-test
     , kreb-check
     , kreb-text
     , kreb-lang
-    , kreb-editor
+    , kreb-editor-core
 
 
 
 -- =============== --
--- Kreb Editor CLI --
+-- Kreb Editor TUI --
 -- =============== --
 
-library kreb-editor-cli
+library kreb-editor-tui
   default-language: Haskell2010
-  hs-source-dirs: src/editor-cli
+  hs-source-dirs: src/editor-tui
   exposed-modules:
-      Kreb.Editor.CLI
-    , Kreb.Editor.CLI.Run
-    , Kreb.Editor.CLI.Render
-    , Kreb.Editor.CLI.Handler
-    , Kreb.Editor.CLI.Monad
+      Kreb.Editor.TUI
+    , Kreb.Editor.TUI.Run
+    , Kreb.Editor.TUI.Render
+    , Kreb.Editor.TUI.Handler
+    , Kreb.Editor.TUI.Monad
+    , Kreb.Editor.TUI.Layout
   build-depends:
       base >=4.7 && <5
     , vty >=5.25.1
     , terminal-size >=0.3.2.1
+    , array >=0.5.3.0
 
     , kreb-reflect
     , kreb-effect
@@ -396,7 +400,7 @@ library kreb-editor-cli
     , kreb-struct
     , kreb-text
     , kreb-lang
-    , kreb-editor
+    , kreb-editor-core
 
 
 
@@ -422,7 +426,7 @@ library
     , kreb-struct
     , kreb-text
     , kreb-lang
-    , kreb-editor
+    , kreb-editor-core
 
 
 
@@ -447,8 +451,8 @@ executable krebedit
     , kreb-control
     , kreb-struct
     , kreb-text
-    , kreb-editor
-    , kreb-editor-cli
+    , kreb-editor-core
+    , kreb-editor-tui
 
 executable kreblang
   default-language: Haskell2010
@@ -491,7 +495,7 @@ test-suite doctests
     , kreb-text
     , kreb-format
     , kreb-lang
-    , kreb-editor
+    , kreb-editor-core
     , doctest >=0.16.0.1
     , containers >=0.6.0.1
     , text >=1.2.3.1
@@ -512,7 +516,7 @@ test-suite kreb-test
     , test/struct
     , test/text
     , test/lang
-    , test/editor
+    , test/editor-core
     , test/doctest
   main-is: Test.lhs
   other-modules:
@@ -521,7 +525,7 @@ test-suite kreb-test
     , Kreb.Struct.Test.Suite
     , Kreb.Text.Test.Suite
     , Kreb.Lang.Test.Suite
-    , Kreb.Editor.Test.Suite
+    , Kreb.Editor.Core.Test.Suite
     , Kreb.DocTest.Test.Suite
 
     , Kreb.Lang.Interpreter.Test
@@ -544,8 +548,8 @@ test-suite kreb-test
     , Kreb.Text.MeasureText.Test
     , Kreb.Text.ScreenOffset.Test
     , Kreb.Text.TextBox.Test
-    , Kreb.Editor.Panel.Test
-    , Kreb.Editor.Mock.Test
+    , Kreb.Editor.Core.Panel.Test
+    , Kreb.Editor.Core.Mock.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -560,5 +564,5 @@ test-suite kreb-test
     , kreb-struct
     , kreb-text
     , kreb-lang
-    , kreb-editor
+    , kreb-editor-core
     , kreb-effect
