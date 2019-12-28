@@ -82,7 +82,7 @@ appEnvIO = do
           let eId = EventId (1 + getActionCounter st) "foo"
           performActions env (tickActionCounter st) eId act
       , _Print = \_ st ->
-          lift $ render $ updateStateCache st
+          lift $ render $ updateAbsCursorPos st
       , _Exit = \sig -> do
           liftIO $ hClose logHandle
           liftIO $ shutdown vty

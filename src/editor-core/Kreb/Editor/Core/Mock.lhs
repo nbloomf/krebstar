@@ -5,12 +5,9 @@
 > import Kreb.Control
 > import Kreb.Effect
 > import Kreb.Text
-> import Kreb.Editor.Core.Panel
-> import Kreb.Editor.Core.State
+> import Kreb.Editor.Core.Data
 > import Kreb.Editor.Core.Action
 > import Kreb.Editor.Core.Monad
-> import Kreb.Editor.Core.Signal
-> import Kreb.Editor.Core.Env
 > import Kreb.Lang
 
 

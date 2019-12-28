@@ -1,7 +1,5 @@
 > module Kreb.Editor.Core.Action (
->     Action(..)
->   , Then(..)
->   , performAction
+>     performAction
 >   , runtimeState
 >   , editorTypes
 >   , hookActions
@@ -10,85 +8,11 @@
 > ) where
 
 > import Kreb.Text
-
 > import Kreb.Effect
 > import Kreb.Format
-> import Kreb.Editor.Core.State
-> import Kreb.Editor.Core.Env
-> import Kreb.Editor.Core.Signal
-> import Kreb.Editor.Core.Panel
+> import Kreb.Editor.Core.Data
 > import Kreb.Lang
 
-
-
-> data Then
->   = GoOn
->   | Stop
->   | Bail AppSignal
->   deriving (Eq, Show)
-
-
-
-> data Action
->   -- Nothing
->   = NoOp
->   | Quit
-
->   -- Meta
->   | SetMode EditorMode
-
->   -- Cursor Movement
->   | CursorUp
->   | CursorDown
->   | CursorRight
->   | CursorLeft
-
->   -- Editing
->   | CharInsert Char
->   | CharBackspace
-
->   | StringInsert String
-
->   -- Load and Save
->   | FileLoad FilePath
->   | FileSetPath
->   | FileSave
-
->   | LeaveMark
->   | ClearMark
-
-
-
-
-
-
->   | CursorLineStart
->   | CursorLineEnd
-
->   | CursorDocStart
->   | CursorDocEnd
-
->   -- Selection Management
->   | SelectionMark
->   | SelectionUnmark
-
->   | SelectionCut
->   | SelectionCopy
->   | SelectionPaste
-
->   -- Edit Operations
->   | CharOverwrite Char
->   | CharDelete
-
-
->   | LineDelete
-
->   | RunCmd
-
->   | ShowDebug String
-
->   | WindowResize (Int, Int)
->   deriving (Eq, Show)
 
 
 > performActions
@@ -310,6 +234,7 @@
 >   "#load_file" -> Just $ do
 >     path <- popString
 >     doHookActionM env eId (FileLoad path)
+> 
 >   _ -> Nothing
 
 > doHookActionM

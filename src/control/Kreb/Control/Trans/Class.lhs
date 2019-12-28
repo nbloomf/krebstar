@@ -1,6 +1,6 @@
 > {-# LANGUAGE QuantifiedConstraints #-}
 
-> module Kreb.Control.Trans where
+> module Kreb.Control.Trans.Class where
 
 > class
 >   ( forall m. ( Monad m ) => Monad (t m)

@@ -2,7 +2,7 @@
 
 > import Test.Tasty
 
-> import Kreb.Editor.Core.Panel.Test
+> import Kreb.Editor.Core.Data.Panel.Test
 > import Kreb.Editor.Core.Mock.Test
 
 

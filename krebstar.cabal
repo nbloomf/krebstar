@@ -79,12 +79,12 @@ library kreb-control
   exposed-modules:
       Kreb.Control
     , Kreb.Control.LocalSt
-    , Kreb.Control.StateT
-    , Kreb.Control.EnvT
-    , Kreb.Control.ReplT
-    , Kreb.Control.Trans
     , Kreb.Control.Identity
     , Kreb.Control.LiftIO
+    , Kreb.Control.Trans.Class
+    , Kreb.Control.Trans.StateT
+    , Kreb.Control.Trans.EnvT
+    , Kreb.Control.Trans.ReplT
   build-depends:
       base >=4.7 && <5
 
@@ -330,16 +330,18 @@ library kreb-editor-core
   hs-source-dirs: src/editor-core
   exposed-modules:
       Kreb.Editor.Core
-    , Kreb.Editor.Core.Signal
     , Kreb.Editor.Core.Action
-    , Kreb.Editor.Core.State
-    , Kreb.Editor.Core.Env
-    , Kreb.Editor.Core.Preferences
     , Kreb.Editor.Core.Monad
-    , Kreb.Editor.Core.Panel
-    , Kreb.Editor.Core.Settings
-    , Kreb.Editor.Core.Tab
     , Kreb.Editor.Core.Mock
+    , Kreb.Editor.Core.Data
+    , Kreb.Editor.Core.Data.Panel
+    , Kreb.Editor.Core.Data.Settings
+    , Kreb.Editor.Core.Data.Tab
+    , Kreb.Editor.Core.Data.State
+    , Kreb.Editor.Core.Data.Env
+    , Kreb.Editor.Core.Data.Preferences
+    , Kreb.Editor.Core.Data.Signal
+    , Kreb.Editor.Core.Data.Action
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.8.10.2
@@ -548,7 +550,7 @@ test-suite kreb-test
     , Kreb.Text.MeasureText.Test
     , Kreb.Text.ScreenOffset.Test
     , Kreb.Text.TextBox.Test
-    , Kreb.Editor.Core.Panel.Test
+    , Kreb.Editor.Core.Data.Panel.Test
     , Kreb.Editor.Core.Mock.Test
   ghc-options:
       -threaded -rtsopts -with-rtsopts=-N

@@ -28,12 +28,12 @@
 > 
 >   , "src/control/Kreb/Control.lhs"
 >   , "src/control/Kreb/Control/LocalSt.lhs"
->   , "src/control/Kreb/Control/ReplT.lhs"
->   , "src/control/Kreb/Control/Trans.lhs"
->   , "src/control/Kreb/Control/StateT.lhs"
->   , "src/control/Kreb/Control/EnvT.lhs"
 >   , "src/control/Kreb/Control/Identity.lhs"
 >   , "src/control/Kreb/Control/LiftIO.lhs"
+>   , "src/control/Kreb/Control/Trans/Class.lhs"
+>   , "src/control/Kreb/Control/Trans/ReplT.lhs"
+>   , "src/control/Kreb/Control/Trans/StateT.lhs"
+>   , "src/control/Kreb/Control/Trans/EnvT.lhs"
 > 
 >   , "src/reflect/Kreb/Reflect.lhs"
 >   , "src/reflect/Kreb/Reflect/Nat.lhs"

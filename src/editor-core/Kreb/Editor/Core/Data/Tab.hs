@@ -1,14 +1,13 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Kreb.Editor.Core.Tab (
+module Kreb.Editor.Core.Data.Tab (
     Tabs()
 
   , initTabs
 
   , getActiveTab
 
-  , updateRenderedTabs
   , getAbsCursorPosTabs
 
   , alterActivePanelTabs
@@ -21,11 +20,11 @@ module Kreb.Editor.Core.Tab (
   , debugShowTabs
 ) where
 
-import Kreb.Editor.Core.Settings
+import Kreb.Editor.Core.Data.Settings
 import Kreb.Text.Buffer
 import Kreb.Text.Glyph
 import Kreb.Text.Rune
-import Kreb.Editor.Core.Panel
+import Kreb.Editor.Core.Data.Panel
 import Kreb.Struct.Valued
 import Kreb.Struct.FingerTree
 import qualified Kreb.Struct.Sequence as Seq
@@ -65,10 +64,6 @@ getActiveTab
 getActiveTab (Tabs xs) =
   Seq.readPoint xs
 
-updateRenderedTabs
-  :: GlyphRenderSettings -> EditorMode -> Int -> Tabs -> Tabs
-updateRenderedTabs settings mode tab =
-  Tabs . Seq.alterPoint (updateRenderedPanel settings mode tab) . unTabs
 
 
 getAbsCursorPosTabs

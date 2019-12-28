@@ -8,13 +8,15 @@ No Thought Required
   - Move to its own module (control? struct?)
 - TextBox
   - Do not export raw field names
-- Rename App* to Editor* (State/Env/etc)
 - Sequence
   - alterPointM -> alterPointA
 
 Cleanup Tasks
 -------------
-- Move rendering from core into console UI
+- Kreb.Editor.Core.Data
+  - AppEnv -> CoreEnv with Effects
+  - AppSt  -> CoreSt with Settings
+  - KrebEd -> EditorCore
 - RedBlackTree
   - write tests for upsert
 - Action

@@ -2,7 +2,7 @@
 
 > import Data.Array
 
-> import Kreb.Editor.Core.Action
+> import Kreb.Editor.Core.Data.Action
 
 > data MouseEvent
 

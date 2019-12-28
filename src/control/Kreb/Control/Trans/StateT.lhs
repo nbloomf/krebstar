@@ -1,6 +1,6 @@
-> module Kreb.Control.StateT where
+> module Kreb.Control.Trans.StateT where
 
-> import Kreb.Control.Trans
+> import Kreb.Control.Trans.Class
 
 > newtype StateT s m a
 >   = StateT (s -> m (a, s))

@@ -1,6 +1,6 @@
 {-# LANGUAGE KindSignatures, StandaloneDeriving, UndecidableInstances #-}
 
-module Kreb.Editor.Core.State (
+module Kreb.Editor.Core.Data.State (
     AppState(..)
   , EditorMode(..)
 
@@ -17,8 +17,7 @@ module Kreb.Editor.Core.State (
 
   , getAbsCursorPos
   , modifyAbsCursorPos
-
-  , updateStateCache
+  , updateAbsCursorPos
 
   , alterActivePanel
   , queryActivePanel
@@ -38,9 +37,9 @@ import Kreb.Effect
 import Kreb.Text
 import Kreb.Lang
 
-import Kreb.Editor.Core.Tab
-import Kreb.Editor.Core.Settings
-import Kreb.Editor.Core.Panel
+import Kreb.Editor.Core.Data.Tab
+import Kreb.Editor.Core.Data.Settings
+import Kreb.Editor.Core.Data.Panel
 
 
 
@@ -150,24 +149,7 @@ modifyAbsCursorPos (dx, dy) st =
   st { absCursorPos = (x + dx, y + dy) }
 
 
-updateStateCache :: AppState m -> AppState m
-updateStateCache = foldr (.) id
-  [ updateAbsCursorPos
-  , updateRenderedState
-  ]
 
-
-updateRenderedState :: AppState m -> AppState m
-updateRenderedState st =
-  let
-    mode = editorMode st
-    (w,h) = windowDim st
-    tab = tabWidth st
-    tabs = tabbedBuffers st
-    settings = glyphRenderSettings st
-  in st
-    { tabbedBuffers = updateRenderedTabs settings mode tab tabs
-    }
 
 updateAbsCursorPos :: AppState m -> AppState m
 updateAbsCursorPos st =

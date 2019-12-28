@@ -1,6 +1,6 @@
-> module Kreb.Control.EnvT where
+> module Kreb.Control.Trans.EnvT where
 
-> import Kreb.Control.Trans
+> import Kreb.Control.Trans.Class
 
 > newtype EnvT r m a = EnvT
 >   { unEnvT :: r -> m a }

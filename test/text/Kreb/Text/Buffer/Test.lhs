@@ -80,7 +80,7 @@ title: Kreb.Text.Buffer.Test
 >           in claimTrue (isSingleton as)
 > 
 >     , testKreb
->         "isEmpty (singleton a) == Flase" $
+>         "isEmpty (singleton a) == False" $
 >         \(a :: a) ->
 >           let as = singleton (EventId 0 "t") a :: Buffer w t d a
 >           in claimFalse (isEmpty as)

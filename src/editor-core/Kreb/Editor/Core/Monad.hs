@@ -9,11 +9,8 @@ import System.IO.Error
 import Kreb.Control
 import Kreb.Text
 import Kreb.Lang
-import Kreb.Editor.Core.State
-import Kreb.Editor.Core.Signal
 import Kreb.Editor.Core.Action
-import Kreb.Editor.Core.Env
-import Kreb.Editor.Core.Tab
+import Kreb.Editor.Core.Data
 
 
 

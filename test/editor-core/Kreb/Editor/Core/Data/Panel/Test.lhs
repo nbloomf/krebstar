@@ -1,4 +1,4 @@
-> module Kreb.Editor.Core.Panel.Test (
+> module Kreb.Editor.Core.Data.Panel.Test (
 >     test_Panel
 > ) where
 > 
@@ -8,7 +8,7 @@
 > 
 > import Kreb.Check
 > import Kreb.Text
-> import Kreb.Editor.Core
+> import Kreb.Editor.Core.Data.Panel
 
 > test_Panel :: TestTree
 > test_Panel =

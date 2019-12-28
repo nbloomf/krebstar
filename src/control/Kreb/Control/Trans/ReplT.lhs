@@ -1,6 +1,5 @@
 ---
 title: "The Read, Eval, Print Loop"
-subtitle: "Kreb.Control.ReplT"
 ---
 
 
@@ -9,14 +8,14 @@ subtitle: "Kreb.Control.ReplT"
 
 > {-# LANGUAGE InstanceSigs #-}
 > 
-> module Kreb.Control.ReplT (
+> module Kreb.Control.Trans.ReplT (
 >     ReplParams(..)
 >   , ReplT
 >   , runReplT
 >   , loopReplT
 > ) where
 > 
-> import Kreb.Control.Trans
+> import Kreb.Control.Trans.Class
 
 </div>
 

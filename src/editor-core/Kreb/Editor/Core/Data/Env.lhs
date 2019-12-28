@@ -1,4 +1,4 @@
-> module Kreb.Editor.Core.Env (
+> module Kreb.Editor.Core.Data.Env (
 >     AppEnv(..)
 > ) where
 

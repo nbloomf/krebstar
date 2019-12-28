@@ -1,4 +1,4 @@
-module Kreb.Editor.Core.Signal (
+module Kreb.Editor.Core.Data.Signal (
     AppSignal(..)
 ) where
 

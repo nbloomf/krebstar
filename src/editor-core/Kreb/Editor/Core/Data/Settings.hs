@@ -1,4 +1,4 @@
-module Kreb.Editor.Core.Settings (
+module Kreb.Editor.Core.Data.Settings (
     EditorMode(..)
 ) where
 
