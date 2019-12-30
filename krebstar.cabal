@@ -201,6 +201,7 @@ library kreb-effect
   build-depends:
       base >=4.7 && <5
     , time >=1.8.0.2
+    , Hclip >=3.0.0.4
     , kreb-struct
     , kreb-check
     , kreb-control
@@ -389,7 +390,8 @@ library kreb-editor-tui
     , Kreb.Editor.TUI.Render
     , Kreb.Editor.TUI.Handler
     , Kreb.Editor.TUI.Monad
-    , Kreb.Editor.TUI.Layout
+    , Kreb.Editor.TUI.Data
+    , Kreb.Editor.TUI.Data.Layout
   build-depends:
       base >=4.7 && <5
     , vty >=5.25.1

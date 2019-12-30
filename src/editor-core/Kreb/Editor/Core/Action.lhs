@@ -27,7 +27,6 @@
 >       Left sig -> return $ Left sig
 >       Right st2 -> performActions env st2 eId as
 
-
 > doPanelActions
 >   :: ( Monad m )
 >   => EventId -> AppState m -> [PanelAction m]
@@ -56,19 +55,29 @@
 >     CharInsert c -> case mode of
 >       NormalMode -> return (Right st)
 >       InsertMode -> doPanelActions eId st
->         [PanelAlterText [TextBoxInsert (fromChar c)]]
+>         [PanelAlterText
+>           [ TextBoxCutRegion (clipboardWriter env)
+>           , TextBoxInsert (fromChar c) ]]
 >       CommandMode -> doPanelActions eId st
->         [PanelAlterCmd [TextBoxInsert (fromChar c)]]
+>         [PanelAlterCmd
+>           [ TextBoxCutRegion (clipboardWriter env)
+>           , TextBoxInsert (fromChar c) ]]
 > 
 >     StringInsert cs -> doPanelActions eId st
->       [PanelAlterText [TextBoxInsertMany (map fromChar cs)]]
+>       [PanelAlterText
+>         [ TextBoxCutRegion (clipboardWriter env)
+>         , TextBoxInsertMany (map fromChar cs) ]]
 > 
 >     CharBackspace -> case mode of
 >       NormalMode -> return (Right st)
 >       InsertMode -> doPanelActions eId st
->         [PanelAlterText [TextBoxBackspace]]
+>         [PanelAlterText
+>           [ TextBoxCutRegion (clipboardWriter env)
+>           , TextBoxBackspace ]]
 >       CommandMode -> doPanelActions eId st
->         [PanelAlterCmd [TextBoxBackspace]]
+>         [PanelAlterCmd
+>           [ TextBoxCutRegion (clipboardWriter env)
+>           , TextBoxBackspace ]]
 > 
 >     CursorLeft -> case mode of
 >       NormalMode -> return (Right st)
@@ -89,6 +98,27 @@
 > 
 >     CursorDown -> doPanelActions eId st
 >       [PanelAlterText [TextBoxCursorDown]]
+> 
+>     CursorTo pos -> case mode of
+>       NormalMode -> return (Right st)
+>       InsertMode -> doPanelActions eId st
+>         [PanelAlterText [TextBoxCursorTo pos]]
+>       CommandMode -> doPanelActions eId st
+>         [PanelAlterCmd [TextBoxCursorTo pos]]
+> 
+>     CursorDrag pos -> case mode of
+>       NormalMode -> return (Right st)
+>       InsertMode -> doPanelActions eId st
+>         [PanelAlterText [TextBoxCursorDrag pos]]
+>       CommandMode -> doPanelActions eId st
+>         [PanelAlterCmd [TextBoxCursorDrag pos]]
+> 
+>     CancelDrag -> case mode of
+>       NormalMode -> return (Right st)
+>       InsertMode -> doPanelActions eId st
+>         [PanelAlterText [TextBoxCancelDrag]]
+>       CommandMode -> doPanelActions eId st
+>         [PanelAlterCmd [TextBoxCancelDrag]]
 > 
 >     LeaveMark -> doPanelActions eId st
 >       [PanelAlterText [TextBoxLeaveMark]]

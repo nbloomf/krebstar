@@ -230,7 +230,10 @@
 >   | PanelAlterCmd [TextBoxAction m]
 >   | PanelClearCmd
 
-> deriving instance (Show (FileReader m)) => Show (PanelAction m)
+> deriving instance
+>   ( Show (FileReader m)
+>   , Show (ClipboardWriter m)
+>   ) => Show (PanelAction m)
 
  > alterPanel
  >   :: EventId -> [PanelAction m]

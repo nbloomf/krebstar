@@ -166,7 +166,10 @@ updateAbsCursorPos st =
 data AppStateAction (m :: * -> *)
   = AppStateAlterActivePanel [PanelAction m]
 
-deriving instance (Show (FileReader m)) => Show (AppStateAction m)
+deriving instance
+  ( Show (FileReader m)
+  , Show (ClipboardWriter m)
+  ) => Show (AppStateAction m)
 
 
 

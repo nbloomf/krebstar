@@ -5,7 +5,9 @@
 > import Kreb.Effect
 
 > data AppEnv m = AppEnv
->   { logWriter :: LogWriter m
->   , fileReader :: FileReader m
->   , fileWriter :: FileWriter m
+>   { logWriter       :: LogWriter m
+>   , fileReader      :: FileReader m
+>   , fileWriter      :: FileWriter m
+>   , clipboardReader :: ClipboardReader m
+>   , clipboardWriter :: ClipboardWriter m
 >   }

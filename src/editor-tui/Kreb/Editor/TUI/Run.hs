@@ -6,6 +6,7 @@ import Graphics.Vty
 import qualified System.Console.Terminal.Size as TS
 
 import System.IO
+import System.Exit
 
 import Kreb.Effect
 import Kreb.Control
@@ -23,8 +24,20 @@ consoleIO :: FilePath -> IO ()
 consoleIO stdLibPath = do
   (replParams, env, dim) <- appEnvIO
   let eId = EventId 0 "init"
-  result <- runTermUI TermEnv TermState $
-    runKrebEd replParams env eId stdLibPath dim
+
+  -- construct the initial application state
+  st <- do
+    st' <- runTermUI TermEnv initTermState $
+      buildInitialAppState env eId stdLibPath dim
+    case st' of
+      Left err -> do
+        putStrLn $ "Initialization Error: " ++ show err
+        exitFailure
+      Right w -> return w
+
+  let layout = snd $ renderState st
+  result <- runTermUI TermEnv (TermState layout) $
+    runEditorCore replParams env st
   case result of
     Just err -> putStrLn $ "Error! " ++ show err
     Nothing -> return ()
@@ -57,10 +70,6 @@ appEnvIO = do
   setMode (outputIface vty) BracketedPaste True
   (w0, h0) <- getTerminalSize'
 
-  let
-    render st =
-      update vty (imageAppState st)
-
   let logPath = "/Users/nathan/code/krebstar/zzz.txt"
   writeFile logPath ""
   logHandle <- openFile logPath WriteMode
@@ -76,13 +85,16 @@ appEnvIO = do
             Right rts -> Right $ st { runtimeSt = rts }
       , _Read = \_ st -> do
           let mode = editorMode st
+          layout <- getsTermState screenLayout
           ev <- lift $ nextEvent vty
-          return $ eventMapping mode ev
+          return $ eventMapping mode layout ev
       , _Eval = \env st act -> do
           let eId = EventId (1 + getActionCounter st) "foo"
           performActions env (tickActionCounter st) eId act
-      , _Print = \_ st ->
-          lift $ render $ updateAbsCursorPos st
+      , _Print = \_ st -> do
+          let (pic, layout) = renderState $ updateAbsCursorPos st
+          modifyTermState $ \x -> x { screenLayout = layout }
+          lift $ update vty pic
       , _Exit = \sig -> do
           liftIO $ hClose logHandle
           liftIO $ shutdown vty
@@ -96,6 +108,8 @@ appEnvIO = do
       { logWriter = logWriterIO logHandle
       , fileReader = fileReaderIO
       , fileWriter = fileWriterIO
+      , clipboardReader = clipboardReaderIO
+      , clipboardWriter = clipboardWriterIO
       }
     , (w0, h0)
     )

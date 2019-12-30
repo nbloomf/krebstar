@@ -18,7 +18,7 @@
 >   => Chaos -> MockWorld [Action]
 >   -> EventId -> FilePath -> (Int, Int)
 >   -> m (MockWorld [Action])
-> runMockEditor chi w eId path dim =
+> runMockEditor chi w eId path dim = do
 >   let
 >     params :: KrebEdReplParams (Mock [Action] m)
 >     params = ReplParams
@@ -37,10 +37,15 @@
 > 
 >     env :: AppEnv (Mock [Action] m)
 >     env = AppEnv
->       { logWriter = logWriterMock :: LogWriter (Mock [Action] m)
->       , fileReader = fileReaderMock :: FileReader (Mock [Action] m)
->       , fileWriter = fileWriterMock :: FileWriter (Mock [Action] m)
+>       { logWriter       = logWriterMock :: LogWriter (Mock [Action] m)
+>       , fileReader      = fileReaderMock :: FileReader (Mock [Action] m)
+>       , fileWriter      = fileWriterMock :: FileWriter (Mock [Action] m)
+>       , clipboardReader = clipboardReaderMock :: ClipboardReader (Mock [Action] m)
+>       , clipboardWriter = clipboardWriterMock :: ClipboardWriter (Mock [Action] m)
 >       }
 > 
->   in fmap fst $ runMock chi w $
->     runKrebEd params env eId path dim
+>   fmap fst $ runMock chi w $ do
+>     st' <- buildInitialAppState env eId path dim
+>     case st' of
+>       Left err -> error $ "runMockEditor: " ++ show err
+>       Right st -> runEditorCore params env st

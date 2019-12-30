@@ -119,6 +119,9 @@ We represent this information with the following type.
 > 
 >   -- The History
 >   , textboxHistory    :: Maybe (PRT.PointedRoseTree (RBT.RedBlackTree (BufferOp Base (Glyph Char))))
+> 
+>   -- The flags
+>   , textboxDragMode   :: Bool
 >   } deriving (Eq, Show)
 
 The `Eq` and `Show` instances are just for testing. Under normal use we won't care about checking text boxes for equality, and the derived show instance is practically useless.
@@ -141,6 +144,7 @@ Definitely not useless are the functions for constructing text boxes. First we h
 >       , textboxSource     = Nothing
 >       , textboxHasChanged = False
 >       , textboxHistory    = Nothing
+>       , textboxDragMode   = False
 >       }
 
 And we can build a text box out of an arbitrary string:
@@ -163,6 +167,7 @@ And we can build a text box out of an arbitrary string:
 >       , textboxSource     = Nothing
 >       , textboxHasChanged = False
 >       , textboxHistory    = Nothing
+>       , textboxDragMode   = False
 >       }
 
 
@@ -404,6 +409,11 @@ And some examples for fun:
 > setTextBoxCursor pos box =
 >   box { textboxCursor = pos }
 
+> setTextBoxDragMode
+>   :: Bool -> TextBox -> TextBox
+> setTextBoxDragMode p box =
+>   box { textboxDragMode = p }
+
 
 > highlightRegion
 >   :: Glyph Char -> Glyph Char
@@ -499,6 +509,10 @@ And some examples for fun:
 >   | TextBoxCursorUp
 >   | TextBoxCursorRight
 >   | TextBoxCursorLeft
+>   | TextBoxCursorTo (Int, Int)
+>   | TextBoxCursorDrag (Int, Int)
+> 
+>   | TextBoxCancelDrag
 > 
 >   | TextBoxLineStart
 >   | TextBoxLineEnd
@@ -510,6 +524,8 @@ And some examples for fun:
 >   | TextBoxLeaveMark
 >   | TextBoxClearMark
 > 
+>   | TextBoxCutRegion (ClipboardWriter m)
+> 
 >   -- 
 >   | TextBoxResize (Int, Int)
 
@@ -518,7 +534,9 @@ And some examples for fun:
 
 > deriving instance
 >   ( Show (FileReader m)
+>   , Show (ClipboardWriter m)
 >   ) => Show (TextBoxAction m)
+
 
  > instance Arb TextBoxAction where
  >   arb = selectFrom
@@ -529,6 +547,7 @@ And some examples for fun:
  >     , return TextBoxCursorUp
  >     , return TextBoxCursorRight
  >     , return TextBoxCursorLeft
+ >     , TextBoxCursorTo <$> arb
  >     , return TextBoxLeaveMark
  >     , return TextBoxClearMark
  >     , do
@@ -583,11 +602,16 @@ And some examples for fun:
 >   TextBoxCursorUp         -> textboxCursorUp
 >   TextBoxCursorRight      -> textboxCursorRight
 >   TextBoxCursorLeft       -> textboxCursorLeft
+>   TextBoxCursorTo pos     -> textboxCursorTo pos
+>   TextBoxCursorDrag pos   -> textboxCursorDrag pos
+>   TextBoxCancelDrag       -> textboxCancelDrag
 >   TextBoxResize dim       -> textboxResize dim
 >   TextBoxLoad reader path -> textboxLoad eId reader path
 >   TextBoxLeaveMark        -> textboxLeaveMark
 >   TextBoxClearMark        -> textboxClearMark
 >   TextBoxClear            -> textboxClear
+
+>   TextBoxCutRegion writer -> textboxCutRegion eId writer
 
 
 
@@ -835,6 +859,52 @@ And some examples for fun:
 >     editSt $ setTextBoxCursor (u, v')
 >     editSt $ setTextBoxOffset l'
 
+> textboxCursorTo
+>   :: ( Monad m )
+>   => (Int, Int)
+>   -> TextBox -> m TextBox
+> textboxCursorTo pos box =
+>   return box
+
+> textboxCancelDrag
+>   :: ( Monad m )
+>   => TextBox -> m TextBox
+> textboxCancelDrag box = return $
+>   localSt box $ do
+>     editSt $ setTextBoxDragMode False
+
+Move the cursor; if no mark is set, then leave the mark
+
+> textboxCursorDrag
+>   :: ( Monad m )
+>   => (Int, Int)
+>   -> TextBox -> m TextBox
+> textboxCursorDrag (x,y) box = return $
+>   localSt box $ do
+>     l <- readSt getTextBoxOffset
+> 
+>     editSt $ editTextBoxBuffer $ alterSizedBuffer $
+>       movePointToScreenCoords (x,y+l)
+> 
+>     (u,v) <- readSt $
+>       querySizedBuffer getPointScreenCoords
+>         . getTextBoxBuffer
+> 
+>     -- TODO: use this to scroll
+>     let (u', v') = (u, v)
+>     let l' = l
+> 
+>     q <- readSt textboxDragMode
+> 
+>     if q
+>       then return ()
+>       else editSt $ editTextBoxBuffer $
+>         alterSizedBuffer (leaveMark . clearMark)
+> 
+>     editSt $ setTextBoxDragMode True
+>     editSt $ setTextBoxCursor (u', v')
+>     editSt $ setTextBoxOffset l'
+
 Resizing should not change the logical coordinates of the focus.
 
 > textboxResize
@@ -871,6 +941,31 @@ Resizing should not change the logical coordinates of the focus.
 >     editSt $ setTextBoxHeight h
 >     editSt $ setTextBoxOffset l2
 >     editSt $ setTextBoxCursor (u2, v2-l2)
+
+> textboxCutRegion
+>   :: ( Monad m )
+>   => EventId -> ClipboardWriter m
+>   -> TextBox -> m TextBox
+> textboxCutRegion eId writer box = do
+>   let
+>     p = querySizedBuffer hasMark $ getTextBoxBuffer box
+> 
+>     cut b = case cutRegion eId b of
+>       Nothing -> (b, [])
+>       Just (u,v,delta) -> (v, u)
+> 
+>   if not p
+>     then return box
+>     else do
+>       let
+>         (buf', str) = alterSizedBuffer' cut (getTextBoxBuffer box)
+>         (u,v) = querySizedBuffer getPointScreenCoords buf'
+> 
+>       writeClipboardWith writer $ map toChar str
+>       return $ box
+>         { textboxBuffer = buf'
+>         , textboxCursor = (u,v)
+>         }
 
 
 

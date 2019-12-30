@@ -13,6 +13,8 @@ No Thought Required
 
 Cleanup Tasks
 -------------
+- In event dispatcher (for TUI) need to branch on both mode and event
+- renderState is hideous and slow
 - Kreb.Editor.Core.Data
   - AppEnv -> CoreEnv with Effects
   - AppSt  -> CoreSt with Settings
@@ -57,6 +59,16 @@ Testing and Debugging
 
 Feature Projects
 ----------------
+- addToClipboard and getFromClipboard, these should probably be Effects
+  - addToClipboard :: String -> m ()
+  - getFromClipboard :: m String
+  - use HClip library for this
+- Get rid of Normal Mode
+- Performance: try using non-blocking nextEvent from vty to reduce lag
+  - idea: try to get more than one input event before rerendering
+    - use this to capture escape sequences not handled by terminfo
+  - event mapping then takes a list of events
+    - can we use this to get around the Shift-Enter problem?
 - Preferences
   - Framework for storing and passing these
   - Expose these as primitives in the language(?)

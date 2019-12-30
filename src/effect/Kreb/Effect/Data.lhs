@@ -10,6 +10,12 @@
 >   , LogWriter(..)
 >   , logWriterIO
 >   , Severity(..)
+> 
+>   , ClipboardWriter(..)
+>   , clipboardWriterIO
+> 
+>   , ClipboardReader(..)
+>   , clipboardReaderIO
 > ) where
 > 
 > import System.IO
@@ -17,6 +23,8 @@
 > import Data.Time.Clock.POSIX (getPOSIXTime)
 > import Data.List (lines)
 > import Control.Exception
+
+> import System.Hclip (getClipboard, setClipboard)
 > 
 > import Kreb.Control.LiftIO
 
@@ -115,3 +123,43 @@
 >             case r of
 >               Nothing -> each as
 >               Just b -> return (Just b)
+
+
+
+> newtype ClipboardReader m = ClipboardReader
+>   { readClipboardWith :: m (Either IOError String) }
+> 
+> clipboardReaderIO
+>   :: ( LiftIO m )
+>   => ClipboardReader m
+> clipboardReaderIO = ClipboardReader $
+>   liftIO $ catch read handler
+>   where
+>     read :: IO (Either IOError String)
+>     read = fmap Right getClipboard
+> 
+>     handler :: IOError -> IO (Either IOError String)
+>     handler err = return $ Left err
+> 
+> instance Show (ClipboardReader IO) where
+>   show _ = "<ClipboardReader IO>"
+
+
+
+> newtype ClipboardWriter m = ClipboardWriter
+>   { writeClipboardWith :: String -> m (Maybe IOError) }
+> 
+> clipboardWriterIO
+>   :: ( LiftIO m )
+>   => ClipboardWriter m
+> clipboardWriterIO = ClipboardWriter $
+>   \content -> liftIO $ catch (write content) handler
+>   where
+>     write :: String -> IO (Maybe IOError)
+>     write content = setClipboard content >> return Nothing
+> 
+>     handler :: IOError -> IO (Maybe IOError)
+>     handler err = return $ Just err
+> 
+> instance Show (ClipboardWriter IO) where
+>   show _ = "<ClipboardWriter IO>"

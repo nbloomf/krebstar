@@ -36,6 +36,7 @@ title: Red-Black Trees
 >   , maxElt
 > 
 >   , insert
+>   , insertAll
 >   , fromList
 >   , singleton
 > 
@@ -376,12 +377,17 @@ Now `insert` works something like this: first we insert into a `RedBlackTree` to
 >       (B, IR R (T R b y c) z d)               -> IR R (T B a x b) y (T B c z d)
 >       (B, IR R b y (T R c z d))               -> IR R (T B a x b) y (T B c z d)
 
-With `insert` we also define a helper function for building red-black trees out of lists.
+With `insert` we also define a helper functions for building red-black trees out of lists, and for inserting lists of items.
 
 > fromList
 >   :: ( Ord a )
 >   => [a] -> RedBlackTree a
 > fromList = foldr insert empty
+
+> insertAll
+>   :: ( Ord a )
+>   => [a] -> RedBlackTree a -> RedBlackTree a
+> insertAll xs w = foldr insert w xs
 
 And with `insert` in hand we can finally see some interesting examples!
 

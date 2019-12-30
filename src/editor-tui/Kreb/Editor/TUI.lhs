@@ -3,11 +3,11 @@
 >   , module Kreb.Editor.TUI.Handler
 >   , module Kreb.Editor.TUI.Run
 >   , module Kreb.Editor.TUI.Monad
->   , module Kreb.Editor.TUI.Layout
+>   , module Kreb.Editor.TUI.Data
 > ) where
 
 > import Kreb.Editor.TUI.Render
 > import Kreb.Editor.TUI.Handler
 > import Kreb.Editor.TUI.Run
 > import Kreb.Editor.TUI.Monad
-> import Kreb.Editor.TUI.Layout
+> import Kreb.Editor.TUI.Data

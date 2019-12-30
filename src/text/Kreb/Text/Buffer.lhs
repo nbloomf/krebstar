@@ -69,10 +69,10 @@ title: Buffers
 
 
 
+>   , cutRegion
 
 > {-
 >   , copyRegion
->   , cutRegion
 >   , insertRegion
 >   , alterRegion
 >   , mapBuffer
@@ -459,6 +459,22 @@ And we need left-biased insert and delete at the point.
 >       EOF -> error "deletePointLeft: panic"
 > 
 
+
+> cutRegion
+>   :: forall w t d a
+>    . ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, IsChar a )
+>   => EventId -> Buffer w t d a
+>   -> Maybe ([a], Buffer w t d a, [BufferOp d a])
+> cutRegion eId (Buffer w del) = do
+>   (region, rest) <- TPL.cutRegionL w
+>   let
+>     xs :: [Rune d a]
+>     xs = concatMap listCell $ Fold.toList region 
+>   return
+>     ( map getRuneValue xs
+>     , Buffer rest (RBT.insertAll xs del)
+>     , map (\x -> BufferOpDel (setEventId eId x)) xs )
+
 > {-
 
 > copyRegion
@@ -473,14 +489,7 @@ And we need left-biased insert and delete at the point.
 As well we have versions of `copy`, `cut`, and `insert`.
 
 > 
-> cutRegion
->   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
->   => Buffer w t d a -> Maybe (Buffer w t d a, Buffer w t d a)
-> cutRegion (Buffer w) = do
->   (region, rest) <- TPL.cutRegionL w
->   return
->     ( fromFingerTree $ FT.inflateWith listCell region
->     , Buffer rest )
+
 > 
 > insertRegion
 >   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )

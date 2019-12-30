@@ -1,7 +1,7 @@
 module Kreb.Editor.Core.Monad (
-    runKrebEd
+    runEditorCore
   , KrebEdReplParams
-  , initAppState
+  , buildInitialAppState
 ) where
 
 import System.IO.Error
@@ -17,22 +17,20 @@ import Kreb.Editor.Core.Data
 type KrebEd m a
   = ReplT [Action] (AppEnv m) AppSignal (AppState m) m a
 
-runKrebEd
-  :: ( Monad m )
-  => KrebEdReplParams m -> AppEnv m -> EventId -> FilePath -> (Int, Int) -> m (Maybe AppSignal)
-runKrebEd params env eId path dim = do
-  result <- initAppState env eId path dim
-  case result of
-    Left err -> return (Just err)
-    Right st -> runReplT params env st loopReplT >> return Nothing
-
 type KrebEdReplParams m
   = ReplParams [Action] (AppEnv m) AppSignal (AppState m) m
 
-initAppState
+runEditorCore
+  :: ( Monad m )
+  => KrebEdReplParams m -> AppEnv m -> AppState m
+  -> m (Maybe AppSignal)
+runEditorCore params env st =
+  runReplT params env st loopReplT >> return Nothing
+
+buildInitialAppState
   :: ( Monad m )
   => AppEnv m -> EventId -> FilePath -> (Int, Int) -> m (Either AppSignal (AppState m))
-initAppState env eId stdLib (w,h) = do
+buildInitialAppState env eId stdLib (w,h) = do
   let
     rts = runtimeState env eId
     st = AppState

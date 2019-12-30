@@ -5,49 +5,102 @@ module Kreb.Editor.TUI.Handler (
 import qualified Graphics.Vty as V
 
 import Kreb.Editor.Core
+import Kreb.Editor.TUI.Data.Layout
+
+
+clickDebug :: Layout -> (Int, Int) -> String
+clickDebug l pos = concat
+  [ "Locating mouse event:\n"
+  , case isInside pos $ _textRect l of
+      Nothing -> "- not inside text rect\n"
+      Just x -> "- inside text rect at " ++ show x ++ "\n"
+  , case isInside pos $ _cmdRect l of
+      Nothing -> "- not inside cmd rect\n"
+      Just x -> "- inside cmd rect at " ++ show x ++ "\n"
+  , case isInside pos $ _histRect l of
+      Nothing -> "- not inside hist rect\n"
+      Just x -> "- inside hist rect at " ++ show x ++ "\n"
+  , case isInside pos $ _statusRect l of
+      Nothing -> "- not inside status rect\n"
+      Just x -> "- inside status rect at " ++ show x ++ "\n"
+  ]
 
 
 
+eventMapping
+  :: EditorMode -> Layout -> V.Event -> [Action]
+eventMapping mode layout event =
+  case (mode, event) of
 
-eventMapping :: EditorMode -> V.Event -> [Action]
-eventMapping mode event =
-  if mode == NormalMode
-    then case event of
-      V.EvKey (V.KChar 'i') [] ->
-        [ SetMode InsertMode ]
 
-      V.EvKey (V.KChar 'c') [] ->
-        [ SetMode CommandMode ]
+    -- All Modes --
 
-      V.EvKey (V.KChar 'q') [] ->
-        [ Quit ]
+    (_, V.EvMouseDown x y _ _) ->
+      case isInside (x,y) $ _textRect layout of
+        Just pos ->
+          [ CursorDrag pos ]
+        Nothing ->
+          [ ShowDebug $ "eventMapping (Nor): " ++ show event
+          , ShowDebug $ show layout
+          , ShowDebug $ clickDebug layout (x,y)
+          ]
 
-      V.EvKey (V.KChar 's') [V.MCtrl] ->
-        [ FileSave ]
+    (_, V.EvMouseUp x y _) ->
+      case isInside (x,y) $ _textRect layout of
+        Just pos ->
+          [ CancelDrag ]
+        Nothing ->
+          [ ShowDebug $ "eventMapping (Nor): " ++ show event
+          , ShowDebug $ show layout
+          , ShowDebug $ clickDebug layout (x,y)
+          ]
 
-      _ ->
-        [ ShowDebug $ " eventMapping (Nor): " ++ show event ]
+    (_, V.EvResize w h) ->
+      [ WindowResize (w,h) ]
 
-    else case event of
-      V.EvResize w h ->
-        [ WindowResize (w,h) ]
+    (_, V.EvKey V.KEsc []) ->
+      [ SetMode NormalMode ]
 
-      V.EvKey V.KEsc [] ->
-        [ SetMode NormalMode ]
 
-      V.EvKey (V.KChar c) [] ->
-        [ CharInsert c ]
+    -- Normal Mode --
 
-      V.EvKey V.KBS [] ->
-        [ CharBackspace ]
+    (NormalMode, V.EvKey (V.KChar 'i') []) ->
+      [ SetMode InsertMode ]
 
-      V.EvKey V.KLeft [] ->
-        [ ClearMark, CursorLeft ]
+    (NormalMode, V.EvKey (V.KChar 'c') []) ->
+      [ SetMode CommandMode ]
 
-      V.EvKey V.KRight [] ->
-        [ ClearMark, CursorRight ]
+    (NormalMode, V.EvKey (V.KChar 's') [V.MCtrl]) ->
+      [ FileSave ]
 
-      _ -> case mode of
+    (NormalMode, V.EvKey (V.KChar 'q') []) ->
+      [ Quit ]
+
+    (NormalMode, _) ->
+      [ ShowDebug $ "eventMapping (Nor): " ++ show event ]
+
+
+    -- Command or Insert Mode --
+
+    (_, V.EvKey (V.KChar c) []) ->
+      [ CharInsert c ]
+
+    (_, V.EvKey V.KBS []) ->
+      [ CharBackspace ]
+
+    (_, V.EvKey V.KLeft []) ->
+      [ ClearMark, CursorLeft ]
+
+    (_, V.EvKey V.KRight []) ->
+      [ ClearMark, CursorRight ]
+
+
+    -- Command Mode --
+
+    (CommandMode, V.EvKey V.KEnter []) ->
+      [ RunCmd ]
+
+    _ -> case mode of
         InsertMode -> case event of
           V.EvKey V.KEnter [] ->
             [ CharInsert '\n' ]
@@ -67,11 +120,4 @@ eventMapping mode event =
             [ LeaveMark, CursorLeft ]
 
           _ ->
-            [ ShowDebug $ " eventMapping (Ins): " ++ show event ]
-
-        CommandMode -> case event of
-          V.EvKey V.KEnter [] ->
-            [ RunCmd ]
-
-          _ ->
-            [ ShowDebug $ " eventMapping (Cmd): " ++ show event ]
+            [ ShowDebug $ "eventMapping (Cmd): " ++ show event ]

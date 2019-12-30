@@ -17,6 +17,10 @@
 >   | CursorDown
 >   | CursorRight
 >   | CursorLeft
+>   | CursorTo (Int, Int)
+>   | CursorDrag (Int, Int)
+
+>   | CancelDrag
 
 >   -- Editing
 >   | CharInsert Char
@@ -32,6 +36,8 @@
 >   | LeaveMark
 >   | ClearMark
 
+>   | SelectionCut
+
 >   | CursorLineStart
 >   | CursorLineEnd
 
@@ -42,7 +48,6 @@
 >   | SelectionMark
 >   | SelectionUnmark
 
->   | SelectionCut
 >   | SelectionCopy
 >   | SelectionPaste
 

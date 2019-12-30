@@ -4,6 +4,8 @@
 
 > import Kreb.Control
 
+> import Kreb.Editor.TUI.Data.Layout
+
 > newtype TermUI (m :: * -> *) a = TermUI
 >   { unTermUI :: TermEnv m -> TermState m -> m (a, TermState m) }
 
@@ -53,6 +55,19 @@
 >     a <- liftIO x
 >     return (a, st)
 
+> modifyTermState
+>   :: ( Monad m )
+>   => (TermState m -> TermState m)
+>   -> TermUI m ()
+> modifyTermState f = TermUI $ \_ st ->
+>   return ((), f st)
+
+> getsTermState
+>   :: ( Monad m )
+>   => (TermState m -> a) -> TermUI m a
+> getsTermState f = TermUI $ \_ st ->
+>   return (f st, st)
+
 
 > data TermEnv (m :: * -> *) = TermEnv
 
@@ -61,6 +76,10 @@
 
 
 > data TermState (m :: * -> *) = TermState
+>   { screenLayout :: Layout
+>   } deriving (Eq, Show)
 
 > initTermState :: TermState m
 > initTermState = TermState
+>   { screenLayout = emptyLayout
+>   }
