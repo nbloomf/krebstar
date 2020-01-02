@@ -3,6 +3,7 @@
 
 No Thought Required
 -------------------
+- Rename core actions to NounVerb form
 - Move BufferOp to own module
 - Augmented
   - Move to its own module (control? struct?)
@@ -13,7 +14,9 @@ No Thought Required
 
 Cleanup Tasks
 -------------
-- In event dispatcher (for TUI) need to branch on both mode and event
+- if a textbox is inactive, render the cursor location
+- get rid of Local monad in textbox, use LocalT instead
+- handle paste event (?)
 - renderState is hideous and slow
 - Kreb.Editor.Core.Data
   - AppEnv -> CoreEnv with Effects
@@ -38,6 +41,7 @@ Cleanup Tasks
 - Preferences
   - Define this, put it on the editor state object
   - start with the stdlib path (cf. Run)
+- Visual indicator when newlines are selected
 
 Blockers
 --------
@@ -56,13 +60,17 @@ Testing and Debugging
 - Get logging to work
   - Enable with command line arg
 - Golden tests for batch mode
+- need tests for cut/copy/paste
 
 Feature Projects
 ----------------
-- addToClipboard and getFromClipboard, these should probably be Effects
-  - addToClipboard :: String -> m ()
-  - getFromClipboard :: m String
-  - use HClip library for this
+- Mouse scrolling events
+- When in drag mode, how to deal with scrolling
+- Mouse events in multiple text boxes
+  - idea: extra 'paused' status for drag mode
+  - should drag mode be in the panel state instead of on the text box?
+    - need a 'global' way to decide how to interpret mouse events
+- clipboard functions should catch clipboard exceptions instead of IOErrors
 - Get rid of Normal Mode
 - Performance: try using non-blocking nextEvent from vty to reduce lag
   - idea: try to get more than one input event before rerendering
@@ -88,12 +96,20 @@ Feature Projects
       Insert -> Delete
       Delete -> Insert after updating the event id
   - tests: redo . undo == id, undo . redo == id
-- Cut/Copy/Paste
 - Save/Load
 - Batch frontend
   - pass a list of language commands
 - HTTP backend
 - GUI frontend
+
+Bugs
+----
+- Screen cursor position messed up after button click
+  - repro:
+    - insert height+1 newlines
+    - drag to bottom of screen; cursor is outside text region
+    - click inside region and type
+    - select some non-newline chars; cursor is below highlight
 
 
 
@@ -178,7 +194,6 @@ format
 
 FEATURES TO IMPLEMENT IN ORDER OF PRIORITY
 ==========================================
-3. Respond to basic mouse click events
 4. Raw headless mode: list of actions
     - (v. useful for automated testing)
 

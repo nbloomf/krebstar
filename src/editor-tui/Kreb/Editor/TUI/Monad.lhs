@@ -3,6 +3,7 @@
 > module Kreb.Editor.TUI.Monad where
 
 > import Kreb.Control
+> import Kreb.Editor.Core
 
 > import Kreb.Editor.TUI.Data.Layout
 
@@ -68,6 +69,17 @@
 > getsTermState f = TermUI $ \_ st ->
 >   return (f st, st)
 
+> getEditorMode
+>   :: ( Monad m )
+>   => TermUI m EditorMode
+> getEditorMode = getsTermState editorMode
+> 
+> setEditorMode
+>   :: ( Monad m )
+>   => EditorMode -> TermUI m ()
+> setEditorMode mode = modifyTermState $
+>   \st -> st { editorMode = mode }
+
 
 > data TermEnv (m :: * -> *) = TermEnv
 
@@ -77,9 +89,11 @@
 
 > data TermState (m :: * -> *) = TermState
 >   { screenLayout :: Layout
+>   , editorMode :: EditorMode
 >   } deriving (Eq, Show)
 
 > initTermState :: TermState m
 > initTermState = TermState
 >   { screenLayout = emptyLayout
+>   , editorMode = NormalMode
 >   }

@@ -15,8 +15,8 @@
 
 > renderState
 >   :: ( Monad m )
->   => AppState m -> (Picture, Layout)
-> renderState st =
+>   => EditorMode -> AppState m -> (Picture, Layout)
+> renderState mode st =
 >   case getActiveTab $ tabbedBuffers st of
 >     Nothing -> (blankPicture, emptyLayout)
 >     Just panel ->
@@ -24,7 +24,6 @@
 >       let
 
 >         settings = glyphRenderSettings st
->         mode = editorMode st
 >         tab = tabWidth st
 > 
 >         textL = textboxOffset $ textBox panel

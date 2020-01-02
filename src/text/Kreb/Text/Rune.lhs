@@ -23,6 +23,7 @@
 >   , getRuneId
 
 >   , newRuneId
+>   , newRunesId
 
 >   , updateRuneEventId
 >   , updateRunesEventId
@@ -58,6 +59,9 @@
 > data ZZFrac d
 >   = ZZFrac Integer (NonNegative Integer)
 >   deriving Eq
+
+> numerator :: ZZFrac d -> Integer
+> numerator (ZZFrac k _) = k
 
 > class IsBase d where
 >   toBase   :: Proxy d -> Int
@@ -178,6 +182,16 @@
 >           then ZZFrac (m1 + 1) (NonNegative k1)
 >           else ZZFrac (d*m1 + 1) (NonNegative (k1 + 1))
 
+> chooseBetweens
+>   :: forall d a
+>    . ( IsBase d )
+>   => ZZFrac d -> ZZFrac d -> [a] -> [(a, ZZFrac d)]
+> chooseBetweens u1 u2 as = case as of
+>   [] -> []
+>   w:ws ->
+>     let v = chooseBetween u1 u2
+>     in (w,v) : chooseBetweens v u2 ws
+
 > data EventId
 >   = EventId Integer String
 >   deriving (Eq, Ord, Show)
@@ -200,6 +214,23 @@
 >     Rune a (RuneId (intAbove x) (toChar a) eId)
 >   (Augmented (RuneId x _ _), Augmented (RuneId y _ _)) ->
 >     Rune a (RuneId (chooseBetween x y) (toChar a) eId)
+
+> newRunesId
+>   :: ( IsBase d, IsChar a )
+>   => EventId
+>   -> (Augmented (RuneId d), Augmented (RuneId d))
+>   -> [a] -> [Rune d a]
+> newRunesId eId (u,v) as = case (u,v) of
+>   (Infimum, Supremum) ->
+>     zipWith (\a k -> Rune a (RuneId (fromIntegral k) (toChar a) eId)) as [0..]
+>   (Infimum, Augmented (RuneId y _ _)) ->
+>     let m = numerator $ intBelow y in
+>     reverse $ zipWith (\a k -> Rune a (RuneId (fromIntegral k) (toChar a) eId)) as [m,(m - 1)..]
+>   (Augmented (RuneId x _ _), Supremum) ->
+>     let m = numerator $ intAbove x in
+>     zipWith (\a k -> Rune a (RuneId (fromIntegral k) (toChar a) eId)) as [m..]
+>   (Augmented (RuneId x _ _), Augmented (RuneId y _ _)) ->
+>     map (\(a,k) -> Rune a (RuneId k (toChar a) eId)) (chooseBetweens x y as) 
 
 > updateRuneEventId
 >   :: forall a d

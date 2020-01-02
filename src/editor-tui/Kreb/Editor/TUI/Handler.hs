@@ -28,7 +28,7 @@ clickDebug l pos = concat
 
 
 eventMapping
-  :: EditorMode -> Layout -> V.Event -> [Action]
+  :: EditorMode -> Layout -> V.Event -> (EditorMode, [(EditorMode, Action)])
 eventMapping mode layout event =
   case (mode, event) of
 
@@ -38,86 +38,99 @@ eventMapping mode layout event =
     (_, V.EvMouseDown x y _ _) ->
       case isInside (x,y) $ _textRect layout of
         Just pos ->
-          [ CursorDrag pos ]
+          (mode, [ (mode, CursorDrag pos) ])
         Nothing ->
-          [ ShowDebug $ "eventMapping (Nor): " ++ show event
-          , ShowDebug $ show layout
-          , ShowDebug $ clickDebug layout (x,y)
-          ]
+          (mode, [ (mode, ShowDebug $ "eventMapping (Nor): " ++ show event)
+          , (mode, ShowDebug $ show layout)
+          , (mode, ShowDebug $ clickDebug layout (x,y))
+          ])
 
     (_, V.EvMouseUp x y _) ->
       case isInside (x,y) $ _textRect layout of
         Just pos ->
-          [ CancelDrag ]
+          (mode, [ (mode, CancelDrag) ])
         Nothing ->
-          [ ShowDebug $ "eventMapping (Nor): " ++ show event
-          , ShowDebug $ show layout
-          , ShowDebug $ clickDebug layout (x,y)
-          ]
+          (mode, [ (mode, ShowDebug $ "eventMapping (Nor): " ++ show event)
+          , (mode, ShowDebug $ show layout)
+          , (mode, ShowDebug $ clickDebug layout (x,y))
+          ])
 
     (_, V.EvResize w h) ->
-      [ WindowResize (w,h) ]
+      (mode, [ (mode, WindowResize (w,h)) ])
 
     (_, V.EvKey V.KEsc []) ->
-      [ SetMode NormalMode ]
+      (NormalMode, [])
 
 
     -- Normal Mode --
 
     (NormalMode, V.EvKey (V.KChar 'i') []) ->
-      [ SetMode InsertMode ]
+      (InsertMode, [])
 
     (NormalMode, V.EvKey (V.KChar 'c') []) ->
-      [ SetMode CommandMode ]
+      (CommandMode, [])
 
     (NormalMode, V.EvKey (V.KChar 's') [V.MCtrl]) ->
-      [ FileSave ]
+      (mode, [ (mode, FileSave) ])
 
     (NormalMode, V.EvKey (V.KChar 'q') []) ->
-      [ Quit ]
+      (mode, [ (mode, Quit) ])
 
     (NormalMode, _) ->
-      [ ShowDebug $ "eventMapping (Nor): " ++ show event ]
+      (mode, [ (mode, ShowDebug $ "eventMapping (Nor): " ++ show event) ])
 
 
     -- Command or Insert Mode --
 
-    (_, V.EvKey (V.KChar c) []) ->
-      [ CharInsert c ]
-
     (_, V.EvKey V.KBS []) ->
-      [ CharBackspace ]
+      (mode, [ (mode, CharBackspace) ])
 
     (_, V.EvKey V.KLeft []) ->
-      [ ClearMark, CursorLeft ]
+      (mode, [ (mode, ClearMark), (mode, CursorLeft) ])
 
     (_, V.EvKey V.KRight []) ->
-      [ ClearMark, CursorRight ]
+      (mode, [ (mode, ClearMark), (mode, CursorRight) ])
+
+    (_, V.EvKey (V.KChar 'x') [V.MCtrl]) ->
+      (mode, [ (mode, RegionClip), (mode, RegionDelete) ])
+
+    (_, V.EvKey (V.KChar 'c') [V.MCtrl]) ->
+      (mode, [ (mode, RegionClip) ])
+
+    (_, V.EvKey (V.KChar 'v') [V.MCtrl]) ->
+      (mode, [ (mode, RegionPaste) ])
+
+    (_, V.EvKey (V.KChar c) []) ->
+      (mode, [ (mode, CharInsert c) ])
 
 
     -- Command Mode --
 
     (CommandMode, V.EvKey V.KEnter []) ->
-      [ RunCmd ]
+      (mode, [ (mode, RunCmd) ])
 
-    _ -> case mode of
-        InsertMode -> case event of
-          V.EvKey V.KEnter [] ->
-            [ CharInsert '\n' ]
 
-          V.EvKey V.KDown [] ->
-            [ ClearMark, CursorDown ]
-          V.EvKey V.KUp [] ->
-            [ ClearMark, CursorUp ]
+    -- Insert Mode --
 
-          V.EvKey V.KDown [V.MShift] ->
-            [ LeaveMark, CursorDown ]
-          V.EvKey V.KUp [V.MShift] ->
-            [ LeaveMark, CursorUp ]
-          V.EvKey V.KRight [V.MShift] ->
-            [ LeaveMark, CursorRight ]
-          V.EvKey V.KLeft [V.MShift] ->
-            [ LeaveMark, CursorLeft ]
+    (InsertMode, V.EvKey V.KEnter []) ->
+      (mode, [ (mode, CharInsert '\n') ])
 
-          _ ->
-            [ ShowDebug $ "eventMapping (Cmd): " ++ show event ]
+    (InsertMode, V.EvKey V.KDown []) ->
+      (mode, [ (mode, ClearMark), (mode, CursorDown) ])
+
+    (InsertMode, V.EvKey V.KUp []) ->
+      (mode, [ (mode, ClearMark), (mode, CursorUp) ])
+
+    (InsertMode, V.EvKey V.KDown [V.MShift]) ->
+      (mode, [ (mode, LeaveMark), (mode, CursorDown) ])
+
+    (InsertMode, V.EvKey V.KUp [V.MShift]) ->
+      (mode, [ (mode, LeaveMark), (mode, CursorUp) ])
+
+    (InsertMode, V.EvKey V.KRight [V.MShift]) ->
+      (mode, [ (mode, LeaveMark), (mode, CursorRight) ])
+
+    (InsertMode, V.EvKey V.KLeft [V.MShift]) ->
+      (mode, [ (mode, LeaveMark), (mode, CursorLeft) ])
+
+    _ -> (mode, [ (mode, ShowDebug $ "eventMapping: " ++ show event) ])

@@ -212,6 +212,12 @@ Next we define some helper functions for extracting information from a two-point
 > hasMark w = case w of
 >   PointOnly _ -> False
 >   _ -> True
+> 
+> isCoincident
+>   :: TwoPointedList v a -> Bool
+> isCoincident w = case w of
+>   Coincide _ -> True
+>   _ -> False
 
 It will also be useful to detect when a two-pointed list has exactly one item in it.
 
@@ -805,9 +811,9 @@ To start, here's a left-biased region version of `fmap`.
 > alterRegionL f w = case w of
 >   Vacant -> Vacant
 >   PointOnly (as, x, bs) ->
->     PointOnly (as, f x, bs)
+>     PointOnly (as, x, bs)
 >   Coincide (as, x, bs) ->
->     Coincide (as, f x, bs)
+>     Coincide (as, x, bs)
 >   PointMark (as, x, bs, y, cs) ->
 >     PointMark (as, f x, FT.fmapFT f bs, y, cs)
 >   MarkPoint (as, x, bs, y, cs) ->

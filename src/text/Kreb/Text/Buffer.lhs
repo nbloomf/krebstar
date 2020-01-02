@@ -46,6 +46,7 @@ title: Buffers
 >   , isPointAtStart
 >   , isPointAtEnd
 >   , hasMark
+>   , isCoincident
 >   , isMarkAtStart
 >   , isMarkAtEnd
 >   , movePointToStart
@@ -70,10 +71,10 @@ title: Buffers
 
 
 >   , cutRegion
-
-> {-
 >   , copyRegion
 >   , insertRegion
+
+> {-
 >   , alterRegion
 >   , mapBuffer
 >   , mapRegion
@@ -344,6 +345,12 @@ The point and mark of a buffer represent the read head, and moving them around i
 > hasMark =
 >   TPL.hasMark . bufContents
 > 
+> isCoincident
+>   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
+>   => Buffer w t d a -> Bool
+> isCoincident =
+>   TPL.isCoincident . bufContents
+> 
 > isMarkAtStart
 >   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
 >   => Buffer w t d a -> Bool
@@ -475,30 +482,39 @@ And we need left-biased insert and delete at the point.
 >     , Buffer rest (RBT.insertAll xs del)
 >     , map (\x -> BufferOpDel (setEventId eId x)) xs )
 
-> {-
-
 > copyRegion
 >   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
->   => Buffer w t d a -> Maybe (Buffer w t d a)
-> copyRegion (Buffer w) =
->   fmap (fromFingerTree . FT.inflateWith listCell)
->     $ TPL.copyRegionL w
+>   => Buffer w t d a -> Maybe [a]
+> copyRegion (Buffer w _) = do
+>   region <- TPL.copyRegionL w
+>   return $ map getRuneValue $ concatMap listCell $ Fold.toList region
 
-
-
-As well we have versions of `copy`, `cut`, and `insert`.
-
-> 
-
-> 
 > insertRegion
->   :: ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a )
->   => Buffer w t d a -> Buffer w t d a -> Buffer w t d a
-> insertRegion (Buffer snippet) (Buffer w) =
->   Buffer $ TPL.insertRegionL (TPL.integrate snippet) w
-> 
+>   :: forall w t d a
+>    . ( IsWidth w, IsTab t, IsBase d, Valued (MeasureText w t d) a, IsChar a )
+>   => EventId -> [a] -> Buffer w t d a
+>   -> (Buffer w t d a, [BufferOp d a])
+> insertRegion eId ins (Buffer w del) =
+>   let
 
-> -}
+>     (old, rest) = case TPL.cutRegionL w of
+>       Nothing -> (mempty, w)
+>       Just z -> z
+
+>     xs :: [Rune d a]
+>     xs = concatMap listCell $ Fold.toList old
+> 
+>     u = case TPL.valuesAroundPoint rest of
+>       Nothing    -> (Infimum, Supremum)
+>       Just (x,y) -> (runeId x, runeId y)
+>     vs = newRunesId eId u ins
+>   in
+>     ( Buffer
+>         (TPL.insertRegionL (FT.fromList $ map Cell vs) rest)
+>         (RBT.insertAll xs del)
+>     , concat
+>         [ map (\x -> BufferOpDel (setEventId eId x)) xs
+>         , map (\v -> BufferOpIns (setEventId eId v)) vs ] )
 
 > alterRegion
 >   :: forall w t d a

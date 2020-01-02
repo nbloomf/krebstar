@@ -18,14 +18,13 @@
 >   | CursorRight
 >   | CursorLeft
 >   | CursorTo (Int, Int)
->   | CursorDrag (Int, Int)
 
+>   | CursorDrag (Int, Int)
 >   | CancelDrag
 
 >   -- Editing
 >   | CharInsert Char
 >   | CharBackspace
-
 >   | StringInsert String
 
 >   -- Load and Save
@@ -36,7 +35,9 @@
 >   | LeaveMark
 >   | ClearMark
 
->   | SelectionCut
+>   | RegionDelete
+>   | RegionClip
+>   | RegionPaste
 
 >   | CursorLineStart
 >   | CursorLineEnd
@@ -47,9 +48,6 @@
 >   -- Selection Management
 >   | SelectionMark
 >   | SelectionUnmark
-
->   | SelectionCopy
->   | SelectionPaste
 
 >   -- Edit Operations
 >   | CharOverwrite Char

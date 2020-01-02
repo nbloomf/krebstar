@@ -12,9 +12,6 @@ module Kreb.Editor.Core.Data.State (
 
   , renderDebugMessage
 
-  , getEditorMode
-  , setEditorMode
-
   , getAbsCursorPos
   , modifyAbsCursorPos
   , updateAbsCursorPos
@@ -45,7 +42,6 @@ import Kreb.Editor.Core.Data.Panel
 
 data AppState (m :: * -> *) = AppState
   { windowDim            :: (Int, Int)
-  , editorMode           :: EditorMode
   , absCursorPos         :: (Int, Int)
   , tabbedBuffers        :: Tabs
   , tabWidth             :: Int
@@ -66,7 +62,6 @@ tickActionCounter st = st
 instance Show (AppState m) where
   show st = unlines
     [ "windowDim = ", show $ windowDim st
-    , "editorMode = ", show $ editorMode st
     , "absCursorPos = ", show $ absCursorPos st
     , "tabbedBuffers = ", show $ tabbedBuffers st
     ]
@@ -134,12 +129,6 @@ setWindowDim eId dim st = do
 
 
 
-getEditorMode :: AppState m -> EditorMode
-getEditorMode st = editorMode st
-
-setEditorMode :: EditorMode -> AppState m -> AppState m
-setEditorMode m st = st { editorMode = m }
-
 getAbsCursorPos :: AppState m -> (Int, Int)
 getAbsCursorPos st = absCursorPos st
 
@@ -151,11 +140,10 @@ modifyAbsCursorPos (dx, dy) st =
 
 
 
-updateAbsCursorPos :: AppState m -> AppState m
-updateAbsCursorPos st =
+updateAbsCursorPos :: EditorMode -> AppState m -> AppState m
+updateAbsCursorPos mode st =
   let
     dim = windowDim st
-    mode = editorMode st
     tabs = tabbedBuffers st
   in st
     { absCursorPos = getAbsCursorPosTabs dim mode tabs
@@ -168,7 +156,9 @@ data AppStateAction (m :: * -> *)
 
 deriving instance
   ( Show (FileReader m)
+  , Show (FileWriter m)
   , Show (ClipboardWriter m)
+  , Show (ClipboardReader m)
   ) => Show (AppStateAction m)
 
 
@@ -210,7 +200,6 @@ renderDebugMessage st = unlines
   [ "==== State ===="
   , "windowDim: " ++ show (windowDim st)
   , "absCursorPos: " ++ show (absCursorPos st)
-  , "editorMode: " ++ show (editorMode st)
   , ""
   , debugShowTabs (tabbedBuffers st)
   , ""

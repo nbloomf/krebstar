@@ -15,10 +15,10 @@ import Kreb.Editor.Core.Data
 
 
 type KrebEd m a
-  = ReplT [Action] (AppEnv m) AppSignal (AppState m) m a
+  = ReplT [(EditorMode, Action)] (AppEnv m) AppSignal (AppState m) m a
 
 type KrebEdReplParams m
-  = ReplParams [Action] (AppEnv m) AppSignal (AppState m) m
+  = ReplParams [(EditorMode, Action)] (AppEnv m) AppSignal (AppState m) m
 
 runEditorCore
   :: ( Monad m )
@@ -35,7 +35,6 @@ buildInitialAppState env eId stdLib (w,h) = do
     rts = runtimeState env eId
     st = AppState
       { windowDim            = (w,h)
-      , editorMode           = NormalMode
       , absCursorPos         = (0,0)
       , tabWidth             = 4
       , tabbedBuffers        = initTabs "" (w,h) (initPanelDim (w,h)) 4

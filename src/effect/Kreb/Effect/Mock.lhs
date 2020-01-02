@@ -157,6 +157,9 @@
 > 
 > emptyMockFilesystem :: MockFilesystem
 > emptyMockFilesystem = MockFilesystem FM.empty
+> 
+> mockFilesystem :: [(FilePath, String)] -> MockFilesystem
+> mockFilesystem = MockFilesystem . FM.fromList
 
 
 

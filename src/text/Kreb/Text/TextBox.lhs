@@ -18,6 +18,7 @@ title: Text Boxes
 > {-# LANGUAGE KindSignatures #-}
 > {-# LANGUAGE StandaloneDeriving #-}
 > {-# LANGUAGE UndecidableInstances #-}
+> {-# LANGUAGE RankNTypes #-}
 > 
 > module Kreb.Text.TextBox (
 >     TextBox(..)
@@ -524,17 +525,23 @@ And some examples for fun:
 >   | TextBoxLeaveMark
 >   | TextBoxClearMark
 > 
->   | TextBoxCutRegion (ClipboardWriter m)
+>   | TextBoxDeleteRegion
+>   | TextBoxClipRegion (ClipboardWriter m)
+>   | TextBoxPasteRegion (ClipboardReader m)
 > 
 >   -- 
 >   | TextBoxResize (Int, Int)
 
->   | TextBoxLoad (FileReader m) FilePath
+>   | TextBoxSetSource FilePath
+>   | TextBoxLoad Bool (FileReader m)
+>   | TextBoxSave (FileWriter m)
 >   | TextBoxClear
 
 > deriving instance
 >   ( Show (FileReader m)
+>   , Show (FileWriter m)
 >   , Show (ClipboardWriter m)
+>   , Show (ClipboardReader m)
 >   ) => Show (TextBoxAction m)
 
 
@@ -595,31 +602,56 @@ And some examples for fun:
 >   => EventId -> TextBoxAction m
 >   -> TextBox -> m TextBox
 > alterTextBoxPrimitive eId act = case act of
->   TextBoxInsert c         -> textboxInsert eId c
->   TextBoxInsertMany cs    -> textboxInsertMany eId cs
->   TextBoxBackspace        -> textboxBackspace eId
->   TextBoxCursorDown       -> textboxCursorDown
->   TextBoxCursorUp         -> textboxCursorUp
->   TextBoxCursorRight      -> textboxCursorRight
->   TextBoxCursorLeft       -> textboxCursorLeft
->   TextBoxCursorTo pos     -> textboxCursorTo pos
->   TextBoxCursorDrag pos   -> textboxCursorDrag pos
->   TextBoxCancelDrag       -> textboxCancelDrag
->   TextBoxResize dim       -> textboxResize dim
->   TextBoxLoad reader path -> textboxLoad eId reader path
->   TextBoxLeaveMark        -> textboxLeaveMark
->   TextBoxClearMark        -> textboxClearMark
->   TextBoxClear            -> textboxClear
+>   TextBoxInsert c            -> textboxInsert eId c
+>   TextBoxInsertMany cs       -> textboxInsertMany eId cs
+>   TextBoxBackspace           -> textboxBackspace eId
+>   TextBoxCursorDown          -> textboxCursorDown
+>   TextBoxCursorUp            -> textboxCursorUp
+>   TextBoxCursorRight         -> textboxCursorRight
+>   TextBoxCursorLeft          -> textboxCursorLeft
+>   TextBoxCursorTo pos        -> textboxCursorTo pos
+>   TextBoxCursorDrag pos      -> textboxCursorDrag pos
+>   TextBoxCancelDrag          -> textboxCancelDrag
+>   TextBoxResize dim          -> textboxResize dim
+>   TextBoxLeaveMark           -> runLocalT textboxLeaveMark
+>   TextBoxClearMark           -> runLocalT textboxClearMark
+>   TextBoxClear               -> textboxClear
 
->   TextBoxCutRegion writer -> textboxCutRegion eId writer
+>   TextBoxDeleteRegion        -> textboxDeleteRegion eId
+>   TextBoxClipRegion writer   -> runLocalT (textboxClipRegion writer)
+>   TextBoxPasteRegion reader  -> textboxPasteRegion eId reader
 
-
+>   TextBoxLoad force reader   -> textboxLoad eId force reader
+>   TextBoxSave writer         -> runLocalT (textboxSave writer)
+>   TextBoxSetSource path      -> runLocalT (textboxSetSource path)
 
 
 
 -- ================= --
 -- Primitive Actions --
 -- ================= --
+
+> queryTextBoxBuffer
+>   :: forall m u
+>    . ( Monad m )
+>   => (forall w t d
+>        . ( IsWidth w, IsTab t, IsBase d )
+>       => Buffer w t d (Glyph Char) -> u)
+>   -> LocalT TextBox m u
+> queryTextBoxBuffer f = getsLocalT
+>   (querySizedBuffer f . getTextBoxBuffer)
+
+> alterTextBoxBuffer
+>   :: forall m
+>    . ( Monad m )
+>   => (forall w t d
+>        . ( IsWidth w, IsTab t, IsBase d )
+>       => Buffer w t d (Glyph Char) -> Buffer w t d (Glyph Char))
+>   -> LocalT TextBox m ()
+> alterTextBoxBuffer f = mutateLocalT $ \box ->
+>   box {
+>     textboxBuffer = alterSizedBuffer f (textboxBuffer box)
+>   }
 
 > textboxClear
 >   :: ( Monad m )
@@ -636,12 +668,13 @@ And some examples for fun:
 
 > textboxLoad
 >   :: ( Monad m )
->   => EventId -> FileReader m -> FilePath
+>   => EventId -> Bool -> FileReader m
 >   -> TextBox -> m TextBox
-> textboxLoad eId reader path box = do
+> textboxLoad eId force reader box = do
 >   case textboxHasChanged box of
 >     True -> error "unsaved changes"
 >     False -> do
+>       let Just path = textboxSource box
 >       read <- readFileWith reader path
 >       case read of
 >         Left err -> error "read error"
@@ -654,30 +687,32 @@ And some examples for fun:
 >           , textboxHasChanged = False
 >           }
 
+> textboxSave
+>   :: ( Monad m )
+>   => FileWriter m
+>   -> LocalT TextBox m ()
+> textboxSave writer = do
+>   return ()
+
+> textboxSetSource
+>   :: ( Monad m )
+>   => FilePath
+>   -> LocalT TextBox m ()
+> textboxSetSource path = do
+>   return ()
+
 
 > textboxLeaveMark
 >   :: ( Monad m )
->   => TextBox -> m TextBox
-> textboxLeaveMark box =
->   let
->     buf =
->       alterSizedBuffer (leaveMark) $
->       textboxBuffer box
->   in return $ box
->     { textboxBuffer = buf
->     }
+>   => LocalT TextBox m ()
+> textboxLeaveMark =
+>   alterTextBoxBuffer leaveMark
 
 > textboxClearMark
 >   :: ( Monad m )
->   => TextBox -> m TextBox
-> textboxClearMark box =
->   let
->     buf =
->       alterSizedBuffer (clearMark) $
->       textboxBuffer box
->   in return $ box
->     { textboxBuffer = buf
->     }
+>   => LocalT TextBox m ()
+> textboxClearMark =
+>   alterTextBoxBuffer clearMark
 
 
 > textboxInsert
@@ -841,8 +876,6 @@ And some examples for fun:
 >     editSt $ editTextBoxBuffer $
 >       alterSizedBuffer (movePointRight)
 > 
->     (x,y) <- readSt getTextBoxCursor
-> 
 >     l <- readSt getTextBoxOffset
 >     h <- readSt getTextBoxHeight
 > 
@@ -871,6 +904,16 @@ And some examples for fun:
 >   => TextBox -> m TextBox
 > textboxCancelDrag box = return $
 >   localSt box $ do
+
+>     p <- readSt $
+>       querySizedBuffer isCoincident
+>         . getTextBoxBuffer
+
+>     if not p
+>       then return ()
+>       else editSt $ editTextBoxBuffer $
+>         alterSizedBuffer clearMark
+
 >     editSt $ setTextBoxDragMode False
 
 Move the cursor; if no mark is set, then leave the mark
@@ -902,7 +945,7 @@ Move the cursor; if no mark is set, then leave the mark
 >         alterSizedBuffer (leaveMark . clearMark)
 > 
 >     editSt $ setTextBoxDragMode True
->     editSt $ setTextBoxCursor (u', v')
+>     editSt $ setTextBoxCursor (u', v' - l')
 >     editSt $ setTextBoxOffset l'
 
 Resizing should not change the logical coordinates of the focus.
@@ -942,11 +985,11 @@ Resizing should not change the logical coordinates of the focus.
 >     editSt $ setTextBoxOffset l2
 >     editSt $ setTextBoxCursor (u2, v2-l2)
 
-> textboxCutRegion
+> textboxDeleteRegion
 >   :: ( Monad m )
->   => EventId -> ClipboardWriter m
+>   => EventId
 >   -> TextBox -> m TextBox
-> textboxCutRegion eId writer box = do
+> textboxDeleteRegion eId box = do
 >   let
 >     p = querySizedBuffer hasMark $ getTextBoxBuffer box
 > 
@@ -958,14 +1001,39 @@ Resizing should not change the logical coordinates of the focus.
 >     then return box
 >     else do
 >       let
+>         l = getTextBoxOffset box
 >         (buf', str) = alterSizedBuffer' cut (getTextBoxBuffer box)
 >         (u,v) = querySizedBuffer getPointScreenCoords buf'
 > 
->       writeClipboardWith writer $ map toChar str
 >       return $ box
 >         { textboxBuffer = buf'
->         , textboxCursor = (u,v)
+>         , textboxCursor = (u,v - l)
 >         }
+
+> textboxClipRegion
+>   :: ( Monad m )
+>   => ClipboardWriter m
+>   -> LocalT TextBox m ()
+> textboxClipRegion writer = do
+>   region <- queryTextBoxBuffer copyRegion 
+>   case region of
+>     Nothing ->
+>       return ()
+>     Just str -> do
+>       lift $ writeClipboardWith writer $ map toChar str
+>       return ()
+
+> textboxPasteRegion
+>   :: ( Monad m )
+>   => EventId -> ClipboardReader m
+>   -> TextBox -> m TextBox
+> textboxPasteRegion eId reader box = do
+>   z <- readClipboardWith reader
+>   case z of
+>     Left err -> error "textboxPasteRegion: panic"
+>     Right str -> do
+>       let (buf', _) = alterSizedBuffer' (insertRegion eId (map fromChar str)) (getTextBoxBuffer box)
+>       return box { textboxBuffer = buf' }
 
 
 

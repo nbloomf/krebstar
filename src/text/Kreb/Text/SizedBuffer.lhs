@@ -29,6 +29,7 @@ title: Sized Buffers
 >   , alterSizedBuffer
 >   , alterSizedBuffer'
 >   , alterSizedBufferF
+>   , alterSizedBufferF'
 >   , querySizedBuffer
 > 
 >   , Base()
@@ -201,6 +202,17 @@ We also define a version taking an alter function returning a functor-wrapped va
 > alterSizedBuffer' f (SizedBuffer buf) =
 >   let (buf', u) = f buf
 >   in (SizedBuffer buf', u)
+
+> alterSizedBufferF'
+>   :: forall a u f
+>    . ( Face a, Functor f )
+>   => (forall w t d. (IsWidth w, IsTab t)
+>       => Buffer w t Base a -> f (Buffer w t Base a, u))
+>   -> SizedBuffer a
+>   -> f (SizedBuffer a, u)
+> alterSizedBufferF' g (SizedBuffer buf) =
+>   let r = g buf
+>   in fmap (\(x,y) -> (SizedBuffer x, y)) r
 
 Finally, a utility which extracts a value from a sized buffer.
 

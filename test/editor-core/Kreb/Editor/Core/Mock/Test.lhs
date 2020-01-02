@@ -22,11 +22,12 @@
 >         "Empty session" $
 >         \(chi :: Chaos) ->
 >           let
->             w0 = initMockWorld [[Quit]]
+>             fs = mockFilesystem [("stdlib.txt","")]
+>             w0 = withMockFilesystem fs $ initMockWorld [[Quit]]
 >             w1 = unIdentity $
 >               runMockEditor chi w0 (EventId 0 "test") "stdlib.txt" (30,20)
 >           in claimAll
->             [ claimFilesystemIsEmpty w1
+>             [ claimFilesystemEquals w1 fs
 >             , claimStdoutIsEmpty w1
 >             , claimAny
 >                 [ (claimStderrEquals w1 ["DEBUG Quit"])

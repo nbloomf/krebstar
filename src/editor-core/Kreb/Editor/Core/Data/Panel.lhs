@@ -232,7 +232,9 @@
 
 > deriving instance
 >   ( Show (FileReader m)
+>   , Show (FileWriter m)
 >   , Show (ClipboardWriter m)
+>   , Show (ClipboardReader m)
 >   ) => Show (PanelAction m)
 
  > alterPanel

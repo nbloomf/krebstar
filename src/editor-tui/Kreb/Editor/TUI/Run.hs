@@ -35,8 +35,8 @@ consoleIO stdLibPath = do
         exitFailure
       Right w -> return w
 
-  let layout = snd $ renderState st
-  result <- runTermUI TermEnv (TermState layout) $
+  let layout = snd $ renderState NormalMode st
+  result <- runTermUI TermEnv (TermState layout NormalMode) $
     runEditorCore replParams env st
   case result of
     Just err -> putStrLn $ "Error! " ++ show err
@@ -84,15 +84,19 @@ appEnvIO = do
             Left sig -> Left sig
             Right rts -> Right $ st { runtimeSt = rts }
       , _Read = \_ st -> do
-          let mode = editorMode st
+          mode <- getEditorMode
           layout <- getsTermState screenLayout
           ev <- lift $ nextEvent vty
-          return $ eventMapping mode layout ev
+          let (newMode, acts) = eventMapping mode layout ev
+          setEditorMode newMode
+          return acts
       , _Eval = \env st act -> do
+          mode <- getEditorMode
           let eId = EventId (1 + getActionCounter st) "foo"
           performActions env (tickActionCounter st) eId act
       , _Print = \_ st -> do
-          let (pic, layout) = renderState $ updateAbsCursorPos st
+          mode <- getEditorMode
+          let (pic, layout) = renderState mode $ updateAbsCursorPos mode st
           modifyTermState $ \x -> x { screenLayout = layout }
           lift $ update vty pic
       , _Exit = \sig -> do
