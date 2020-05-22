@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Declarable Types</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Declarable Types</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Unit.Declarable</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">import</span> <span class="dt">Kreb.Unit.Declare</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Declarable Types</h2>
+<p>The <code>Declaration</code> type is so simple that it barely warrants further comment. In practice it is handy to bundle the exception machinery behind more meaningful types, which we do with the <code>Declarable</code> class. These are types which can be converted into a <code>Declaration</code>, letting us selectively hide the machinery of IO and exception throwing.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">class</span> <span class="dt">Declarable</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="ot">  declare ::</span> t <span class="ot">-&gt;</span> <span class="dt">Declaration</span></a></code></pre></div>
+<p>Let's describe some <code>Declarable</code> types. First of all, <code>IO</code> actions themselves are trivially declarable when we throw away the wrapped value:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">instance</span> <span class="dt">Declarable</span> (<span class="dt">IO</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" title="2">  declare x <span class="ot">=</span> x <span class="op">&gt;&gt;</span> <span class="fu">return</span> ()</a></code></pre></div>
+<p>The unit type is also trivially declarable.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">instance</span> <span class="dt">Declarable</span> () <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-2" title="2">  declare <span class="ot">=</span> <span class="fu">return</span></a></code></pre></div>
+<p>Lists of declarable values are declarable; we check each declaration in order.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb5-2" title="2">  ( <span class="dt">Declarable</span> t</a>
+<a class="sourceLine" id="cb5-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">Declarable</span> [t]</a>
+<a class="sourceLine" id="cb5-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-5" title="5">    declare <span class="ot">=</span> <span class="fu">mapM_</span> declare</a></code></pre></div>
+<p>Booleans are also declarable in a sensible, albeit not very useful, way:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">instance</span> <span class="dt">Declarable</span> <span class="dt">Bool</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-2" title="2">  declare p <span class="ot">=</span> <span class="kw">if</span> p</a>
+<a class="sourceLine" id="cb6-3" title="3">    <span class="kw">then</span> <span class="fu">return</span> ()</a>
+<a class="sourceLine" id="cb6-4" title="4">    <span class="kw">else</span> raiseMsgIO <span class="st">&quot;False =/= True&quot;</span></a></code></pre></div>
+<p>Tuples are also declarable in a straightforward way. (Note that the order of the tuple values matters -- entries to the left are evaluated (and their effects observed) before those to the right.)</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb7-2" title="2">  ( <span class="dt">Declarable</span> a1, <span class="dt">Declarable</span> a2</a>
+<a class="sourceLine" id="cb7-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">Declarable</span> (a1,a2)</a>
+<a class="sourceLine" id="cb7-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-5" title="5">    declare (a1,a2) <span class="ot">=</span> <span class="fu">sequence_</span></a>
+<a class="sourceLine" id="cb7-6" title="6">      [ declare a1, declare a2 ]</a>
+<a class="sourceLine" id="cb7-7" title="7"></a>
+<a class="sourceLine" id="cb7-8" title="8"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb7-9" title="9">  ( <span class="dt">Declarable</span> a1, <span class="dt">Declarable</span> a2, <span class="dt">Declarable</span> a3</a>
+<a class="sourceLine" id="cb7-10" title="10">  ) <span class="ot">=&gt;</span> <span class="dt">Declarable</span> (a1,a2,a3)</a>
+<a class="sourceLine" id="cb7-11" title="11">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-12" title="12">    declare (a1,a2,a3) <span class="ot">=</span> <span class="fu">sequence_</span></a>
+<a class="sourceLine" id="cb7-13" title="13">      [ declare a1, declare a2, declare a3 ]</a>
+<a class="sourceLine" id="cb7-14" title="14"></a>
+<a class="sourceLine" id="cb7-15" title="15"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb7-16" title="16">  ( <span class="dt">Declarable</span> a1, <span class="dt">Declarable</span> a2, <span class="dt">Declarable</span> a3, <span class="dt">Declarable</span> a4</a>
+<a class="sourceLine" id="cb7-17" title="17">  ) <span class="ot">=&gt;</span> <span class="dt">Declarable</span> (a1,a2,a3,a4)</a>
+<a class="sourceLine" id="cb7-18" title="18">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-19" title="19">    declare (a1,a2,a3,a4) <span class="ot">=</span> <span class="fu">sequence_</span></a>
+<a class="sourceLine" id="cb7-20" title="20">      [ declare a1, declare a2, declare a3, declare a4 ]</a>
+<a class="sourceLine" id="cb7-21" title="21"></a>
+<a class="sourceLine" id="cb7-22" title="22"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb7-23" title="23">  ( <span class="dt">Declarable</span> a1, <span class="dt">Declarable</span> a2, <span class="dt">Declarable</span> a3, <span class="dt">Declarable</span> a4</a>
+<a class="sourceLine" id="cb7-24" title="24">  , <span class="dt">Declarable</span> a5</a>
+<a class="sourceLine" id="cb7-25" title="25">  ) <span class="ot">=&gt;</span> <span class="dt">Declarable</span> (a1,a2,a3,a4,a5)</a>
+<a class="sourceLine" id="cb7-26" title="26">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-27" title="27">    declare (a1,a2,a3,a4,a5) <span class="ot">=</span> <span class="fu">sequence_</span></a>
+<a class="sourceLine" id="cb7-28" title="28">      [ declare a1, declare a2, declare a3, declare a4</a>
+<a class="sourceLine" id="cb7-29" title="29">      , declare a5 ]</a>
+<a class="sourceLine" id="cb7-30" title="30"></a>
+<a class="sourceLine" id="cb7-31" title="31"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb7-32" title="32">  ( <span class="dt">Declarable</span> a1, <span class="dt">Declarable</span> a2, <span class="dt">Declarable</span> a3, <span class="dt">Declarable</span> a4</a>
+<a class="sourceLine" id="cb7-33" title="33">  , <span class="dt">Declarable</span> a5, <span class="dt">Declarable</span> a6</a>
+<a class="sourceLine" id="cb7-34" title="34">  ) <span class="ot">=&gt;</span> <span class="dt">Declarable</span> (a1,a2,a3,a4,a5,a6)</a>
+<a class="sourceLine" id="cb7-35" title="35">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-36" title="36">    declare (a1,a2,a3,a4,a5,a6) <span class="ot">=</span> <span class="fu">sequence_</span></a>
+<a class="sourceLine" id="cb7-37" title="37">      [ declare a1, declare a2, declare a3, declare a4</a>
+<a class="sourceLine" id="cb7-38" title="38">      , declare a5, declare a6 ]</a></code></pre></div>
+<p>We can define declarable instances for base types all day. But the real power will come from custom types we define for individual use cases.</p>
+</section>
+</article>
+</body>
+</html>

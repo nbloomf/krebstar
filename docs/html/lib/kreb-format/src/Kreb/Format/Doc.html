@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Abstract Documents</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Abstract Documents</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE TypeFamilies, TypeApplications, BangPatterns #-}</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">module</span> <span class="dt">Kreb.Format.Doc</span> (</a>
+<a class="sourceLine" id="cb1-4" title="4">    <span class="dt">Doc</span>(<span class="op">..</span>), isEmptyDoc, fuseDoc</a>
+<a class="sourceLine" id="cb1-5" title="5">  , alterAnnotations, unAnnotate, mergeAnnotationsWith</a>
+<a class="sourceLine" id="cb1-6" title="6">  , <span class="dt">DocS</span>(<span class="op">..</span>), renderDocSA, renderDocS, showDocS, hPrintDocS, printDocS</a>
+<a class="sourceLine" id="cb1-7" title="7">  , alterAnnotationsS, unAnnotateS</a>
+<a class="sourceLine" id="cb1-8" title="8">  , <span class="dt">LayoutOptions</span>(<span class="op">..</span>), <span class="dt">PageWidth</span>(<span class="op">..</span>), <span class="dt">FittingPredicate</span>(<span class="op">..</span>)</a>
+<a class="sourceLine" id="cb1-9" title="9">  , layoutWadlerLeijen, layoutPretty, layoutSmart, layoutCompact</a>
+<a class="sourceLine" id="cb1-10" title="10">  , <span class="dt">Layout</span>(<span class="op">..</span>), layout, pretty, prettyWith, smart, smartWith, hPrintDoc, printDoc</a>
+<a class="sourceLine" id="cb1-11" title="11">  , defaultLayoutOptions, defaultPageWidth, boundedLayout, unboundedLayout</a>
+<a class="sourceLine" id="cb1-12" title="12">  , prettyString, prettyStringWith</a>
+<a class="sourceLine" id="cb1-13" title="13">  , <span class="dt">DocST</span>(<span class="op">..</span>), renderDocSTA, renderDocST, hPrintDocST, printDocST</a>
+<a class="sourceLine" id="cb1-14" title="14">  , alterAnnotationsST, unAnnotateST</a>
+<a class="sourceLine" id="cb1-15" title="15">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-16" title="16"></a>
+<a class="sourceLine" id="cb1-17" title="17"><span class="kw">import</span> <span class="dt">Control.Monad.Fail</span></a>
+<a class="sourceLine" id="cb1-18" title="18"><span class="kw">import</span> <span class="dt">Control.Applicative</span></a>
+<a class="sourceLine" id="cb1-19" title="19"><span class="kw">import</span> <span class="dt">System.IO</span></a>
+<a class="sourceLine" id="cb1-20" title="20"></a>
+<a class="sourceLine" id="cb1-21" title="21"><span class="kw">import</span> <span class="dt">Kreb.Control</span></a>
+<a class="sourceLine" id="cb1-22" title="22"></a>
+<a class="sourceLine" id="cb1-23" title="23"><span class="kw">import</span> <span class="dt">Kreb.Format.Util</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>It will be handy later to have a <em>pretty printer</em> available -- this is a function that lays out tree-like data as ascii text in a way that tries to preserve the structure visually without consuming too much vertical space. If that sounds impossibly vague, it is. :)</p>
+<p>Pretty printing has been used as a playground for functional programming techniques for a long, time, and there are many Haskell libraries implementing Wadler/Leijen style pretty printers. The code here started as a wholesale copy of the <a href="http://hackage.haskell.org/package/prettyprinter">prettyprinter</a> library, which is itself a fork of earlier work. I've made some (very minor) style changes and tried to add prose, but the essence of this code is not mine.</p>
+<p>We're avoiding external dependencies as much as possible, but here we really do need to use <code>Data.Text</code> from the standard library for efficiency. Code from that library will always be prefixed.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span>              <span class="kw">as</span> <span class="dt">T</span></a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text.IO</span>           <span class="kw">as</span> <span class="dt">T</span></a>
+<a class="sourceLine" id="cb2-3" title="3"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text.Lazy</span>         <span class="kw">as</span> <span class="dt">TL</span></a>
+<a class="sourceLine" id="cb2-4" title="4"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text.Lazy.Builder</span> <span class="kw">as</span> <span class="dt">TLB</span></a></code></pre></div>
+</section>
+<section class="level2">
+<h2>A Doc Type</h2>
+<p>The basic strategy behind pretty printing is that we define an "abstract document", which includes both the concrete content we want displayed, as well as <em>optional</em> layouts -- this representation is of a <em>set</em> of possible concrete layous. The abstract document is then serialized to a specific instance by a layout algorithm, which attempts to choose the "prettiest" layout for a given page width.</p>
+<p>Abstract documents are represented here by the <code>Doc</code> type. It has several constructors, which we try to explain.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">data</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb3-2" title="2">  <span class="ot">=</span> <span class="dt">Fail</span>  <span class="co">-- document which cannot be laid out.</span></a>
+<a class="sourceLine" id="cb3-3" title="3">  <span class="op">|</span> <span class="dt">Empty</span> <span class="co">-- document with no width (but height 1!)</span></a></code></pre></div>
+<p>It may seem strange to have a document which cannot be laid out -- this case is used to prune optional layouts which are too wide to fit in the available space.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1">  <span class="op">|</span> <span class="dt">Line</span>              <span class="co">-- a literal &#39;\n&#39;</span></a>
+<a class="sourceLine" id="cb4-2" title="2">  <span class="op">|</span> <span class="dt">Char</span> <span class="dt">Char</span>         <span class="co">-- not &#39;\n&#39;</span></a>
+<a class="sourceLine" id="cb4-3" title="3">  <span class="op">|</span> <span class="dt">Text</span> <span class="op">!</span><span class="dt">Int</span> <span class="op">!</span><span class="dt">T.Text</span> <span class="co">-- at least two characters, no &#39;\n&#39;s, with cached length</span></a></code></pre></div>
+<p>Here we have documents containing literal text, split into three constructors. Note the invariants on the <code>Char</code> and <code>Text</code> constructors; it will be important that we maintain these.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1">  <span class="op">|</span> <span class="dt">Nest</span> <span class="op">!</span><span class="dt">Int</span> (<span class="dt">Doc</span> a)</a></code></pre></div>
+<p>The <code>Nest</code> constructor indents its document argument by a given amount -- which may be negative.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1">  <span class="op">|</span> <span class="dt">Cat</span> (<span class="dt">Doc</span> a) (<span class="dt">Doc</span> a)</a></code></pre></div>
+<p>The <code>Cat</code> constructor concatenates two documents by abutting the first character of the second against the last character of the first.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">  <span class="op">|</span> <span class="dt">FlatAlt</span> (<span class="dt">Doc</span> a) (<span class="dt">Doc</span> a)</a>
+<a class="sourceLine" id="cb7-2" title="2">  <span class="op">|</span> <span class="dt">Union</span>   (<span class="dt">Doc</span> a) (<span class="dt">Doc</span> a) <span class="co">-- first lines of LHS &gt; first lines of RHS, used for group</span></a></code></pre></div>
+<p><code>FlatAlt</code> and <code>Union</code> are used to implement the <code>group</code> combinator, which we will see later. In <code>Union x y</code>, the first line of <code>x</code> should be longer than the first line of <code>y</code>. In <code>FlatAlt x y</code>, <code>x</code> should be taller and narrower than <code>y</code>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1">  <span class="op">|</span> <span class="dt">WithColumn</span>    (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a)       <span class="co">-- react on column position</span></a>
+<a class="sourceLine" id="cb8-2" title="2">  <span class="op">|</span> <span class="dt">WithPageWidth</span> (<span class="dt">PageWidth</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="co">-- react on doc width</span></a>
+<a class="sourceLine" id="cb8-3" title="3">  <span class="op">|</span> <span class="dt">WithNesting</span>   (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a)       <span class="co">-- react on indentation level</span></a></code></pre></div>
+<p>The <code>With*</code> constructors allow us to build documents whose layout depends on layout-time information.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1">  <span class="op">|</span> <span class="dt">Annotated</span> a (<span class="dt">Doc</span> a)</a></code></pre></div>
+<p>The <code>Annotated</code> constructor allows documents to be annotated with metadata to be interpreted by the renderer, like color.</p>
+<p>Semantically, <code>Cat</code> and <code>Empty</code> make <code>Doc a</code> a monoid; however, this instance is not strictly lawful.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">instance</span> <span class="dt">Semigroup</span> (<span class="dt">Doc</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-2" title="2">  (<span class="op">&lt;&gt;</span>) <span class="ot">=</span> <span class="dt">Cat</span></a>
+<a class="sourceLine" id="cb10-3" title="3"></a>
+<a class="sourceLine" id="cb10-4" title="4"><span class="kw">instance</span> <span class="dt">Monoid</span> (<span class="dt">Doc</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-5" title="5">  <span class="fu">mempty</span> <span class="ot">=</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb10-6" title="6">  <span class="fu">mappend</span> <span class="ot">=</span> (<span class="op">&lt;&gt;</span>)</a></code></pre></div>
+<p>Later we will need to detect when a document is empty.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" title="1">isEmptyDoc</a>
+<a class="sourceLine" id="cb11-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb11-3" title="3">isEmptyDoc d <span class="ot">=</span> <span class="kw">case</span> d <span class="kw">of</span></a>
+<a class="sourceLine" id="cb11-4" title="4">  <span class="dt">Empty</span> <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb11-5" title="5">  _     <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<p><code>Doc</code> behaves like a container over the annotation type; we define some helper functions here for manipulating these. First is a kind of mapping function over annotations. If <code>f</code> is a function taking annotations of type <code>a</code> to <em>lists</em> of annotations of type <code>b</code>, then <code>alterannotations f doc</code> replaces every annotation in <code>doc</code> with a nested tower of annotations.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" title="1">alterAnnotations</a>
+<a class="sourceLine" id="cb12-2" title="2"><span class="ot">  ::</span> (a <span class="ot">-&gt;</span> [b]) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> b</a>
+<a class="sourceLine" id="cb12-3" title="3">alterAnnotations h <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb12-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb12-5" title="5">    go <span class="ot">=</span> \doc <span class="ot">-&gt;</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb12-6" title="6">      <span class="co">-- base cases</span></a>
+<a class="sourceLine" id="cb12-7" title="7">      <span class="dt">Fail</span>     <span class="ot">-&gt;</span> <span class="dt">Fail</span></a>
+<a class="sourceLine" id="cb12-8" title="8">      <span class="dt">Empty</span>    <span class="ot">-&gt;</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb12-9" title="9">      <span class="dt">Char</span> c   <span class="ot">-&gt;</span> <span class="dt">Char</span> c</a>
+<a class="sourceLine" id="cb12-10" title="10">      <span class="dt">Text</span> l t <span class="ot">-&gt;</span> <span class="dt">Text</span> l t</a>
+<a class="sourceLine" id="cb12-11" title="11">      <span class="dt">Line</span>     <span class="ot">-&gt;</span> <span class="dt">Line</span></a>
+<a class="sourceLine" id="cb12-12" title="12"></a>
+<a class="sourceLine" id="cb12-13" title="13">      <span class="co">-- recursive cases</span></a>
+<a class="sourceLine" id="cb12-14" title="14">      <span class="dt">FlatAlt</span> x y     <span class="ot">-&gt;</span> <span class="dt">FlatAlt</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb12-15" title="15">      <span class="dt">Cat</span> x y         <span class="ot">-&gt;</span> <span class="dt">Cat</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb12-16" title="16">      <span class="dt">Nest</span> i x        <span class="ot">-&gt;</span> <span class="dt">Nest</span> i (go x)</a>
+<a class="sourceLine" id="cb12-17" title="17">      <span class="dt">Union</span> x y       <span class="ot">-&gt;</span> <span class="dt">Union</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb12-18" title="18">      <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> <span class="dt">WithColumn</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb12-19" title="19">      <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">WithPageWidth</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb12-20" title="20">      <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> <span class="dt">WithNesting</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb12-21" title="21">      <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="fu">foldr</span> <span class="dt">Annotated</span> (go x) (h ann)</a></code></pre></div>
+<p><code>alterAnnotations</code> has two useful specializations. First we can use it to define a functor instance for <code>Doc</code>:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" title="1"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Doc</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb13-2" title="2">  <span class="fu">fmap</span> f <span class="ot">=</span> alterAnnotations (<span class="fu">return</span> <span class="op">.</span> f)</a></code></pre></div>
+<p>Second, we can remove annotations entirely, turning a <code>Doc a</code> into a <code>Doc b</code> for any type <code>b</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" title="1"><span class="ot">unAnnotate ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> b</a>
+<a class="sourceLine" id="cb14-2" title="2">unAnnotate <span class="ot">=</span> alterAnnotations (<span class="fu">const</span> [])</a></code></pre></div>
+<p>Note that <code>alterAnnotations</code> will generally expand a <code>Doc</code> along its annotations. <code>mergeAnnotationsWith</code> collapses nested annotations to a single node with a merging function.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" title="1">mergeAnnotationsWith</a>
+<a class="sourceLine" id="cb15-2" title="2"><span class="ot">  ::</span> (a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb15-3" title="3">mergeAnnotationsWith h <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb15-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-5" title="5">    go <span class="ot">=</span> \doc <span class="ot">-&gt;</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb15-6" title="6">      <span class="co">-- base cases</span></a>
+<a class="sourceLine" id="cb15-7" title="7">      <span class="dt">Fail</span>     <span class="ot">-&gt;</span> <span class="dt">Fail</span></a>
+<a class="sourceLine" id="cb15-8" title="8">      <span class="dt">Empty</span>    <span class="ot">-&gt;</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb15-9" title="9">      <span class="dt">Char</span> c   <span class="ot">-&gt;</span> <span class="dt">Char</span> c</a>
+<a class="sourceLine" id="cb15-10" title="10">      <span class="dt">Text</span> l t <span class="ot">-&gt;</span> <span class="dt">Text</span> l t</a>
+<a class="sourceLine" id="cb15-11" title="11">      <span class="dt">Line</span>     <span class="ot">-&gt;</span> <span class="dt">Line</span></a>
+<a class="sourceLine" id="cb15-12" title="12"></a>
+<a class="sourceLine" id="cb15-13" title="13">      <span class="co">-- recursive cases</span></a>
+<a class="sourceLine" id="cb15-14" title="14">      <span class="dt">FlatAlt</span> x y     <span class="ot">-&gt;</span> <span class="dt">FlatAlt</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb15-15" title="15">      <span class="dt">Cat</span> x y         <span class="ot">-&gt;</span> <span class="dt">Cat</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb15-16" title="16">      <span class="dt">Nest</span> i x        <span class="ot">-&gt;</span> <span class="dt">Nest</span> i (go x)</a>
+<a class="sourceLine" id="cb15-17" title="17">      <span class="dt">Union</span> x y       <span class="ot">-&gt;</span> <span class="dt">Union</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb15-18" title="18">      <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> <span class="dt">WithColumn</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb15-19" title="19">      <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">WithPageWidth</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb15-20" title="20">      <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> <span class="dt">WithNesting</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb15-21" title="21">      <span class="dt">Annotated</span> an1 x <span class="ot">-&gt;</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb15-22" title="22">        <span class="dt">Annotated</span> an2 y <span class="ot">-&gt;</span> go (<span class="dt">Annotated</span> (h an1 an2) y)</a>
+<a class="sourceLine" id="cb15-23" title="23">        _               <span class="ot">-&gt;</span> <span class="dt">Annotated</span> an1 (go x)</a></code></pre></div>
+<p>Manipulating the annotations on a <code>Doc</code> should be done with care, since it requires traversing the entire structure (even if most of it is never needed). If possible it is better to work with the annotations on a <code>DocS</code> after layout.</p>
+<p>Another optimization we can perform is <em>fusion</em>. When a <code>Doc</code> is serialized to a <code>DocS</code>, every node in the <code>Doc</code> tree (along the optimal layout) appears in the <code>DocS</code> stream -- even when this is otherwise unnecessary, as when several <code>Text</code> nodes are directly <code>Cat</code>ted together. As a rule of thumb, <code>fuseDoc</code> should be used on concatenations of lots of small strings that are used many times. The fused <code>Doc</code> is identical (that is, represents the same set of layouts) as its unfused counterpart.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" title="1"><span class="kw">data</span> <span class="dt">FusionDepth</span> <span class="ot">=</span> <span class="dt">Shallow</span> <span class="op">|</span> <span class="dt">Deep</span></a>
+<a class="sourceLine" id="cb16-2" title="2">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p><code>fuseDoc</code> supports two kinds of fusion. <code>Shallow</code> does not go deep into nested documents, focusing on concatenating text nodes. <code>Deep</code> fusion recurses into all parts of the document, including any reactive subdocuments. Deep fusion is very expensive and should only be used if profiling shows it is an improvement over shallow fusion.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" title="1"><span class="ot">fuseDoc ::</span> <span class="dt">FusionDepth</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb17-2" title="2">fuseDoc depth <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb17-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb17-4" title="4">    go doc <span class="ot">=</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb17-5" title="5">      <span class="dt">Cat</span> <span class="dt">Empty</span> x                   <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb17-6" title="6">      <span class="dt">Cat</span> x <span class="dt">Empty</span>                   <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb17-7" title="7"></a>
+<a class="sourceLine" id="cb17-8" title="8">      <span class="dt">Cat</span> (<span class="dt">Char</span> c1) (<span class="dt">Char</span> c2)       <span class="ot">-&gt;</span> <span class="dt">Text</span> <span class="dv">2</span> (T.singleton c1 <span class="op">&lt;&gt;</span> T.singleton c2)</a>
+<a class="sourceLine" id="cb17-9" title="9">      <span class="dt">Cat</span> (<span class="dt">Text</span> lt t) (<span class="dt">Char</span> c)      <span class="ot">-&gt;</span> <span class="dt">Text</span> (lt<span class="op">+</span><span class="dv">1</span>) (T.snoc t c)</a>
+<a class="sourceLine" id="cb17-10" title="10">      <span class="dt">Cat</span> (<span class="dt">Char</span> c) (<span class="dt">Text</span> lt t)      <span class="ot">-&gt;</span> <span class="dt">Text</span> (<span class="dv">1</span><span class="op">+</span>lt) (T.cons c t)</a>
+<a class="sourceLine" id="cb17-11" title="11">      <span class="dt">Cat</span> (<span class="dt">Text</span> l1 t1) (<span class="dt">Text</span> l2 t2) <span class="ot">-&gt;</span> <span class="dt">Text</span> (l1<span class="op">+</span>l2) (t1 <span class="op">&lt;&gt;</span> t2)</a>
+<a class="sourceLine" id="cb17-12" title="12"></a>
+<a class="sourceLine" id="cb17-13" title="13">      <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Char</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Char</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb17-14" title="14">      <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Text</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Char</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb17-15" title="15">      <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Char</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Text</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb17-16" title="16">      <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Text</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Text</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb17-17" title="17"></a>
+<a class="sourceLine" id="cb17-18" title="18">      <span class="dt">Cat</span> (<span class="dt">Cat</span> x y<span class="op">@</span><span class="dt">Char</span>{}) z <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> x (go (<span class="dt">Cat</span> y z)))</a>
+<a class="sourceLine" id="cb17-19" title="19">      <span class="dt">Cat</span> (<span class="dt">Cat</span> x y<span class="op">@</span><span class="dt">Text</span>{}) z <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> x (go (<span class="dt">Cat</span> y z)))</a>
+<a class="sourceLine" id="cb17-20" title="20"></a>
+<a class="sourceLine" id="cb17-21" title="21">      <span class="dt">Cat</span> x y <span class="ot">-&gt;</span> <span class="dt">Cat</span> (go x) (go y)</a>
+<a class="sourceLine" id="cb17-22" title="22"></a>
+<a class="sourceLine" id="cb17-23" title="23">      <span class="dt">Nest</span> i (<span class="dt">Nest</span> j x) <span class="ot">-&gt;</span> <span class="kw">let</span> <span class="op">!</span>fused <span class="ot">=</span> <span class="dt">Nest</span> (i<span class="op">+</span>j) x</a>
+<a class="sourceLine" id="cb17-24" title="24">                             <span class="kw">in</span> go fused</a>
+<a class="sourceLine" id="cb17-25" title="25">      <span class="dt">Nest</span> _ x<span class="op">@</span><span class="dt">Empty</span>{} <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb17-26" title="26">      <span class="dt">Nest</span> _ x<span class="op">@</span><span class="dt">Text</span>{}  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb17-27" title="27">      <span class="dt">Nest</span> _ x<span class="op">@</span><span class="dt">Char</span>{}  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb17-28" title="28">      <span class="dt">Nest</span> <span class="dv">0</span> x         <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb17-29" title="29">      <span class="dt">Nest</span> i x         <span class="ot">-&gt;</span> <span class="dt">Nest</span> i (go x)</a>
+<a class="sourceLine" id="cb17-30" title="30"></a>
+<a class="sourceLine" id="cb17-31" title="31">      <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="dt">Annotated</span> ann (go x)</a>
+<a class="sourceLine" id="cb17-32" title="32"></a>
+<a class="sourceLine" id="cb17-33" title="33">      <span class="dt">FlatAlt</span> x1 x2 <span class="ot">-&gt;</span> <span class="dt">FlatAlt</span> (go x1) (go x2)</a>
+<a class="sourceLine" id="cb17-34" title="34">      <span class="dt">Union</span> x1 x2   <span class="ot">-&gt;</span> <span class="dt">Union</span> (go x1) (go x2)</a>
+<a class="sourceLine" id="cb17-35" title="35"></a>
+<a class="sourceLine" id="cb17-36" title="36">      other <span class="op">|</span> depth <span class="op">==</span> <span class="dt">Shallow</span> <span class="ot">-&gt;</span> other</a>
+<a class="sourceLine" id="cb17-37" title="37"></a>
+<a class="sourceLine" id="cb17-38" title="38">      <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> <span class="dt">WithColumn</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb17-39" title="39">      <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">WithPageWidth</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb17-40" title="40">      <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> <span class="dt">WithNesting</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb17-41" title="41"></a>
+<a class="sourceLine" id="cb17-42" title="42">      other <span class="ot">-&gt;</span> other</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Document Streams</h2>
+<p>The <code>Doc</code> type is useful for describing documents with optional layouts. But for rendering, it will be useful to have an abstract serialized format our layout engine can target, rather than building a string directly. This is what the <code>DocS</code> type is for.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" title="1"><span class="kw">data</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb18-2" title="2">  <span class="ot">=</span> <span class="dt">SFail</span></a>
+<a class="sourceLine" id="cb18-3" title="3">  <span class="op">|</span> <span class="dt">SEmpty</span></a>
+<a class="sourceLine" id="cb18-4" title="4">  <span class="op">|</span> <span class="dt">SChar</span> <span class="dt">Char</span>        (<span class="dt">DocS</span> a)</a>
+<a class="sourceLine" id="cb18-5" title="5">  <span class="op">|</span> <span class="dt">SText</span> <span class="op">!</span><span class="dt">Int</span> <span class="dt">T.Text</span> (<span class="dt">DocS</span> a) <span class="co">-- cached length</span></a>
+<a class="sourceLine" id="cb18-6" title="6">  <span class="op">|</span> <span class="dt">SLine</span> <span class="op">!</span><span class="dt">Int</span>        (<span class="dt">DocS</span> a) <span class="co">-- indentation of the next line</span></a>
+<a class="sourceLine" id="cb18-7" title="7">  <span class="op">|</span> <span class="dt">SAnnPush</span> a        (<span class="dt">DocS</span> a)</a>
+<a class="sourceLine" id="cb18-8" title="8">  <span class="op">|</span> <span class="dt">SAnnPop</span>           (<span class="dt">DocS</span> a)</a>
+<a class="sourceLine" id="cb18-9" title="9">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>Note that <code>DocS</code> is essentially a stack of document fragments. The analog of <code>alterAnnotations</code> for <code>DocS</code> has a slightly different signature; rather than mapping to a list of new annotations, we can optionally remove the annotation.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" title="1">alterAnnotationsS</a>
+<a class="sourceLine" id="cb19-2" title="2"><span class="ot">  ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> b) <span class="ot">-&gt;</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">DocS</span> b</a>
+<a class="sourceLine" id="cb19-3" title="3">alterAnnotationsS f <span class="ot">=</span> go []</a>
+<a class="sourceLine" id="cb19-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb19-5" title="5">    go st docs <span class="ot">=</span> <span class="kw">case</span> docs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb19-6" title="6">      <span class="dt">SFail</span>             <span class="ot">-&gt;</span> <span class="dt">SFail</span></a>
+<a class="sourceLine" id="cb19-7" title="7">      <span class="dt">SEmpty</span>            <span class="ot">-&gt;</span> <span class="dt">SEmpty</span></a>
+<a class="sourceLine" id="cb19-8" title="8">      <span class="dt">SChar</span> c rest      <span class="ot">-&gt;</span> <span class="dt">SChar</span> c (go st rest)</a>
+<a class="sourceLine" id="cb19-9" title="9">      <span class="dt">SText</span> l t rest    <span class="ot">-&gt;</span> <span class="dt">SText</span> l t (go st rest)</a>
+<a class="sourceLine" id="cb19-10" title="10">      <span class="dt">SLine</span> l rest      <span class="ot">-&gt;</span> <span class="dt">SLine</span> l (go st rest)</a>
+<a class="sourceLine" id="cb19-11" title="11"></a>
+<a class="sourceLine" id="cb19-12" title="12">      <span class="co">-- we carry a stack indicating which pops to ignore</span></a>
+<a class="sourceLine" id="cb19-13" title="13">      <span class="dt">SAnnPush</span> a rest <span class="ot">-&gt;</span> <span class="kw">case</span> f a <span class="kw">of</span></a>
+<a class="sourceLine" id="cb19-14" title="14">        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> go (<span class="dt">Toss</span><span class="op">:</span>st) rest</a>
+<a class="sourceLine" id="cb19-15" title="15">        <span class="dt">Just</span> b  <span class="ot">-&gt;</span> <span class="dt">SAnnPush</span> b (go (<span class="dt">Keep</span><span class="op">:</span>st) rest)</a>
+<a class="sourceLine" id="cb19-16" title="16">      <span class="dt">SAnnPop</span> rest <span class="ot">-&gt;</span> <span class="kw">case</span> st <span class="kw">of</span></a>
+<a class="sourceLine" id="cb19-17" title="17">        []       <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;alterAnnotationsS: unpaired pop&quot;</span></a>
+<a class="sourceLine" id="cb19-18" title="18">        <span class="dt">Keep</span><span class="op">:</span>st&#39; <span class="ot">-&gt;</span> <span class="dt">SAnnPop</span> (go st&#39; rest)</a>
+<a class="sourceLine" id="cb19-19" title="19">        <span class="dt">Toss</span><span class="op">:</span>st&#39; <span class="ot">-&gt;</span> go st&#39; rest</a>
+<a class="sourceLine" id="cb19-20" title="20"></a>
+<a class="sourceLine" id="cb19-21" title="21"><span class="kw">data</span> <span class="dt">AnnotationAction</span> <span class="ot">=</span> <span class="dt">Toss</span> <span class="op">|</span> <span class="dt">Keep</span></a></code></pre></div>
+<p>Again, <code>alterAnnotationsS</code> has two useful specializations. First we can map over the annotations:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" title="1"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">DocS</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-2" title="2">  <span class="fu">fmap</span> f <span class="ot">=</span> alterAnnotationsS (<span class="fu">return</span> <span class="op">.</span> f)</a></code></pre></div>
+<p>Second, we can remove annotations entirely, turning a <code>DocS a</code> into a <code>DocS b</code> for any type <code>b</code>.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" title="1"><span class="ot">unAnnotateS ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">DocS</span> b</a>
+<a class="sourceLine" id="cb21-2" title="2">unAnnotateS <span class="ot">=</span> alterAnnotationsS (<span class="fu">const</span> <span class="dt">Nothing</span>)</a></code></pre></div>
+<p>The <code>renderDocSA</code> function maps this stack to a monoid (in practice either <code>Text</code> or <code>String</code>, but using only the monoid interface makes rendering more flexible) under an applicative functor. Monoid concatenation is right associative, as <code>a &lt;&gt; (b &lt;&gt; c)</code>; with lazy evaluation this means we can extract prefixes of the rendered result without computing the entire output.</p>
+<p>Note that the accumulator function <code>go</code> maintains a stack of annotations.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" title="1">renderDocSA</a>
+<a class="sourceLine" id="cb22-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Applicative</span> f, <span class="dt">Monoid</span> t )</a>
+<a class="sourceLine" id="cb22-3" title="3">  <span class="ot">=&gt;</span> (<span class="dt">T.Text</span> <span class="ot">-&gt;</span> f t) <span class="co">-- Render plain Text</span></a>
+<a class="sourceLine" id="cb22-4" title="4">  <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> f t)      <span class="co">-- Render an opening annotation</span></a>
+<a class="sourceLine" id="cb22-5" title="5">  <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> f t)      <span class="co">-- Render a closing annotation</span></a>
+<a class="sourceLine" id="cb22-6" title="6">  <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb22-7" title="7">  <span class="ot">-&gt;</span> f t</a>
+<a class="sourceLine" id="cb22-8" title="8">renderDocSA text push pop <span class="ot">=</span> go []</a>
+<a class="sourceLine" id="cb22-9" title="9">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb22-10" title="10">    (<span class="op">&lt;++&gt;</span>) <span class="ot">=</span> liftA2 <span class="fu">mappend</span></a>
+<a class="sourceLine" id="cb22-11" title="11"></a>
+<a class="sourceLine" id="cb22-12" title="12">    go st docS <span class="ot">=</span> <span class="kw">case</span> docS <span class="kw">of</span></a>
+<a class="sourceLine" id="cb22-13" title="13">      <span class="dt">SFail</span> <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;renderDocSA: uncaught SFail&quot;</span></a>
+<a class="sourceLine" id="cb22-14" title="14">      <span class="dt">SEmpty</span> <span class="ot">-&gt;</span> <span class="kw">case</span> st <span class="kw">of</span></a>
+<a class="sourceLine" id="cb22-15" title="15">        [] <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb22-16" title="16">        _  <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;renderDocSA: input not fully consumed&quot;</span></a>
+<a class="sourceLine" id="cb22-17" title="17">      <span class="dt">SChar</span> c rest <span class="ot">-&gt;</span> text (T.singleton c) <span class="op">&lt;++&gt;</span> go st rest</a>
+<a class="sourceLine" id="cb22-18" title="18">      <span class="dt">SText</span> _ t rest <span class="ot">-&gt;</span> text t <span class="op">&lt;++&gt;</span> go st rest</a>
+<a class="sourceLine" id="cb22-19" title="19">      <span class="dt">SLine</span> i rest <span class="ot">-&gt;</span> text (T.singleton <span class="ch">&#39;\n&#39;</span>) <span class="op">&lt;++&gt;</span> text (textSpaces i) <span class="op">&lt;++&gt;</span> go st rest</a>
+<a class="sourceLine" id="cb22-20" title="20">      <span class="dt">SAnnPush</span> a rest <span class="ot">-&gt;</span> push a <span class="op">&lt;++&gt;</span> go (a<span class="op">:</span>st) rest</a>
+<a class="sourceLine" id="cb22-21" title="21">      <span class="dt">SAnnPop</span> rest <span class="ot">-&gt;</span> <span class="kw">case</span> st <span class="kw">of</span></a>
+<a class="sourceLine" id="cb22-22" title="22">        a<span class="op">:</span>as <span class="ot">-&gt;</span> pop a <span class="op">&lt;++&gt;</span> go as rest</a>
+<a class="sourceLine" id="cb22-23" title="23">        [] <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;renderDocSA: unpaired pop&quot;</span></a></code></pre></div>
+<p><code>renderDocS</code> simply specializes <code>renderDocSA</code> to the identity functor.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" title="1">renderDocS</a>
+<a class="sourceLine" id="cb23-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Monoid</span> t )</a>
+<a class="sourceLine" id="cb23-3" title="3">  <span class="ot">=&gt;</span> (<span class="dt">T.Text</span> <span class="ot">-&gt;</span> t) <span class="co">-- Render plain Text</span></a>
+<a class="sourceLine" id="cb23-4" title="4">  <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> t)      <span class="co">-- Render an opening annotation</span></a>
+<a class="sourceLine" id="cb23-5" title="5">  <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> t)      <span class="co">-- Render a closing annotation</span></a>
+<a class="sourceLine" id="cb23-6" title="6">  <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb23-7" title="7">  <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb23-8" title="8">renderDocS text push pop <span class="ot">=</span> unIdentity <span class="op">.</span></a>
+<a class="sourceLine" id="cb23-9" title="9">  renderDocSA (<span class="dt">Identity</span> <span class="op">.</span> text) (<span class="dt">Identity</span> <span class="op">.</span> push) (<span class="dt">Identity</span> <span class="op">.</span> pop)</a></code></pre></div>
+<p>This is also a good place to convert document streams into <code>ShowS</code>s. Recall that <code>ShowS = String -&gt; String</code> is an optimization over the usual <code>show</code> class function, which allows us to build up strings as difference lists. This is potentially more efficient than nested concatenation.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" title="1"><span class="ot">showDocS ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">ShowS</span></a>
+<a class="sourceLine" id="cb24-2" title="2">showDocS docS <span class="ot">=</span> <span class="kw">case</span> docS <span class="kw">of</span></a>
+<a class="sourceLine" id="cb24-3" title="3">  <span class="dt">SFail</span>        <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;showDocS: uncaught SFail&quot;</span></a>
+<a class="sourceLine" id="cb24-4" title="4">  <span class="dt">SEmpty</span>       <span class="ot">-&gt;</span> <span class="fu">id</span></a>
+<a class="sourceLine" id="cb24-5" title="5">  <span class="dt">SChar</span> c x    <span class="ot">-&gt;</span> <span class="fu">showChar</span> c <span class="op">.</span> showDocS x</a>
+<a class="sourceLine" id="cb24-6" title="6">  <span class="dt">SText</span> _l t x <span class="ot">-&gt;</span> <span class="fu">showString</span> (T.unpack t) <span class="op">.</span> showDocS x</a>
+<a class="sourceLine" id="cb24-7" title="7">  <span class="dt">SLine</span> i x    <span class="ot">-&gt;</span> <span class="fu">showString</span> (<span class="ch">&#39;\n&#39;</span> <span class="op">:</span> <span class="fu">replicate</span> i <span class="ch">&#39; &#39;</span>) <span class="op">.</span> showDocS x</a>
+<a class="sourceLine" id="cb24-8" title="8">  <span class="dt">SAnnPush</span> _ x <span class="ot">-&gt;</span> showDocS x</a>
+<a class="sourceLine" id="cb24-9" title="9">  <span class="dt">SAnnPop</span> x    <span class="ot">-&gt;</span> showDocS x</a></code></pre></div>
+<p>We also define a helper to print a <code>DocS</code> directly to a file handle (or stdout), ignoring any annotations.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" title="1">hPrintDocS</a>
+<a class="sourceLine" id="cb25-2" title="2"><span class="ot">  ::</span> <span class="dt">Handle</span> <span class="ot">-&gt;</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb25-3" title="3">hPrintDocS h docs <span class="ot">=</span> go docs</a>
+<a class="sourceLine" id="cb25-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb25-5" title="5"><span class="ot">    go ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb25-6" title="6">    go doc <span class="ot">=</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb25-7" title="7">      <span class="dt">SFail</span>              <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;hRenderDocIO: uncaught SFail&quot;</span></a>
+<a class="sourceLine" id="cb25-8" title="8">      <span class="dt">SEmpty</span>             <span class="ot">-&gt;</span> <span class="fu">pure</span> ()</a>
+<a class="sourceLine" id="cb25-9" title="9">      <span class="dt">SChar</span> c rest       <span class="ot">-&gt;</span> hPutChar h c <span class="op">&gt;&gt;</span>  go rest</a>
+<a class="sourceLine" id="cb25-10" title="10">      <span class="dt">SText</span> _ t rest     <span class="ot">-&gt;</span> T.hPutStr h t <span class="op">&gt;&gt;</span> go rest</a>
+<a class="sourceLine" id="cb25-11" title="11">      <span class="dt">SLine</span> n rest       <span class="ot">-&gt;</span> hPutChar h <span class="ch">&#39;\n&#39;</span> <span class="op">&gt;&gt;</span> T.hPutStr h (textSpaces n) <span class="op">&gt;&gt;</span> go rest</a>
+<a class="sourceLine" id="cb25-12" title="12">      <span class="dt">SAnnPush</span> _ann rest <span class="ot">-&gt;</span> go rest</a>
+<a class="sourceLine" id="cb25-13" title="13">      <span class="dt">SAnnPop</span> rest       <span class="ot">-&gt;</span> go rest</a>
+<a class="sourceLine" id="cb25-14" title="14"></a>
+<a class="sourceLine" id="cb25-15" title="15"><span class="ot">printDocS ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb25-16" title="16">printDocS <span class="ot">=</span> hPrintDocS stdout</a></code></pre></div>
+<p>We can also give <code>Foldable</code> and <code>Traversable</code> instances for <code>DocS</code>, treating it as a list of annotations.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" title="1"><span class="kw">instance</span> <span class="dt">Foldable</span> <span class="dt">DocS</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb26-2" title="2">  <span class="fu">foldMap</span> f <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb26-3" title="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb26-4" title="4">      go docs <span class="ot">=</span> <span class="kw">case</span> docs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb26-5" title="5">        <span class="dt">SFail</span>             <span class="ot">-&gt;</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb26-6" title="6">        <span class="dt">SEmpty</span>            <span class="ot">-&gt;</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb26-7" title="7">        <span class="dt">SChar</span> _ rest      <span class="ot">-&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-8" title="8">        <span class="dt">SText</span> _ _ rest    <span class="ot">-&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-9" title="9">        <span class="dt">SLine</span> _ rest      <span class="ot">-&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-10" title="10">        <span class="dt">SAnnPush</span> ann rest <span class="ot">-&gt;</span> <span class="fu">mappend</span> (f ann) (go rest)</a>
+<a class="sourceLine" id="cb26-11" title="11">        <span class="dt">SAnnPop</span> rest      <span class="ot">-&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-12" title="12"></a>
+<a class="sourceLine" id="cb26-13" title="13"><span class="kw">instance</span> <span class="dt">Traversable</span> <span class="dt">DocS</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb26-14" title="14">  <span class="fu">traverse</span> f <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb26-15" title="15">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb26-16" title="16">      go docs <span class="ot">=</span> <span class="kw">case</span> docs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb26-17" title="17">        <span class="dt">SFail</span>             <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">SFail</span></a>
+<a class="sourceLine" id="cb26-18" title="18">        <span class="dt">SEmpty</span>            <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">SEmpty</span></a>
+<a class="sourceLine" id="cb26-19" title="19">        <span class="dt">SChar</span> c rest      <span class="ot">-&gt;</span> <span class="dt">SChar</span> c   <span class="op">&lt;$&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-20" title="20">        <span class="dt">SText</span> l t rest    <span class="ot">-&gt;</span> <span class="dt">SText</span> l t <span class="op">&lt;$&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-21" title="21">        <span class="dt">SLine</span> i rest      <span class="ot">-&gt;</span> <span class="dt">SLine</span> i   <span class="op">&lt;$&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-22" title="22">        <span class="dt">SAnnPush</span> ann rest <span class="ot">-&gt;</span> <span class="dt">SAnnPush</span>  <span class="op">&lt;$&gt;</span> f ann <span class="op">&lt;*&gt;</span> go rest</a>
+<a class="sourceLine" id="cb26-23" title="23">        <span class="dt">SAnnPop</span> rest      <span class="ot">-&gt;</span> <span class="dt">SAnnPop</span>   <span class="op">&lt;$&gt;</span> go rest</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>The Wadler/Leijen Layout Algorithm</h2>
+<p>Conversion from <code>Doc</code> to <code>DocS</code>, called <em>layout</em>, amounts to collapsing all the optional documents using some notion of "best fit". Here this is done using a single function, <code>layoutWadlerLeijen</code>, which is parameterized over two inputs.</p>
+<p><code>LayoutOptions</code> specifies how wide the page is in columns, and, if the page is bounded, the "ribbon width" -- the fraction of each line that can be occupied by non-indentation characters.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" title="1"><span class="kw">newtype</span> <span class="dt">LayoutOptions</span> <span class="ot">=</span> <span class="dt">LOpts</span></a>
+<a class="sourceLine" id="cb27-2" title="2">  {<span class="ot"> layoutPageWidth ::</span> <span class="dt">PageWidth</span></a>
+<a class="sourceLine" id="cb27-3" title="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb27-4" title="4"></a>
+<a class="sourceLine" id="cb27-5" title="5"><span class="kw">data</span> <span class="dt">PageWidth</span></a>
+<a class="sourceLine" id="cb27-6" title="6">  <span class="ot">=</span> <span class="dt">AvailablePerLine</span> <span class="dt">Int</span> <span class="dt">Double</span></a>
+<a class="sourceLine" id="cb27-7" title="7">  <span class="op">|</span> <span class="dt">Unbounded</span></a>
+<a class="sourceLine" id="cb27-8" title="8">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>A <code>FittingPredicate</code> decides whether a given <code>DocS</code> can be rendered within a particular combination of</p>
+<ul>
+<li>page width,</li>
+<li>minimum indentation, and</li>
+<li>maximum width of the first rendered line.</li>
+</ul>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" title="1"><span class="kw">newtype</span> <span class="dt">FittingPredicate</span> a <span class="ot">=</span> <span class="dt">FP</span></a>
+<a class="sourceLine" id="cb28-2" title="2">  (<span class="dt">PageWidth</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span>)</a></code></pre></div>
+<p>Extracting the fitting predicate as a parameter allows <code>layoutWadlerLeijen</code> to be very flexible. Using different fitting predicates allows us to tweak the tradeoffs layout must make among compactness, readability, and efficiency without changing the core algorithm.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" title="1">layoutWadlerLeijen</a>
+<a class="sourceLine" id="cb29-2" title="2"><span class="ot">  ::</span> <span class="kw">forall</span> a</a>
+<a class="sourceLine" id="cb29-3" title="3">   <span class="op">.</span> <span class="dt">FittingPredicate</span> a <span class="ot">-&gt;</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb29-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb29-5" title="5">layoutWadlerLeijen <span class="fu">pred</span> opts doc <span class="ot">=</span></a>
+<a class="sourceLine" id="cb29-6" title="6">  best <span class="dv">0</span> <span class="dv">0</span> (<span class="dt">Cons</span> <span class="dv">0</span> doc <span class="dt">Nil</span>)</a>
+<a class="sourceLine" id="cb29-7" title="7">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-8" title="8">    <span class="dt">FP</span> fits <span class="ot">=</span> <span class="fu">pred</span></a>
+<a class="sourceLine" id="cb29-9" title="9">    <span class="dt">LOpts</span> { layoutPageWidth <span class="ot">=</span> pWidth } <span class="ot">=</span> opts</a>
+<a class="sourceLine" id="cb29-10" title="10"></a>
+<a class="sourceLine" id="cb29-11" title="11">    <span class="co">-- best lays out the documents in a layout pipeline &quot;optimally&quot;.</span></a>
+<a class="sourceLine" id="cb29-12" title="12">    <span class="co">-- its parameters must satisfy the following invariants:</span></a>
+<a class="sourceLine" id="cb29-13" title="13">    <span class="co">--   * current column &gt;= current nesting level</span></a>
+<a class="sourceLine" id="cb29-14" title="14">    <span class="co">--   * current column - current indentaion = number of chars inserted in line</span></a>
+<a class="sourceLine" id="cb29-15" title="15">    best</a>
+<a class="sourceLine" id="cb29-16" title="16"><span class="ot">      ::</span> <span class="dt">Int</span>              <span class="co">-- Current nesting level</span></a>
+<a class="sourceLine" id="cb29-17" title="17">      <span class="ot">-&gt;</span> <span class="dt">Int</span>              <span class="co">-- Current column, i.e. &quot;where the cursor is&quot;</span></a>
+<a class="sourceLine" id="cb29-18" title="18">      <span class="ot">-&gt;</span> <span class="dt">LayoutPipeline</span> a <span class="co">-- Documents remaining to be handled (in order)</span></a>
+<a class="sourceLine" id="cb29-19" title="19">      <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb29-20" title="20">    best <span class="op">!</span>_ <span class="op">!</span>_ <span class="dt">Nil</span>           <span class="ot">=</span> <span class="dt">SEmpty</span></a>
+<a class="sourceLine" id="cb29-21" title="21">    best nl cc (<span class="dt">UndoAnn</span> ds)  <span class="ot">=</span> <span class="dt">SAnnPop</span> (best nl cc ds)</a>
+<a class="sourceLine" id="cb29-22" title="22">    best nl cc (<span class="dt">Cons</span> i d ds) <span class="ot">=</span> <span class="kw">case</span> d <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-23" title="23">      <span class="dt">Fail</span>            <span class="ot">-&gt;</span> <span class="dt">SFail</span></a>
+<a class="sourceLine" id="cb29-24" title="24">      <span class="dt">Empty</span>           <span class="ot">-&gt;</span> best nl cc ds</a>
+<a class="sourceLine" id="cb29-25" title="25">      <span class="dt">Char</span> c          <span class="ot">-&gt;</span> <span class="kw">let</span> <span class="op">!</span>cc&#39; <span class="ot">=</span> cc<span class="op">+</span><span class="dv">1</span> <span class="kw">in</span> <span class="dt">SChar</span> c (best nl cc&#39; ds)</a>
+<a class="sourceLine" id="cb29-26" title="26">      <span class="dt">Text</span> l t        <span class="ot">-&gt;</span> <span class="kw">let</span> <span class="op">!</span>cc&#39; <span class="ot">=</span> cc<span class="op">+</span>l <span class="kw">in</span> <span class="dt">SText</span> l t (best nl cc&#39; ds)</a>
+<a class="sourceLine" id="cb29-27" title="27">      <span class="dt">Line</span>            <span class="ot">-&gt;</span> <span class="dt">SLine</span> i (best i i ds)</a>
+<a class="sourceLine" id="cb29-28" title="28">      <span class="dt">FlatAlt</span> x _     <span class="ot">-&gt;</span> best nl cc (<span class="dt">Cons</span> i x ds)</a>
+<a class="sourceLine" id="cb29-29" title="29">      <span class="dt">Cat</span> x y         <span class="ot">-&gt;</span> best nl cc (<span class="dt">Cons</span> i x (<span class="dt">Cons</span> i y ds))</a>
+<a class="sourceLine" id="cb29-30" title="30">      <span class="dt">Nest</span> j x        <span class="ot">-&gt;</span> <span class="kw">let</span> <span class="op">!</span>ij <span class="ot">=</span> i<span class="op">+</span>j <span class="kw">in</span> best nl cc (<span class="dt">Cons</span> ij x ds)</a>
+<a class="sourceLine" id="cb29-31" title="31">      <span class="dt">Union</span> x y       <span class="ot">-&gt;</span> <span class="kw">let</span></a>
+<a class="sourceLine" id="cb29-32" title="32">                           x&#39; <span class="ot">=</span> best nl cc (<span class="dt">Cons</span> i x ds)</a>
+<a class="sourceLine" id="cb29-33" title="33">                           y&#39; <span class="ot">=</span> best nl cc (<span class="dt">Cons</span> i y ds)</a>
+<a class="sourceLine" id="cb29-34" title="34">                         <span class="kw">in</span> selectNicer nl cc x&#39; y&#39;</a>
+<a class="sourceLine" id="cb29-35" title="35">      <span class="co">-- this is where we pass layout parameters to the reactive constructors</span></a>
+<a class="sourceLine" id="cb29-36" title="36">      <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> best nl cc (<span class="dt">Cons</span> i (f cc) ds)</a>
+<a class="sourceLine" id="cb29-37" title="37">      <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> best nl cc (<span class="dt">Cons</span> i (f pWidth) ds)</a>
+<a class="sourceLine" id="cb29-38" title="38">      <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> best nl cc (<span class="dt">Cons</span> i (f i) ds)</a>
+<a class="sourceLine" id="cb29-39" title="39">      <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="dt">SAnnPush</span> ann (best nl cc (<span class="dt">Cons</span> i x (<span class="dt">UndoAnn</span> ds)))</a>
+<a class="sourceLine" id="cb29-40" title="40"></a>
+<a class="sourceLine" id="cb29-41" title="41">    <span class="co">-- selectNicer returns choice A if it fits, otherwise choice B.</span></a>
+<a class="sourceLine" id="cb29-42" title="42">    <span class="co">-- The fit of choice B is /not/ checked! It is the user&#39;s responsibility</span></a>
+<a class="sourceLine" id="cb29-43" title="43">    <span class="co">-- to provide an alternative that can fit the page even when choice A doesn&#39;t.</span></a>
+<a class="sourceLine" id="cb29-44" title="44">    selectNicer</a>
+<a class="sourceLine" id="cb29-45" title="45"><span class="ot">      ::</span> <span class="dt">Int</span>    <span class="co">-- Current nesting level</span></a>
+<a class="sourceLine" id="cb29-46" title="46">      <span class="ot">-&gt;</span> <span class="dt">Int</span>    <span class="co">-- Current column</span></a>
+<a class="sourceLine" id="cb29-47" title="47">      <span class="ot">-&gt;</span> <span class="dt">DocS</span> a <span class="co">-- Choice A</span></a>
+<a class="sourceLine" id="cb29-48" title="48">      <span class="ot">-&gt;</span> <span class="dt">DocS</span> a <span class="co">-- Choice B; should be less wide than choice A.</span></a>
+<a class="sourceLine" id="cb29-49" title="49">      <span class="ot">-&gt;</span> <span class="dt">DocS</span> a <span class="co">-- Choice A if it fits, otherwise B.</span></a>
+<a class="sourceLine" id="cb29-50" title="50">    selectNicer lineIndent currentColumn x y <span class="ot">=</span> <span class="kw">case</span> pWidth <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-51" title="51">        <span class="dt">AvailablePerLine</span> lineLength ribbonFraction</a>
+<a class="sourceLine" id="cb29-52" title="52">          <span class="op">|</span> fits pWidth minNestingLevel availableWidth x <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb29-53" title="53">          <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-54" title="54">            minNestingLevel <span class="ot">=</span> <span class="kw">case</span> initialIndentation y <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-55" title="55">              <span class="dt">Just</span> i <span class="ot">-&gt;</span> <span class="fu">min</span> i currentColumn</a>
+<a class="sourceLine" id="cb29-56" title="56">              <span class="dt">Nothing</span> <span class="ot">-&gt;</span> currentColumn</a>
+<a class="sourceLine" id="cb29-57" title="57">            availableWidth <span class="ot">=</span> <span class="fu">min</span> columnsLeftInLine columnsLeftInRibbon</a>
+<a class="sourceLine" id="cb29-58" title="58">              <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-59" title="59">                columnsLeftInLine <span class="ot">=</span> lineLength <span class="op">-</span> currentColumn</a>
+<a class="sourceLine" id="cb29-60" title="60">                columnsLeftInRibbon <span class="ot">=</span> lineIndent <span class="op">+</span> ribbonWidth <span class="op">-</span> currentColumn</a>
+<a class="sourceLine" id="cb29-61" title="61">                ribbonWidth <span class="ot">=</span></a>
+<a class="sourceLine" id="cb29-62" title="62">                  (<span class="fu">max</span> <span class="dv">0</span> <span class="op">.</span> <span class="fu">min</span> lineLength <span class="op">.</span> <span class="fu">round</span>)</a>
+<a class="sourceLine" id="cb29-63" title="63">                    (<span class="fu">fromIntegral</span> lineLength <span class="op">*</span> ribbonFraction)</a>
+<a class="sourceLine" id="cb29-64" title="64">        <span class="dt">Unbounded</span></a>
+<a class="sourceLine" id="cb29-65" title="65">          <span class="op">|</span> <span class="fu">not</span> (failsOnFirstLine x) <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb29-66" title="66">        _ <span class="ot">-&gt;</span> y</a>
+<a class="sourceLine" id="cb29-67" title="67"></a>
+<a class="sourceLine" id="cb29-68" title="68"><span class="ot">    initialIndentation ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb29-69" title="69">    initialIndentation sds <span class="ot">=</span> <span class="kw">case</span> sds <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-70" title="70">      <span class="dt">SLine</span> i _    <span class="ot">-&gt;</span> <span class="dt">Just</span> i</a>
+<a class="sourceLine" id="cb29-71" title="71">      <span class="dt">SAnnPush</span> _ s <span class="ot">-&gt;</span> initialIndentation s</a>
+<a class="sourceLine" id="cb29-72" title="72">      <span class="dt">SAnnPop</span> s    <span class="ot">-&gt;</span> initialIndentation s</a>
+<a class="sourceLine" id="cb29-73" title="73">      _            <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb29-74" title="74"></a>
+<a class="sourceLine" id="cb29-75" title="75"><span class="ot">    failsOnFirstLine ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb29-76" title="76">    failsOnFirstLine <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb29-77" title="77">      <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-78" title="78">        go sds <span class="ot">=</span> <span class="kw">case</span> sds <span class="kw">of</span></a>
+<a class="sourceLine" id="cb29-79" title="79">          <span class="dt">SFail</span>        <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb29-80" title="80">          <span class="dt">SEmpty</span>       <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb29-81" title="81">          <span class="dt">SChar</span> _ s    <span class="ot">-&gt;</span> go s</a>
+<a class="sourceLine" id="cb29-82" title="82">          <span class="dt">SText</span> _ _ s  <span class="ot">-&gt;</span> go s</a>
+<a class="sourceLine" id="cb29-83" title="83">          <span class="dt">SLine</span> _ _    <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb29-84" title="84">          <span class="dt">SAnnPush</span> _ s <span class="ot">-&gt;</span> go s</a>
+<a class="sourceLine" id="cb29-85" title="85">          <span class="dt">SAnnPop</span> s    <span class="ot">-&gt;</span> go s</a></code></pre></div>
+<p><code>layoutWadlerLeijen</code> uses an intermediate data type, <code>LayoutPipeline</code>, to keep a stack of documents waiting to be processed. (This type is only used here.)</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" title="1"><span class="co">-- List of nesting level/document pairs yet to be laid out.</span></a>
+<a class="sourceLine" id="cb30-2" title="2"><span class="kw">data</span> <span class="dt">LayoutPipeline</span> a</a>
+<a class="sourceLine" id="cb30-3" title="3">  <span class="ot">=</span> <span class="dt">Nil</span></a>
+<a class="sourceLine" id="cb30-4" title="4">  <span class="op">|</span> <span class="dt">Cons</span> <span class="op">!</span><span class="dt">Int</span> (<span class="dt">Doc</span> a) (<span class="dt">LayoutPipeline</span> a)</a>
+<a class="sourceLine" id="cb30-5" title="5">  <span class="op">|</span> <span class="dt">UndoAnn</span> (<span class="dt">LayoutPipeline</span> a)</a></code></pre></div>
+<p>From here, we can define some concrete layout algorithms by defining an appropriate fitting predicate. The first, <code>layoutPretty</code>, has one <code>DocS</code> element of lookahead -- that is, it commits to rendering as long as the next element in the stream fits. This is reasonably efficient, but may give less pretty results.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" title="1">layoutPretty</a>
+<a class="sourceLine" id="cb31-2" title="2"><span class="ot">    ::</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb31-3" title="3">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb31-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb31-5" title="5">layoutPretty <span class="ot">=</span> layoutWadlerLeijen</a>
+<a class="sourceLine" id="cb31-6" title="6">    (<span class="dt">FP</span> (\_ _ maxWidth docS <span class="ot">-&gt;</span> fits maxWidth docS))</a>
+<a class="sourceLine" id="cb31-7" title="7">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb31-8" title="8">    fits</a>
+<a class="sourceLine" id="cb31-9" title="9"><span class="ot">      ::</span> <span class="dt">Int</span> <span class="co">-- Width in which to fit the first line</span></a>
+<a class="sourceLine" id="cb31-10" title="10">      <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb31-11" title="11">      <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb31-12" title="12">    fits w doc <span class="ot">=</span> <span class="kw">if</span> w <span class="op">&lt;</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb31-13" title="13">      <span class="kw">then</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb31-14" title="14">      <span class="kw">else</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb31-15" title="15">        <span class="dt">SFail</span>        <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb31-16" title="16">        <span class="dt">SEmpty</span>       <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb31-17" title="17">        <span class="dt">SChar</span> _ x    <span class="ot">-&gt;</span> fits (w <span class="op">-</span> <span class="dv">1</span>) x</a>
+<a class="sourceLine" id="cb31-18" title="18">        <span class="dt">SText</span> l _t x <span class="ot">-&gt;</span> fits (w <span class="op">-</span> l) x</a>
+<a class="sourceLine" id="cb31-19" title="19">        <span class="dt">SLine</span> _ _    <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb31-20" title="20">        <span class="dt">SAnnPush</span> _ x <span class="ot">-&gt;</span> fits w x</a>
+<a class="sourceLine" id="cb31-21" title="21">        <span class="dt">SAnnPop</span> x    <span class="ot">-&gt;</span> fits w x</a></code></pre></div>
+<p>The next concrete algorithm, <code>layoutSmart</code>, looks further ahead than <code>layoutPretty</code>. Rather than some fixed amount of lookahead, it scans the document until it reaches a line with equal or lesser indentation before checking fit. This is useful for layouts with semantically significant indentation.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" title="1">layoutSmart</a>
+<a class="sourceLine" id="cb32-2" title="2"><span class="ot">  ::</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb32-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb32-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">DocS</span> ann</a>
+<a class="sourceLine" id="cb32-5" title="5">layoutSmart <span class="ot">=</span> layoutWadlerLeijen (<span class="dt">FP</span> fits)</a>
+<a class="sourceLine" id="cb32-6" title="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-7" title="7">    fits</a>
+<a class="sourceLine" id="cb32-8" title="8"><span class="ot">      ::</span> <span class="dt">PageWidth</span></a>
+<a class="sourceLine" id="cb32-9" title="9">      <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="co">-- Minimum nesting level to fit in</span></a>
+<a class="sourceLine" id="cb32-10" title="10">      <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="co">-- Width in which to fit the first line</span></a>
+<a class="sourceLine" id="cb32-11" title="11">      <span class="ot">-&gt;</span> <span class="dt">DocS</span> ann</a>
+<a class="sourceLine" id="cb32-12" title="12">      <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb32-13" title="13">    fits pw m <span class="ot">=</span> fits&#39;</a>
+<a class="sourceLine" id="cb32-14" title="14">      <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-15" title="15">        fits&#39; w docS <span class="ot">=</span> <span class="kw">if</span> w <span class="op">&lt;</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb32-16" title="16">          <span class="kw">then</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb32-17" title="17">          <span class="kw">else</span> <span class="kw">case</span> docS <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-18" title="18">            <span class="dt">SFail</span>        <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb32-19" title="19">            <span class="dt">SEmpty</span>       <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb32-20" title="20">            <span class="dt">SChar</span> _ x    <span class="ot">-&gt;</span> fits&#39; (w<span class="op">-</span><span class="dv">1</span>) x</a>
+<a class="sourceLine" id="cb32-21" title="21">            <span class="dt">SText</span> k _ x  <span class="ot">-&gt;</span> fits&#39; (w<span class="op">-</span>k) x</a>
+<a class="sourceLine" id="cb32-22" title="22">            <span class="dt">SLine</span> i x    <span class="ot">-&gt;</span> <span class="kw">case</span> pw <span class="kw">of</span></a>
+<a class="sourceLine" id="cb32-23" title="23">              <span class="dt">AvailablePerLine</span> c _ <span class="ot">-&gt;</span> <span class="kw">if</span> m <span class="op">&lt;</span> i</a>
+<a class="sourceLine" id="cb32-24" title="24">                <span class="kw">then</span> fits&#39; (c <span class="op">-</span> i) x</a>
+<a class="sourceLine" id="cb32-25" title="25">                <span class="kw">else</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb32-26" title="26">              <span class="dt">Unbounded</span> <span class="ot">-&gt;</span> <span class="dt">False</span></a>
+<a class="sourceLine" id="cb32-27" title="27">            <span class="dt">SAnnPush</span> _ x <span class="ot">-&gt;</span> fits&#39; w x</a>
+<a class="sourceLine" id="cb32-28" title="28">            <span class="dt">SAnnPop</span> x    <span class="ot">-&gt;</span> fits&#39; w x</a></code></pre></div>
+<p>Finally, <code>layoutCompact</code> ignores indentation and doesn't use <code>layoutWadlerLeijen</code>. It is very fast, but not pretty at all; this may be useful for producing output to be consumed by another program.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" title="1"><span class="ot">layoutCompact ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb33-2" title="2">layoutCompact doc <span class="ot">=</span> scan <span class="dv">0</span> [doc]</a>
+<a class="sourceLine" id="cb33-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb33-4" title="4">    scan _ [] <span class="ot">=</span> <span class="dt">SEmpty</span></a>
+<a class="sourceLine" id="cb33-5" title="5">    scan <span class="op">!</span>col (d<span class="op">:</span>ds) <span class="ot">=</span> <span class="kw">case</span> d <span class="kw">of</span></a>
+<a class="sourceLine" id="cb33-6" title="6">      <span class="dt">Fail</span>            <span class="ot">-&gt;</span> <span class="dt">SFail</span></a>
+<a class="sourceLine" id="cb33-7" title="7">      <span class="dt">Empty</span>           <span class="ot">-&gt;</span> scan col ds</a>
+<a class="sourceLine" id="cb33-8" title="8">      <span class="dt">Char</span> c          <span class="ot">-&gt;</span> <span class="dt">SChar</span> c (scan (col<span class="op">+</span><span class="dv">1</span>) ds)</a>
+<a class="sourceLine" id="cb33-9" title="9">      <span class="dt">Text</span> l t        <span class="ot">-&gt;</span> <span class="kw">let</span> <span class="op">!</span>col&#39; <span class="ot">=</span> col<span class="op">+</span>l <span class="kw">in</span> <span class="dt">SText</span> l t (scan col&#39; ds)</a>
+<a class="sourceLine" id="cb33-10" title="10">      <span class="dt">FlatAlt</span> x _     <span class="ot">-&gt;</span> scan col (x<span class="op">:</span>ds)</a>
+<a class="sourceLine" id="cb33-11" title="11">      <span class="dt">Line</span>            <span class="ot">-&gt;</span> <span class="dt">SLine</span> <span class="dv">0</span> (scan <span class="dv">0</span> ds)</a>
+<a class="sourceLine" id="cb33-12" title="12">      <span class="dt">Cat</span> x y         <span class="ot">-&gt;</span> scan col (x<span class="op">:</span>y<span class="op">:</span>ds)</a>
+<a class="sourceLine" id="cb33-13" title="13">      <span class="dt">Nest</span> _ x        <span class="ot">-&gt;</span> scan col (x<span class="op">:</span>ds)</a>
+<a class="sourceLine" id="cb33-14" title="14">      <span class="dt">Union</span> _ y       <span class="ot">-&gt;</span> scan col (y<span class="op">:</span>ds)</a>
+<a class="sourceLine" id="cb33-15" title="15">      <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> scan col (f col<span class="op">:</span>ds)</a>
+<a class="sourceLine" id="cb33-16" title="16">      <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> scan col (f <span class="dt">Unbounded</span> <span class="op">:</span> ds)</a>
+<a class="sourceLine" id="cb33-17" title="17">      <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> scan col (f <span class="dv">0</span> <span class="op">:</span> ds)</a>
+<a class="sourceLine" id="cb33-18" title="18">      <span class="dt">Annotated</span> _ x   <span class="ot">-&gt;</span> scan col (x<span class="op">:</span>ds)</a></code></pre></div>
+<p>For convenience we bundle all three layout algorithms behind a single function taking a <code>Layout</code> argument.</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" title="1"><span class="kw">data</span> <span class="dt">Layout</span></a>
+<a class="sourceLine" id="cb34-2" title="2">  <span class="ot">=</span> <span class="dt">Pretty</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb34-3" title="3">  <span class="op">|</span> <span class="dt">Smart</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb34-4" title="4">  <span class="op">|</span> <span class="dt">Compact</span></a>
+<a class="sourceLine" id="cb34-5" title="5">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb34-6" title="6"></a>
+<a class="sourceLine" id="cb34-7" title="7">layout</a>
+<a class="sourceLine" id="cb34-8" title="8"><span class="ot">  ::</span> <span class="dt">Layout</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">DocS</span> a</a>
+<a class="sourceLine" id="cb34-9" title="9">layout l doc <span class="ot">=</span> <span class="kw">case</span> l <span class="kw">of</span></a>
+<a class="sourceLine" id="cb34-10" title="10">  <span class="dt">Pretty</span> opts <span class="ot">-&gt;</span> layoutPretty opts doc</a>
+<a class="sourceLine" id="cb34-11" title="11">  <span class="dt">Smart</span> opts  <span class="ot">-&gt;</span> layoutSmart opts doc</a>
+<a class="sourceLine" id="cb34-12" title="12">  <span class="dt">Compact</span>     <span class="ot">-&gt;</span> layoutCompact doc</a>
+<a class="sourceLine" id="cb34-13" title="13"></a>
+<a class="sourceLine" id="cb34-14" title="14"><span class="ot">pretty ::</span> <span class="dt">Layout</span></a>
+<a class="sourceLine" id="cb34-15" title="15">pretty <span class="ot">=</span> <span class="dt">Pretty</span> defaultLayoutOptions</a>
+<a class="sourceLine" id="cb34-16" title="16"></a>
+<a class="sourceLine" id="cb34-17" title="17"><span class="ot">prettyWith ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> <span class="dt">Layout</span></a>
+<a class="sourceLine" id="cb34-18" title="18">prettyWith n r <span class="ot">=</span> <span class="dt">Pretty</span> <span class="op">$</span> <span class="dt">LOpts</span></a>
+<a class="sourceLine" id="cb34-19" title="19">  { layoutPageWidth <span class="ot">=</span> <span class="dt">AvailablePerLine</span> n r }</a>
+<a class="sourceLine" id="cb34-20" title="20"></a>
+<a class="sourceLine" id="cb34-21" title="21"><span class="ot">smart ::</span> <span class="dt">Layout</span></a>
+<a class="sourceLine" id="cb34-22" title="22">smart <span class="ot">=</span> <span class="dt">Smart</span> defaultLayoutOptions</a>
+<a class="sourceLine" id="cb34-23" title="23"></a>
+<a class="sourceLine" id="cb34-24" title="24"><span class="ot">smartWith ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> <span class="dt">Layout</span></a>
+<a class="sourceLine" id="cb34-25" title="25">smartWith n r <span class="ot">=</span> <span class="dt">Smart</span> <span class="op">$</span> <span class="dt">LOpts</span></a>
+<a class="sourceLine" id="cb34-26" title="26">  { layoutPageWidth <span class="ot">=</span> <span class="dt">AvailablePerLine</span> n r }</a>
+<a class="sourceLine" id="cb34-27" title="27"></a>
+<a class="sourceLine" id="cb34-28" title="28"><span class="ot">defaultLayoutOptions ::</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb34-29" title="29">defaultLayoutOptions <span class="ot">=</span> <span class="dt">LOpts</span></a>
+<a class="sourceLine" id="cb34-30" title="30">  { layoutPageWidth <span class="ot">=</span> defaultPageWidth }</a>
+<a class="sourceLine" id="cb34-31" title="31"></a>
+<a class="sourceLine" id="cb34-32" title="32"><span class="ot">defaultPageWidth ::</span> <span class="dt">PageWidth</span></a>
+<a class="sourceLine" id="cb34-33" title="33">defaultPageWidth <span class="ot">=</span> <span class="dt">AvailablePerLine</span> <span class="dv">80</span> <span class="dv">1</span></a>
+<a class="sourceLine" id="cb34-34" title="34"></a>
+<a class="sourceLine" id="cb34-35" title="35"><span class="ot">boundedLayout ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb34-36" title="36">boundedLayout w r <span class="ot">=</span> <span class="dt">LOpts</span> <span class="op">$</span> <span class="dt">AvailablePerLine</span> w r</a>
+<a class="sourceLine" id="cb34-37" title="37"></a>
+<a class="sourceLine" id="cb34-38" title="38"><span class="ot">unboundedLayout ::</span> <span class="dt">LayoutOptions</span></a>
+<a class="sourceLine" id="cb34-39" title="39">unboundedLayout <span class="ot">=</span> <span class="dt">LOpts</span> <span class="dt">Unbounded</span></a></code></pre></div>
+<p>We also define helper functions for printing a laid out <code>Doc</code> directly to a file handle (or stdout), ignoring any annotations.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" title="1">hPrintDoc</a>
+<a class="sourceLine" id="cb35-2" title="2"><span class="ot">  ::</span> <span class="dt">Handle</span> <span class="ot">-&gt;</span> <span class="dt">Layout</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb35-3" title="3">hPrintDoc h l <span class="ot">=</span> hPrintDocS h <span class="op">.</span> layout l</a>
+<a class="sourceLine" id="cb35-4" title="4"></a>
+<a class="sourceLine" id="cb35-5" title="5">printDoc</a>
+<a class="sourceLine" id="cb35-6" title="6"><span class="ot">  ::</span> <span class="dt">Layout</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb35-7" title="7">printDoc <span class="ot">=</span> hPrintDoc stdout</a></code></pre></div>
+<p>Finally, we provide some utility functions for simply pretty printing a <code>Doc</code> as a string.</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" title="1">prettyStringWith</a>
+<a class="sourceLine" id="cb36-2" title="2"><span class="ot">  ::</span> <span class="dt">LayoutOptions</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb36-3" title="3">prettyStringWith opts doc <span class="ot">=</span></a>
+<a class="sourceLine" id="cb36-4" title="4">  (showDocS <span class="op">$</span> layout (<span class="dt">Pretty</span> opts) doc) <span class="st">&quot;&quot;</span></a>
+<a class="sourceLine" id="cb36-5" title="5"></a>
+<a class="sourceLine" id="cb36-6" title="6">prettyString</a>
+<a class="sourceLine" id="cb36-7" title="7"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb36-8" title="8">prettyString <span class="ot">=</span> prettyStringWith defaultLayoutOptions</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Document Trees</h2>
+<p><code>DocS</code> is great for serialized output, however it's less great if our target type is tree-shaped, because we have to scan to the next pop to find the end of an annotation group. The <code>DocST</code> type represents a specific document layout, like <code>DocS</code>, but is tree-shaped so that annotations are explicitly delimited.</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" title="1"><span class="kw">data</span> <span class="dt">DocST</span> a</a>
+<a class="sourceLine" id="cb37-2" title="2">  <span class="ot">=</span> <span class="dt">STEmpty</span></a>
+<a class="sourceLine" id="cb37-3" title="3">  <span class="op">|</span> <span class="dt">STChar</span> <span class="dt">Char</span></a>
+<a class="sourceLine" id="cb37-4" title="4">  <span class="op">|</span> <span class="dt">STText</span> <span class="op">!</span><span class="dt">Int</span> <span class="dt">T.Text</span> <span class="co">-- cached length</span></a>
+<a class="sourceLine" id="cb37-5" title="5">  <span class="op">|</span> <span class="dt">STLine</span> <span class="op">!</span><span class="dt">Int</span>        <span class="co">-- indentation of the next line</span></a>
+<a class="sourceLine" id="cb37-6" title="6">  <span class="op">|</span> <span class="dt">STAnn</span> a  (<span class="dt">DocST</span> a)</a>
+<a class="sourceLine" id="cb37-7" title="7">  <span class="op">|</span> <span class="dt">STConcat</span> [<span class="dt">DocST</span> a] <span class="co">-- horizontal concatenation of multiple documents</span></a>
+<a class="sourceLine" id="cb37-8" title="8">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<p>The analog of <code>alterAnnotations</code> for <code>DocST</code> restores the flexibility we lost with <code>DocS</code>, allowing us to replace a single annotation with a list of annotations.</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" title="1">alterAnnotationsST</a>
+<a class="sourceLine" id="cb38-2" title="2"><span class="ot">  ::</span> (a <span class="ot">-&gt;</span> [b]) <span class="ot">-&gt;</span> <span class="dt">DocST</span> a <span class="ot">-&gt;</span> <span class="dt">DocST</span> b</a>
+<a class="sourceLine" id="cb38-3" title="3">alterAnnotationsST re <span class="ot">=</span> f</a>
+<a class="sourceLine" id="cb38-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb38-5" title="5">    f <span class="ot">=</span> \sdt <span class="ot">-&gt;</span> <span class="kw">case</span> sdt <span class="kw">of</span></a>
+<a class="sourceLine" id="cb38-6" title="6">      <span class="dt">STEmpty</span>        <span class="ot">-&gt;</span> <span class="dt">STEmpty</span></a>
+<a class="sourceLine" id="cb38-7" title="7">      <span class="dt">STChar</span> c       <span class="ot">-&gt;</span> <span class="dt">STChar</span> c</a>
+<a class="sourceLine" id="cb38-8" title="8">      <span class="dt">STText</span> l t     <span class="ot">-&gt;</span> <span class="dt">STText</span> l t</a>
+<a class="sourceLine" id="cb38-9" title="9">      <span class="dt">STLine</span> i       <span class="ot">-&gt;</span> <span class="dt">STLine</span> i</a>
+<a class="sourceLine" id="cb38-10" title="10">      <span class="dt">STConcat</span> xs    <span class="ot">-&gt;</span> <span class="dt">STConcat</span> (<span class="fu">map</span> f xs)</a>
+<a class="sourceLine" id="cb38-11" title="11">      <span class="dt">STAnn</span> ann rest <span class="ot">-&gt;</span> Prelude.foldr <span class="dt">STAnn</span> (f rest) (re ann)</a></code></pre></div>
+<p>Again we have two interesting specializations. A functor instance:</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" title="1"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">DocST</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb39-2" title="2">  <span class="fu">fmap</span> f <span class="ot">=</span> alterAnnotationsST (<span class="fu">return</span> <span class="op">.</span> f)</a></code></pre></div>
+<p>And the ability to remove annotations altogether.</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" title="1">unAnnotateST</a>
+<a class="sourceLine" id="cb40-2" title="2"><span class="ot">  ::</span> <span class="dt">DocST</span> a <span class="ot">-&gt;</span> <span class="dt">DocST</span> b</a>
+<a class="sourceLine" id="cb40-3" title="3">unAnnotateST <span class="ot">=</span> alterAnnotationsST (<span class="fu">const</span> [])</a></code></pre></div>
+<p>The <code>renderDocST</code> function maps the tree of document fragments to a monoid (in practice either <code>Text</code> or <code>String</code>, but we only use the monoid interface here)</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" title="1">renderDocSTA</a>
+<a class="sourceLine" id="cb41-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Applicative</span> f, <span class="dt">Monoid</span> t )</a>
+<a class="sourceLine" id="cb41-3" title="3">  <span class="ot">=&gt;</span> (<span class="dt">T.Text</span> <span class="ot">-&gt;</span> f t)   <span class="co">-- Render plain Text</span></a>
+<a class="sourceLine" id="cb41-4" title="4">  <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> f t <span class="ot">-&gt;</span> f t) <span class="co">-- Modify an element with an annotation</span></a>
+<a class="sourceLine" id="cb41-5" title="5">  <span class="ot">-&gt;</span> <span class="dt">DocST</span> a</a>
+<a class="sourceLine" id="cb41-6" title="6">  <span class="ot">-&gt;</span> f t</a>
+<a class="sourceLine" id="cb41-7" title="7">renderDocSTA text ann <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb41-8" title="8">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb41-9" title="9">    go <span class="ot">=</span> \sdt <span class="ot">-&gt;</span> <span class="kw">case</span> sdt <span class="kw">of</span></a>
+<a class="sourceLine" id="cb41-10" title="10">      <span class="dt">STEmpty</span>      <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb41-11" title="11">      <span class="dt">STChar</span> c     <span class="ot">-&gt;</span> text (T.singleton c)</a>
+<a class="sourceLine" id="cb41-12" title="12">      <span class="dt">STText</span> _ t   <span class="ot">-&gt;</span> text t</a>
+<a class="sourceLine" id="cb41-13" title="13">      <span class="dt">STLine</span> i     <span class="ot">-&gt;</span> text (T.cons <span class="ch">&#39;\n&#39;</span> (textSpaces i))</a>
+<a class="sourceLine" id="cb41-14" title="14">      <span class="dt">STAnn</span> a rest <span class="ot">-&gt;</span> ann a (go rest)</a>
+<a class="sourceLine" id="cb41-15" title="15">      <span class="dt">STConcat</span> xs  <span class="ot">-&gt;</span> <span class="fu">fmap</span> <span class="fu">mconcat</span> (<span class="fu">traverse</span> go xs)</a></code></pre></div>
+<p><code>renderDocST</code> specializes <code>renderDocSTA</code> to the identity functor.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" title="1">renderDocST</a>
+<a class="sourceLine" id="cb42-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Monoid</span> t )</a>
+<a class="sourceLine" id="cb42-3" title="3">  <span class="ot">=&gt;</span> (<span class="dt">T.Text</span> <span class="ot">-&gt;</span> t) <span class="co">-- Render plain Text</span></a>
+<a class="sourceLine" id="cb42-4" title="4">  <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> t <span class="ot">-&gt;</span> t) <span class="co">-- Modify an element with an annotation</span></a>
+<a class="sourceLine" id="cb42-5" title="5">  <span class="ot">-&gt;</span> <span class="dt">DocST</span> a</a>
+<a class="sourceLine" id="cb42-6" title="6">  <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb42-7" title="7">renderDocST text ann <span class="ot">=</span> unIdentity <span class="op">.</span></a>
+<a class="sourceLine" id="cb42-8" title="8">  renderDocSTA (<span class="dt">Identity</span> <span class="op">.</span> text) (\a (<span class="dt">Identity</span> x) <span class="ot">-&gt;</span> <span class="dt">Identity</span> (ann a x))</a></code></pre></div>
+<p>We also define helper functions for printing a <code>DocST</code> directly to a file handle (or stdout), ignoring any annotations.</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" title="1">hPrintDocST</a>
+<a class="sourceLine" id="cb43-2" title="2"><span class="ot">  ::</span> <span class="dt">Handle</span> <span class="ot">-&gt;</span> <span class="dt">DocST</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb43-3" title="3">hPrintDocST h <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb43-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb43-5" title="5"><span class="ot">    go ::</span> <span class="dt">DocST</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb43-6" title="6">    go docst <span class="ot">=</span> <span class="kw">case</span> docst <span class="kw">of</span></a>
+<a class="sourceLine" id="cb43-7" title="7">      <span class="dt">STEmpty</span>     <span class="ot">-&gt;</span> <span class="fu">return</span> ()</a>
+<a class="sourceLine" id="cb43-8" title="8">      <span class="dt">STChar</span> c    <span class="ot">-&gt;</span> hPutChar h c</a>
+<a class="sourceLine" id="cb43-9" title="9">      <span class="dt">STText</span> _ t  <span class="ot">-&gt;</span> T.hPutStr h t</a>
+<a class="sourceLine" id="cb43-10" title="10">      <span class="dt">STLine</span> i    <span class="ot">-&gt;</span> hPutChar h <span class="ch">&#39;\n&#39;</span> <span class="op">&gt;&gt;</span> T.hPutStr h (textSpaces i)</a>
+<a class="sourceLine" id="cb43-11" title="11">      <span class="dt">STAnn</span> _ x   <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb43-12" title="12">      <span class="dt">STConcat</span> xs <span class="ot">-&gt;</span> <span class="fu">mapM_</span> go xs</a>
+<a class="sourceLine" id="cb43-13" title="13"></a>
+<a class="sourceLine" id="cb43-14" title="14"><span class="ot">printDocST ::</span> <span class="dt">DocST</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb43-15" title="15">printDocST <span class="ot">=</span> hPrintDocST stdout</a></code></pre></div>
+<p>We also have <code>Foldable</code> and <code>Traversable</code> instances for <code>DocST</code>.</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" title="1"><span class="kw">instance</span> <span class="dt">Foldable</span> <span class="dt">DocST</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-2" title="2">  <span class="fu">foldMap</span> f <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb44-3" title="3">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-4" title="4">      go <span class="ot">=</span> \sdt <span class="ot">-&gt;</span> <span class="kw">case</span> sdt <span class="kw">of</span></a>
+<a class="sourceLine" id="cb44-5" title="5">        <span class="dt">STEmpty</span>        <span class="ot">-&gt;</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb44-6" title="6">        <span class="dt">STChar</span> _       <span class="ot">-&gt;</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb44-7" title="7">        <span class="dt">STText</span> _ _     <span class="ot">-&gt;</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb44-8" title="8">        <span class="dt">STLine</span> _       <span class="ot">-&gt;</span> <span class="fu">mempty</span></a>
+<a class="sourceLine" id="cb44-9" title="9">        <span class="dt">STAnn</span> ann rest <span class="ot">-&gt;</span> <span class="fu">mappend</span> (f ann) (go rest)</a>
+<a class="sourceLine" id="cb44-10" title="10">        <span class="dt">STConcat</span> xs    <span class="ot">-&gt;</span> <span class="fu">mconcat</span> (<span class="fu">map</span> go xs)</a>
+<a class="sourceLine" id="cb44-11" title="11"></a>
+<a class="sourceLine" id="cb44-12" title="12"><span class="kw">instance</span> <span class="dt">Traversable</span> <span class="dt">DocST</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-13" title="13">  <span class="fu">traverse</span> f <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb44-14" title="14">    <span class="kw">where</span></a>
+<a class="sourceLine" id="cb44-15" title="15">      go <span class="ot">=</span> \sdt <span class="ot">-&gt;</span> <span class="kw">case</span> sdt <span class="kw">of</span></a>
+<a class="sourceLine" id="cb44-16" title="16">        <span class="dt">STEmpty</span>        <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">STEmpty</span></a>
+<a class="sourceLine" id="cb44-17" title="17">        <span class="dt">STChar</span> c       <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">STChar</span> c)</a>
+<a class="sourceLine" id="cb44-18" title="18">        <span class="dt">STText</span> l t     <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">STText</span> l t)</a>
+<a class="sourceLine" id="cb44-19" title="19">        <span class="dt">STLine</span> i       <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">STLine</span> i)</a>
+<a class="sourceLine" id="cb44-20" title="20">        <span class="dt">STAnn</span> ann rest <span class="ot">-&gt;</span> <span class="dt">STAnn</span> <span class="op">&lt;$&gt;</span> f ann <span class="op">&lt;*&gt;</span> go rest</a>
+<a class="sourceLine" id="cb44-21" title="21">        <span class="dt">STConcat</span> xs    <span class="ot">-&gt;</span> <span class="dt">STConcat</span> <span class="op">&lt;$&gt;</span> <span class="fu">traverse</span> go xs</a></code></pre></div>
+<p>Converting a stream into a tree structure is called <em>parsing</em>. We can use our <code>StreamT</code> monad transformer over <code>Maybe</code> to model parsers, which have access to a stream of tokens and may fail.</p>
+<div class="sourceCode" id="cb45"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb45-1" title="1"><span class="kw">type</span> <span class="dt">Parser</span> s a <span class="ot">=</span> <span class="dt">StreamT</span> s <span class="dt">Maybe</span> a</a>
+<a class="sourceLine" id="cb45-2" title="2"></a>
+<a class="sourceLine" id="cb45-3" title="3">runParser</a>
+<a class="sourceLine" id="cb45-4" title="4"><span class="ot">  ::</span> (<span class="dt">IsStream</span> s) <span class="ot">=&gt;</span> <span class="dt">Parser</span> s a <span class="ot">-&gt;</span> s <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (a, s)</a>
+<a class="sourceLine" id="cb45-5" title="5">runParser <span class="ot">=</span> unStreamT</a></code></pre></div>
+<p>To parse a <code>DocS</code> we first give it an <code>IsStream</code> instance. Here <code>StreamValue</code> is the token type, and <code>advance</code> .</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb46-1" title="1"><span class="kw">instance</span> <span class="dt">IsStream</span> (<span class="dt">DocS</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb46-2" title="2">  <span class="kw">data</span> <span class="dt">StreamValue</span> (<span class="dt">DocS</span> a)</a>
+<a class="sourceLine" id="cb46-3" title="3">    <span class="ot">=</span> <span class="dt">TokEndOfStream</span></a>
+<a class="sourceLine" id="cb46-4" title="4">    <span class="op">|</span> <span class="dt">TokEmpty</span></a>
+<a class="sourceLine" id="cb46-5" title="5">    <span class="op">|</span> <span class="dt">TokChar</span> <span class="dt">Char</span></a>
+<a class="sourceLine" id="cb46-6" title="6">    <span class="op">|</span> <span class="dt">TokText</span> <span class="op">!</span><span class="dt">Int</span> <span class="dt">T.Text</span></a>
+<a class="sourceLine" id="cb46-7" title="7">    <span class="op">|</span> <span class="dt">TokLine</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb46-8" title="8">    <span class="op">|</span> <span class="dt">TokAnnPush</span> a</a>
+<a class="sourceLine" id="cb46-9" title="9">    <span class="op">|</span> <span class="dt">TokAnnPop</span></a>
+<a class="sourceLine" id="cb46-10" title="10"></a>
+<a class="sourceLine" id="cb46-11" title="11"><span class="ot">  advance ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> (<span class="dt">StreamValue</span> (<span class="dt">DocS</span> a), <span class="dt">DocS</span> a)</a>
+<a class="sourceLine" id="cb46-12" title="12">  advance x <span class="ot">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb46-13" title="13">    <span class="dt">SFail</span>         <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;advance: uncaught SFail&quot;</span></a>
+<a class="sourceLine" id="cb46-14" title="14">    <span class="dt">SEmpty</span>        <span class="ot">-&gt;</span> (<span class="dt">TokEndOfStream</span>, <span class="dt">SEmpty</span>)</a>
+<a class="sourceLine" id="cb46-15" title="15">    <span class="dt">SChar</span> c xs    <span class="ot">-&gt;</span> (<span class="dt">TokChar</span> c,      xs)</a>
+<a class="sourceLine" id="cb46-16" title="16">    <span class="dt">SText</span> l t xs  <span class="ot">-&gt;</span> (<span class="dt">TokText</span> l t,    xs)</a>
+<a class="sourceLine" id="cb46-17" title="17">    <span class="dt">SLine</span> i xs    <span class="ot">-&gt;</span> (<span class="dt">TokLine</span> i,      xs)</a>
+<a class="sourceLine" id="cb46-18" title="18">    <span class="dt">SAnnPush</span> a xs <span class="ot">-&gt;</span> (<span class="dt">TokAnnPush</span> a,   xs)</a>
+<a class="sourceLine" id="cb46-19" title="19">    <span class="dt">SAnnPop</span> xs    <span class="ot">-&gt;</span> (<span class="dt">TokAnnPop</span>,      xs)</a></code></pre></div>
+<p>Parsing the document stream is straightforward:</p>
+<div class="sourceCode" id="cb47"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb47-1" title="1"><span class="ot">parseDocS ::</span> <span class="kw">forall</span> a<span class="op">.</span> <span class="dt">Parser</span> (<span class="dt">DocS</span> a) (<span class="dt">DocST</span> a)</a>
+<a class="sourceLine" id="cb47-2" title="2">parseDocS <span class="ot">=</span> <span class="fu">fmap</span> wrap (many chunk)</a>
+<a class="sourceLine" id="cb47-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb47-4" title="4"><span class="ot">    wrap ::</span> [<span class="dt">DocST</span> a] <span class="ot">-&gt;</span> <span class="dt">DocST</span> a</a>
+<a class="sourceLine" id="cb47-5" title="5">    wrap z <span class="ot">=</span> <span class="kw">case</span> z <span class="kw">of</span></a>
+<a class="sourceLine" id="cb47-6" title="6">      []  <span class="ot">-&gt;</span> <span class="dt">STEmpty</span></a>
+<a class="sourceLine" id="cb47-7" title="7">      [x] <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb47-8" title="8">      xs  <span class="ot">-&gt;</span> <span class="dt">STConcat</span> xs</a>
+<a class="sourceLine" id="cb47-9" title="9"></a>
+<a class="sourceLine" id="cb47-10" title="10"><span class="ot">    chunk ::</span> <span class="dt">Parser</span> (<span class="dt">DocS</span> a) (<span class="dt">DocST</span> a)</a>
+<a class="sourceLine" id="cb47-11" title="11">    chunk <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb47-12" title="12">      tok <span class="ot">&lt;-</span> next</a>
+<a class="sourceLine" id="cb47-13" title="13">      <span class="kw">case</span> tok <span class="kw">of</span></a>
+<a class="sourceLine" id="cb47-14" title="14">        <span class="dt">TokEndOfStream</span> <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">STEmpty</span></a>
+<a class="sourceLine" id="cb47-15" title="15">        <span class="dt">TokEmpty</span>       <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">STEmpty</span></a>
+<a class="sourceLine" id="cb47-16" title="16">        <span class="dt">TokChar</span> c      <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">STChar</span> c)</a>
+<a class="sourceLine" id="cb47-17" title="17">        <span class="dt">TokText</span> l t    <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">STText</span> l t)</a>
+<a class="sourceLine" id="cb47-18" title="18">        <span class="dt">TokLine</span> i      <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">STLine</span> i)</a>
+<a class="sourceLine" id="cb47-19" title="19">        <span class="dt">TokAnnPop</span>      <span class="ot">-&gt;</span> empty</a>
+<a class="sourceLine" id="cb47-20" title="20">        <span class="dt">TokAnnPush</span> a   <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb47-21" title="21">          contents <span class="ot">&lt;-</span> parseDocS</a>
+<a class="sourceLine" id="cb47-22" title="22">          x <span class="ot">&lt;-</span> next <span class="op">@</span>(<span class="dt">DocS</span> a)</a>
+<a class="sourceLine" id="cb47-23" title="23">          <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb47-24" title="24">            <span class="dt">TokAnnPop</span> <span class="ot">-&gt;</span> <span class="fu">return</span> (<span class="dt">STAnn</span> a contents)</a>
+<a class="sourceLine" id="cb47-25" title="25">            _ <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;parseDocS: unbalanced TokAnnPop&quot;</span></a></code></pre></div>
+<p>Now to actually convert a <code>DocS</code> to a <code>DocST</code> we just run the parser.</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb48-1" title="1"><span class="ot">toTree ::</span> <span class="dt">DocS</span> a <span class="ot">-&gt;</span> <span class="dt">DocST</span> a</a>
+<a class="sourceLine" id="cb48-2" title="2">toTree sdoc <span class="ot">=</span> <span class="kw">case</span> runParser parseDocS sdoc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb48-3" title="3">  <span class="dt">Nothing</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb48-4" title="4">    <span class="fu">error</span> <span class="st">&quot;toTree: DocST conversion failed&quot;</span></a>
+<a class="sourceLine" id="cb48-5" title="5">  <span class="dt">Just</span> (x, rest) <span class="ot">-&gt;</span> <span class="kw">case</span> rest <span class="kw">of</span></a>
+<a class="sourceLine" id="cb48-6" title="6">    <span class="dt">SEmpty</span> <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb48-7" title="7">    _      <span class="ot">-&gt;</span> <span class="fu">error</span> <span class="st">&quot;toTree: input not fully consumed&quot;</span></a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

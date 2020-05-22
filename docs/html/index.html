@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>The Kreb Editor</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">The Kreb Editor</h1>
+<p class="byline">nbloomf</p>
+</header>
+<section class="level2">
+<h2>Introduction</h2>
+<p>This is the user manual, design documentation, and source code of the <code>krebedit</code> text editor.</p>
+<p>That description is more than a little generous -- let's call it <em>aspirational</em>. <code>krebedit</code> only just barely exists at this point. It started out as a project just to see if I could do it, and since the world isn't exactly crying out for yet another text editor, I have decided to lean waaay in to the yak-shaving aspect of this as an ongoing learning project. In lieu of the usual pressure to ship a product I am putting it on the web for others to learn from, even if that learning is mostly of the "cautionary tale" variety.</p>
+<p>To that end we've pressed hard into doing things you probably shouldn't do in a "real" software project, like using literate programming techniques and writing proofs and rewriting code you'd normally use a library for, just to make sure we understand how it works. We're also doing things we probably <em>should</em> do in real projects but usually don't, like interacting with the literature and aggressively refactoring.</p>
+<p>So this is more like a lab notebook -- we're running an experiment on how to design and build a midsized Haskell project, and these are the notes.</p>
+<p>I've tried to avoid pulling in dependencies when it's at all reasonable (and even sometimes when it's not). This means reimplementing some standard functionality, working either from research papers or by cloning existing (permissively licensed) libraries. It also means the code here doesn't have the benefit of years of tweaks and efficiency improvements that a mature library has, but in exchange we don't have to make any compromises about APIs or poke shims into <code>.Extras</code> modules and can easily inspect the whole stack. Perhaps surprisingly, starting out by writing our own testing frameworks doesn't add <em>that</em> much code.</p>
+<ol>
+<li><strong>Monads and Monad Transformers</strong>
+<ol>
+<li><a href="../html/lib/kreb-control/src/Kreb/Control/Monad.html">Monads and Side Effects</a></li>
+<li><a href="../html/lib/kreb-control/src/Kreb/Control/Monad/Trans/EnvT.html">EnvT</a> and <a href="../html/lib/kreb-control/src/Kreb/Control/Monad/Trans/EnvT/Proofs.html">proofs of lawfulness</a></li>
+<li><a href="../html/lib/kreb-control/src/Kreb/Control/Monad/Trans/StateT.html">StateT</a> and <a href="../html/lib/kreb-control/src/Kreb/Control/Monad/Trans/StateT/Proofs.html">proofs of lawfulness</a></li>
+<li><a href="../html/lib/kreb-control/src/Kreb/Control/Monad/Trans/StreamT.html">StreamT</a> and <a href="../html/lib/kreb-control/src/Kreb/Control/Monad/Trans/StreamT/Proofs.html">proofs of lawfulness</a></li>
+</ol></li>
+<li><strong>Pretty Printing</strong>
+<ol>
+<li><a href="../html/lib/kreb-format/src/Kreb/Format/Doc.html">Abstract Documents</a></li>
+<li><a href="../html/lib/kreb-format/src/Kreb/Format/Combinator.html">A Document Algebra</a></li>
+<li><a href="../html/lib/kreb-format/src/Kreb/Format/Display.html">The Display Class</a></li>
+</ol></li>
+<li><strong>Unit Testing</strong>
+<ol>
+<li><a href="../html/lib/kreb-unit/src/Kreb/Unit/Declare.html">Dirt Cheap Unit Tests</a></li>
+<li><a href="../html/lib/kreb-unit/src/Kreb/Unit/Declarable.html">Declarable Types</a></li>
+<li><a href="../html/lib/kreb-unit/src/Kreb/Unit/Helpers.html">Test Helpers and Patterns</a></li>
+</ol></li>
+<li><strong>Property Testing</strong>
+<ol>
+<li><a href="../html/lib/kreb-prop/src/Kreb/Prop/Sample.html">Pseudorandom Data</a></li>
+<li><a href="../html/lib/kreb-prop/src/Kreb/Prop/Arb.html">Generatable Types</a></li>
+<li><a href="../html/lib/kreb-prop/src/Kreb/Prop/Check.html">Test Outcomes</a></li>
+<li><a href="../html/lib/kreb-prop/src/Kreb/Prop/Tests.html">Running Tests</a></li>
+<li><a href="../html/lib/kreb-prop/src/Kreb/Prop/Fun.html">Shrinkable, Showable Functions</a></li>
+</ol></li>
+<li><strong>Just Enough Category Theory</strong>
+<ol>
+<li><a href="../html/lib/kreb-category/src/Kreb/Category/Class/CategoryC.html">Categories in Haskell</a></li>
+<li><a href="../html/lib/kreb-category/src/Kreb/Category/Class/FunctorC.html">Functors</a></li>
+</ol></li>
+</ol>
+</section>
+</article>
+</body>
+</html>

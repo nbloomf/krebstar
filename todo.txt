@@ -1,29 +1,83 @@
 0.0.1 Checklist
 ===============
 
+- CategoryC: need to give better Display and Prune instances for MapOn.
+  - need Inhabited class?
+
+- split TextBox tests into Test.Unit and Test.Prop
+- add law tests for MonadReadOnly to check, add to suite
+
+Move Rune tests... somewhere
+
+Next up:
+- Linear Zipper tests
+- Traversable laws (in Kreb.Check, needed in Deque)
+- test suite for DequeZipper
+
+Deprioritized Tasks:
+- Need top-to-bottom cleanup of FingerTree.Zipper and Deque.Zipper
+- ilog2 : move to arith(?)
+- can we have hidden doctests?
+
+makefile targets
+- check that default extensions are consistent
+- check that all modules have doctests
+- keep default extensions in cabal file and doctests consistent
+
+Buffer
+- relation that captures when the sequences of non-control characters are identical
+
+Buffer invariants
+- strictly ordered by index - we can enforce this in the measure using a monoid over the convex hull
+- deleted graphemes do not occur in the buffer
+- point/mark invariants
+- CAN we make the buffer type polymorphic over graphemes? :0
+
+BIG REORG
+- move libraries to properly separate packages
+  - use default-extensions in cabal
+    - GADTs, InstanceSigs, KindSignatures, ScopedTypeVariables, RankNTypes,
+      TypeFamilies
+
+Broken things stack
+- clean up rune/glyph/cell
+- move two-pointed list to text, specialize
+- implement multiple cursors
+- fix the tests :0
+
+TwoPointedList
+- viewAtEnd: would be nice if result type was `Maybe (TPL a, a)`
+- get rid of this, specializing it to buffer
+
+Buffer
+- get rid of fromList, or see if we actually need it
+- update makePointMarkBuffer and makeMarkPointBuffer
+- update movePoint* functions to handle the point/focus/marks
+
 No Thought Required
 -------------------
+- Need a "should log" bool parameter in EditT env; don't log when working with history/command boxes
+- nicer serial format for RuneIds
 - Rename core actions to NounVerb form
-- Move BufferOp to own module
 - Augmented
   - Move to its own module (control? struct?)
 - TextBox
   - Do not export raw field names
 - Sequence
   - alterPointM -> alterPointA
+- testKrebWithCases
+  - like normal testKreb, but also take a list of specific test cases
 
 Cleanup Tasks
 -------------
+- Event source should be a new type; only allow alphanumeric chars
 - if a textbox is inactive, render the cursor location
-- get rid of Local monad in textbox, use LocalT instead
 - handle paste event (?)
 - renderState is hideous and slow
 - Kreb.Editor.Core.Data
   - AppEnv -> CoreEnv with Effects
   - AppSt  -> CoreSt with Settings
   - KrebEd -> EditorCore
-- RedBlackTree
-  - write tests for upsert
 - Action
   - Convert to monad style.
   - performAction should be a simple dispatcher
@@ -46,7 +100,6 @@ Cleanup Tasks
 Blockers
 --------
 - PointedRoseTree
-  - Derive definition with calculus
   - Write navigation primitives
 - Invert sets of buffer ops
 
@@ -85,6 +138,7 @@ Feature Projects
   - pass a "layout" representation to eventMapping (see Run and Handler)
   - Can interpret click coords in Handler and pass events
 - Undo/Redo
+  - Need a uniform way to report the update operation set for a given action, in (say) performAction.
   - 'undo as new operation'
   - basic idea: the history is a pointed tree of sets of buffer ops representing 'do' operations
   - point is on the 'most recently applied' do
@@ -101,6 +155,10 @@ Feature Projects
   - pass a list of language commands
 - HTTP backend
 - GUI frontend
+- Lang
+  - Kind inference, higher order unification(?)
+  - proof checker
+  - type definitions
 
 Bugs
 ----

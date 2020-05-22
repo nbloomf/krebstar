@@ -1,0 +1,12 @@
+resolver: lts-13.26
+
+packages:
+- .
+
+extra-deps:
+- ../kreb-control
+- ../kreb-format
+- ../kreb-prop
+- ../kreb-category
+- ../kreb-reflect
+- ../kreb-arith

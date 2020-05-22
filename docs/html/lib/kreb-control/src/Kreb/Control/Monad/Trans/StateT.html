@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>The StateT Monad Transformer</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">The StateT Monad Transformer</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">module</span> <span class="dt">Kreb.Control.Monad.Trans.StateT</span> (</a>
+<a class="sourceLine" id="cb1-4" title="4">    <span class="dt">StateT</span>(<span class="op">..</span>)</a>
+<a class="sourceLine" id="cb1-5" title="5">  , evalStateT</a>
+<a class="sourceLine" id="cb1-6" title="6">  , runStateT</a>
+<a class="sourceLine" id="cb1-7" title="7">  , execStateT</a>
+<a class="sourceLine" id="cb1-8" title="8"></a>
+<a class="sourceLine" id="cb1-9" title="9">  , <span class="dt">State</span></a>
+<a class="sourceLine" id="cb1-10" title="10">  , evalState</a>
+<a class="sourceLine" id="cb1-11" title="11">  , runState</a>
+<a class="sourceLine" id="cb1-12" title="12">  , execState</a>
+<a class="sourceLine" id="cb1-13" title="13">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-14" title="14"></a>
+<a class="sourceLine" id="cb1-15" title="15"><span class="kw">import</span> <span class="dt">Control.Applicative</span></a>
+<a class="sourceLine" id="cb1-16" title="16"></a>
+<a class="sourceLine" id="cb1-17" title="17"><span class="kw">import</span> <span class="dt">Kreb.Control.Compare</span></a>
+<a class="sourceLine" id="cb1-18" title="18"><span class="kw">import</span> <span class="dt">Kreb.Control.Monad</span></a>
+<a class="sourceLine" id="cb1-19" title="19"><span class="kw">import</span> <span class="dt">Kreb.Control.Monad.Trans</span></a>
+<a class="sourceLine" id="cb1-20" title="20"><span class="kw">import</span> <span class="dt">Kreb.Control.Monad.Identity</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>In this module we'll define a monad transformer called <code>StateT</code>. This transformer takes a monad <code>m</code> and adds a new side effect to it: specifically the ability to read and write a "mutable" variable of some type <code>s</code>. Before we write down the definition of this type, let's think about what it <em>should</em> look like.</p>
+<p>We have:</p>
+<ul>
+<li>A monad <code>m</code> describing a class of side-effectful computations;</li>
+<li>A type <code>s</code> of possible <em>states</em> for our variable.</li>
+</ul>
+<p>And we want:</p>
+<ul>
+<li>An <code>m</code> computation that may depend on the specific <code>s</code> we have, and which may change the <code>s</code>.</li>
+</ul>
+<p>That is, a <code>StateT s m</code> computation is a function taking in the initial <code>s</code>, and producing an <code>m</code>-computation which, when executed, produces an updated <code>s</code> along with the regular output <code>a</code>. In code:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">newtype</span> <span class="dt">StateT</span> s m a <span class="ot">=</span> <span class="dt">StateT</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  {<span class="ot"> unStateT ::</span> s <span class="ot">-&gt;</span> m (a, s) }</a></code></pre></div>
+<p>And we can define three specialized evaluation functions for computations in <code>StateT s m</code>, depending on what information we want out of it. The first, <code>evalStateT</code>, returns an <code>m</code>-computation that produces both normal input <code>a</code> and updated state <code>s</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1">evalStateT</a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb3-3" title="3">  <span class="ot">=&gt;</span> s <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m a <span class="ot">-&gt;</span> m (a, s)</a>
+<a class="sourceLine" id="cb3-4" title="4">evalStateT s x <span class="ot">=</span> unStateT x s</a></code></pre></div>
+<p>The second, <code>runStateT</code>, throws away the updated state <code>s</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1">runStateT</a>
+<a class="sourceLine" id="cb4-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb4-3" title="3">  <span class="ot">=&gt;</span> s <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m a <span class="ot">-&gt;</span> m a</a>
+<a class="sourceLine" id="cb4-4" title="4">runStateT s <span class="ot">=</span></a>
+<a class="sourceLine" id="cb4-5" title="5">  <span class="fu">fmap</span> <span class="fu">fst</span> <span class="op">.</span> evalStateT s</a></code></pre></div>
+<p>While the third, <code>execStateT</code>, throws away the normal output, returning only the updated state:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1">execStateT</a>
+<a class="sourceLine" id="cb5-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb5-3" title="3">  <span class="ot">=&gt;</span> s <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m a <span class="ot">-&gt;</span> m s</a>
+<a class="sourceLine" id="cb5-4" title="4">execStateT s <span class="ot">=</span></a>
+<a class="sourceLine" id="cb5-5" title="5">  <span class="fu">fmap</span> <span class="fu">snd</span> <span class="op">.</span> evalStateT s</a></code></pre></div>
+<p>Which evaluator is most convenient will depend on the problem at hand.</p>
+</section>
+<section class="level2">
+<h2>Class Instances</h2>
+<p>We still haven't established that <code>StateT s</code> is a lawful monad transformer -- if not then it isn't of much use. First we give a <code>Monad</code> instance for <code>StateT s m</code> when <code>m</code> is a monad. As difficult as they are to wrap our heads around at first, in practice writing monad instances is often routine. We can get pretty far letting the types guide the code and keeping our desired semantics in mind.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (<span class="dt">StateT</span> s m) <span class="kw">where</span></a></code></pre></div>
+<p>First for <code>return</code>. Recall that this function "injects" a pure value <code>a</code> into a monadic computation that produces only <code>a</code>. Polymorphism requires the implementation of <code>return</code> to look like this:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">  <span class="fu">return</span></a>
+<a class="sourceLine" id="cb7-2" title="2"><span class="ot">    ::</span> a <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m a</a>
+<a class="sourceLine" id="cb7-3" title="3">  <span class="fu">return</span> a <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \s <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb7-4" title="4">    <span class="fu">return</span> (a, s)</a></code></pre></div>
+<p>(We haven't shown that this implementation is <em>lawful</em>, just that it is the only possibility.)</p>
+<p>Taking the type-driven approach, bind is just a bit more complex -- the only time we have a choice to make is when running the computation <code>f a</code>. Note that we're defining <code>&gt;&gt;=</code> here without using <code>do</code> notation -- this will make the lawfulness proofs a little shorter, since we won't need to translate between sugared and desugared notation.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1">  (<span class="op">&gt;&gt;=</span>)</a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="ot">    ::</span> <span class="dt">StateT</span> s m a</a>
+<a class="sourceLine" id="cb8-3" title="3">    <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m b)</a>
+<a class="sourceLine" id="cb8-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m b</a>
+<a class="sourceLine" id="cb8-5" title="5">  x <span class="op">&gt;&gt;=</span> f <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \s1 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb8-6" title="6">    unStateT x s1</a>
+<a class="sourceLine" id="cb8-7" title="7">      <span class="op">&gt;&gt;=</span> (\(a, s2) <span class="ot">-&gt;</span> unStateT (f a) s2)</a></code></pre></div>
+<p>Either <code>s1</code> or <code>s2</code> would have fit in the very last argument position of the last line. But placing <code>s1</code> there means that the updated state <code>s2</code> after evaluating <code>x</code> is never used, violating the intention that state updates be passed to the future of the computation.</p>
+<p>With a <code>Monad</code> instance in hand we of course get <code>Functor</code> and <code>Applicative</code> for free.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1"><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Functor</span> (<span class="dt">StateT</span> s m) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-2" title="2">  <span class="fu">fmap</span> f x <span class="ot">=</span> x <span class="op">&gt;&gt;=</span> (<span class="fu">return</span> <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb9-3" title="3"></a>
+<a class="sourceLine" id="cb9-4" title="4"><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Applicative</span> (<span class="dt">StateT</span> s m) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-5" title="5">  <span class="fu">pure</span> <span class="ot">=</span> <span class="fu">return</span></a>
+<a class="sourceLine" id="cb9-6" title="6"></a>
+<a class="sourceLine" id="cb9-7" title="7">  f <span class="op">&lt;*&gt;</span> x <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb9-8" title="8">    f&#39; <span class="ot">&lt;-</span> f</a>
+<a class="sourceLine" id="cb9-9" title="9">    x&#39; <span class="ot">&lt;-</span> x</a>
+<a class="sourceLine" id="cb9-10" title="10">    <span class="fu">return</span> (f&#39; x&#39;)</a></code></pre></div>
+<p>If <code>m</code> is an alternative functor, then so is <code>StateT s m</code>.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">instance</span> (<span class="dt">Monad</span> m, <span class="dt">Alternative</span> m) <span class="ot">=&gt;</span> <span class="dt">Alternative</span> (<span class="dt">StateT</span> s m) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-2" title="2">  empty <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \_ <span class="ot">-&gt;</span> empty</a>
+<a class="sourceLine" id="cb10-3" title="3"></a>
+<a class="sourceLine" id="cb10-4" title="4">  x <span class="op">&lt;|&gt;</span> y <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \s <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb10-5" title="5">    (unStateT x s) <span class="op">&lt;|&gt;</span> (unStateT y s)</a></code></pre></div>
+<p>Finally, <code>StateT s</code> is a monad transformer, meaning we can (lawfully) lift <code>m</code> computations up to <code>StateT s m</code>. We're not using <code>do</code> notation again here to make proofs a little shorter.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" title="1"><span class="kw">instance</span> <span class="dt">MonadTrans</span> (<span class="dt">StateT</span> s) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-2" title="2">  lift x <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \s <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb11-3" title="3">    x <span class="op">&gt;&gt;=</span> (\a <span class="ot">-&gt;</span> <span class="fu">return</span> (a, s))</a></code></pre></div>
+<p>We also need to establish that these instances are lawful; the proofs of this are somewhat lengthy and not terribly enlightening, so they are in a <a href="./StateT/Proofs.html">separate section</a>.</p>
+</section>
+<section class="level2">
+<h2>Specializing to Identity</h2>
+<p>There are times when we don't need a state monad <em>transformer</em>, but just a state <em>monad</em>; it is simple enough to provide that here by specializing <code>StateT s m</code> to the case <code>m ~ Identity</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" title="1"><span class="kw">type</span> <span class="dt">State</span> s a <span class="ot">=</span> <span class="dt">StateT</span> s <span class="dt">Identity</span> a</a></code></pre></div>
+<p>Now <code>State s</code> is automatically a monad. We can also specialize the evaluation functions for this case, hiding the fact that there is an <code>Identity</code> lurking underneath.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" title="1">evalState</a>
+<a class="sourceLine" id="cb13-2" title="2"><span class="ot">  ::</span> s <span class="ot">-&gt;</span> <span class="dt">State</span> s a <span class="ot">-&gt;</span> (a, s)</a>
+<a class="sourceLine" id="cb13-3" title="3">evalState s <span class="ot">=</span></a>
+<a class="sourceLine" id="cb13-4" title="4">  unIdentity <span class="op">.</span> evalStateT s</a>
+<a class="sourceLine" id="cb13-5" title="5"></a>
+<a class="sourceLine" id="cb13-6" title="6">runState</a>
+<a class="sourceLine" id="cb13-7" title="7"><span class="ot">  ::</span> s <span class="ot">-&gt;</span> <span class="dt">State</span> s a <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb13-8" title="8">runState s <span class="ot">=</span></a>
+<a class="sourceLine" id="cb13-9" title="9">  unIdentity <span class="op">.</span> runStateT s</a>
+<a class="sourceLine" id="cb13-10" title="10"></a>
+<a class="sourceLine" id="cb13-11" title="11">execState</a>
+<a class="sourceLine" id="cb13-12" title="12"><span class="ot">  ::</span> s <span class="ot">-&gt;</span> <span class="dt">State</span> s a <span class="ot">-&gt;</span> s</a>
+<a class="sourceLine" id="cb13-13" title="13">execState s <span class="ot">=</span></a>
+<a class="sourceLine" id="cb13-14" title="14">  unIdentity <span class="op">.</span> execStateT s</a></code></pre></div>
+<p>Note that <code>get</code>, <code>put</code>, <code>mutate</code>, etc. are still part of the API for <code>State</code>. This specialization is useful if we only want to use the state side effect, and can also be used as the base of a transformer stack.</p>
+</section>
+<section class="level2">
+<h2>The Read/Write Interface</h2>
+<p>We have a type class, <a href="../../Monad.html#crossref-0"><code>MonadReadWrite</code></a>, representing monads with access to a mutable variable of some type -- and <code>StateT</code> was tailor made to be an instance of this class. Indeed, filling in the blanks of</p>
+<div class="example">
+<div class="sourceCode" id="cb14"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" title="1"><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">MonadReadWrite</span> s (<span class="dt">StateT</span> s m) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb14-2" title="2"><span class="ot">  get ::</span> <span class="dt">StateT</span> s m s</a>
+<a class="sourceLine" id="cb14-3" title="3">  get <span class="ot">=</span> <span class="op">...</span></a>
+<a class="sourceLine" id="cb14-4" title="4"></a>
+<a class="sourceLine" id="cb14-5" title="5"><span class="ot">  put ::</span> s <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m ()</a>
+<a class="sourceLine" id="cb14-6" title="6">  put <span class="ot">=</span> <span class="op">...</span></a></code></pre></div>
+</div>
+<p>is straightforward. Recall, however, that the type of the mutable variable is a class parameter, and that <code>StateT</code> is a monad <em>transformer</em>, so making this the only instance for <code>StateT s m</code> may be too restrictive. What happens if <code>m</code> is itself an instance of <code>MonadReadWrite t</code> for some other state type t? If possible we'd like to lift this instance to <code>StateT s m</code> too, so we can use both.</p>
+<p>That is to say, if <code>t ~ s</code> then the constraint <code>MonadReadWrite t (StateT s m)</code> should use the "natural" instance, but if not it should attempt to use a "lifted" instance from <code>MonadReadWrite t m</code> instance. Naively writing two different instances causes GHC to complain about overlapping instances; however with a little type hackery we can (legitimately!) get around this.</p>
+<p>The trick is to use an auxiliary type class with the same signature as <code>MonadReadWrite</code>, but with an extra type parameter:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" title="1"><span class="kw">class</span> <span class="dt">HasReadWriteState</span> flag st m <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-2" title="2"><span class="ot">  get&#39; ::</span> m st</a>
+<a class="sourceLine" id="cb15-3" title="3"><span class="ot">  put&#39; ::</span> st <span class="ot">-&gt;</span> m ()</a></code></pre></div>
+<p>Then we write an instance of <code>MonadReadWrite</code> in terms of the auxiliary class, where the <code>flag</code> is used to <em>dispatch</em> on the <code>HasReadWriteState</code> instance. Specifically, we use a type equality constraint on <code>flag</code> against a type family <code>Compare</code> to decide which (nonoverlapping!) <code>HasReadWriteState</code> instance to use.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb16-2" title="2">  ( <span class="dt">Monad</span> m, <span class="dt">Compare</span> s t <span class="op">~</span> flag</a>
+<a class="sourceLine" id="cb16-3" title="3">  , <span class="dt">HasReadWriteState</span> flag t (<span class="dt">StateT</span> s m)</a>
+<a class="sourceLine" id="cb16-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">MonadReadWrite</span> t (<span class="dt">StateT</span> s m)</a>
+<a class="sourceLine" id="cb16-5" title="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb16-6" title="6">    get <span class="ot">=</span> get&#39; <span class="op">@</span>flag</a>
+<a class="sourceLine" id="cb16-7" title="7">    put <span class="ot">=</span> put&#39; <span class="op">@</span>flag</a></code></pre></div>
+<p>Now we just write the appropriate <code>HasReadWriteState</code> instances with appropriate constraints.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb17-2" title="2">  ( <span class="dt">Monad</span> m</a>
+<a class="sourceLine" id="cb17-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">HasReadWriteState</span> <span class="dt">Equal</span> s (<span class="dt">StateT</span> s m)</a>
+<a class="sourceLine" id="cb17-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb17-5" title="5"><span class="ot">    get&#39; ::</span> <span class="dt">StateT</span> s m s</a>
+<a class="sourceLine" id="cb17-6" title="6">    get&#39; <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \s <span class="ot">-&gt;</span> <span class="fu">return</span> (s,s)</a>
+<a class="sourceLine" id="cb17-7" title="7"></a>
+<a class="sourceLine" id="cb17-8" title="8"><span class="ot">    put&#39; ::</span> s <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m ()</a>
+<a class="sourceLine" id="cb17-9" title="9">    put&#39; s <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \_ <span class="ot">-&gt;</span> <span class="fu">return</span> ((),s)</a>
+<a class="sourceLine" id="cb17-10" title="10"></a>
+<a class="sourceLine" id="cb17-11" title="11"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb17-12" title="12">  ( <span class="dt">MonadReadWrite</span> t m, <span class="dt">Compare</span> s t <span class="op">~</span> <span class="dt">NotEqual</span></a>
+<a class="sourceLine" id="cb17-13" title="13">  ) <span class="ot">=&gt;</span> <span class="dt">HasReadWriteState</span> <span class="dt">NotEqual</span> t (<span class="dt">StateT</span> s m)</a>
+<a class="sourceLine" id="cb17-14" title="14">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb17-15" title="15"><span class="ot">    get&#39; ::</span> <span class="dt">StateT</span> s m t</a>
+<a class="sourceLine" id="cb17-16" title="16">    get&#39; <span class="ot">=</span> lift get</a>
+<a class="sourceLine" id="cb17-17" title="17"></a>
+<a class="sourceLine" id="cb17-18" title="18"><span class="ot">    put&#39; ::</span> t <span class="ot">-&gt;</span> <span class="dt">StateT</span> s m ()</a>
+<a class="sourceLine" id="cb17-19" title="19">    put&#39; u <span class="ot">=</span> lift (put u)</a></code></pre></div>
+<p>This seemed a little magical to me the first time I saw it working. But we can have a monad stack like</p>
+<div class="example">
+<div class="sourceCode" id="cb18"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" title="1"><span class="ot">foo ::</span> a <span class="ot">-&gt;</span> <span class="dt">StateT</span> <span class="dt">Int</span> (<span class="dt">StateT</span> <span class="dt">Bool</span> <span class="dt">Identity</span>) a</a>
+<a class="sourceLine" id="cb18-2" title="2">foo a <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb18-3" title="3">  put <span class="dt">False</span></a>
+<a class="sourceLine" id="cb18-4" title="4">  put (<span class="dv">2</span><span class="ot"> ::</span> <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb18-5" title="5">  <span class="fu">return</span> a</a></code></pre></div>
+</div>
+<p>and everything works as expected. We may sometimes need to add type signatures to help GHC figure out which state type to use, but that's a small price to pay for the ability to stack transformers of the same type like this.</p>
+</section>
+<section class="level2">
+<h2>Lifted Instances</h2>
+<p>If <code>m</code> is a lawful instance of <code>MonadReadOnly</code>, we can lift this to a lawful instance for <code>StateT s m</code> with <a href="StateT/Proofs.html#crossref-3">proof</a>.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb19-2" title="2">  ( <span class="dt">MonadReadOnly</span> r m</a>
+<a class="sourceLine" id="cb19-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadReadOnly</span> r (<span class="dt">StateT</span> s m)</a>
+<a class="sourceLine" id="cb19-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb19-5" title="5">    ask <span class="ot">=</span> lift ask</a>
+<a class="sourceLine" id="cb19-6" title="6">    local f x <span class="ot">=</span> <span class="dt">StateT</span> <span class="op">$</span> \s <span class="ot">-&gt;</span> local f (unStateT x s)</a></code></pre></div>
+<p>If <code>m</code> is a lawful instance of <code>MonadStream</code>, we can lift this to a lawful instance for <code>StateT s m</code> with <a href="StateT/Proofs.html#crossref-4">proof</a>.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb20-2" title="2">  ( <span class="dt">MonadStream</span> t m</a>
+<a class="sourceLine" id="cb20-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadStream</span> t (<span class="dt">StateT</span> s m)</a>
+<a class="sourceLine" id="cb20-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-5" title="5">    rest <span class="ot">=</span> lift rest</a>
+<a class="sourceLine" id="cb20-6" title="6">    fiddle f <span class="ot">=</span> lift (fiddle f)</a>
+<a class="sourceLine" id="cb20-7" title="7">    next <span class="ot">=</span> lift (next <span class="op">@</span>t)</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

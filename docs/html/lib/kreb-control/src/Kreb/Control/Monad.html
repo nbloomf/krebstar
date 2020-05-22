@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Monads and Side Effects</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Monads and Side Effects</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE MultiParamTypeClasses, QuantifiedConstraints, FunctionalDependencies, UndecidableInstances #-}</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">module</span> <span class="dt">Kreb.Control.Monad</span> <span class="kw">where</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>The monad interface is a powerful abstraction for building and reasoning about sequenced actions. Each specific instance of a monad corresponds to a particular kind of permitted computation (possibly with side effects), and moreover these permitted computations are reflected in the monad's type. Monad transformers are a powerful abstraction on top of monads which allow us to "chain together" different effects. Together, these ideas allow us to have type-safe side effects built up from standardized parts. The <code>MonadTrans</code> class is defined like so:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  ( <span class="kw">forall</span> m<span class="op">.</span> ( <span class="dt">Monad</span> m ) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (t m)</a>
+<a class="sourceLine" id="cb2-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadTrans</span> t</a>
+<a class="sourceLine" id="cb2-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-5" title="5"><span class="ot">    lift ::</span> ( <span class="dt">Monad</span> m ) <span class="ot">=&gt;</span> m a <span class="ot">-&gt;</span> t m a</a></code></pre></div>
+<p>Instances of this class must satisfy the following laws:</p>
+<dl>
+<dt>Unit Law</dt>
+<dd><code>lift (return a)</code> is equivalent to <code>return a</code>
+</dd>
+<dt>Bind Law</dt>
+<dd><code>lift (x &gt;&gt;= f)</code> is equivalent to <code>lift x &gt;&gt;= (lift . f)</code>
+</dd>
+</dl>
+<p>Among abstractions for modelling chained actions, the monad interface is also extremely general -- and being general means it can express quite a bit about a lot of instances, but not much about any particular instance. In this module we define some useful classes of monads. These are families of monads with additional machinery, and additional laws, representing more specific features of computation.</p>
+</section>
+<section class="level2">
+<h2>Read/Write State</h2>
+<p><a name='crossref-0'></a></p>
+<p>Monads with access to a "state" variable which must be initialized to some value and which can be arbitrarily read and overwritten inhabit the <code>MonadReadWrite</code> class. Such monads have an associated type representing the state -- given here as a parameter to the class -- and two primitives: <code>get</code>, which reads the "current" value of the state, and <code>put</code>, which overwrites the state.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">class</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">MonadReadWrite</span> s m <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" title="2">  <span class="co">-- Retrieve the current state</span></a>
+<a class="sourceLine" id="cb3-3" title="3"><span class="ot">  get ::</span> m s</a>
+<a class="sourceLine" id="cb3-4" title="4"></a>
+<a class="sourceLine" id="cb3-5" title="5">  <span class="co">-- Replace the current state</span></a>
+<a class="sourceLine" id="cb3-6" title="6"><span class="ot">  put ::</span> s <span class="ot">-&gt;</span> m ()</a></code></pre></div>
+<p>Instances of this class are required to obey four additional laws which capture the interaction between <code>get</code> and <code>put</code>.</p>
+<dl>
+<dt>Put/Put Law</dt>
+<dd><code>put u1 &gt;&gt; put u2</code> is equivalent to <code>put u2</code>
+</dd>
+<dt>Put/Get Law</dt>
+<dd><code>put u &gt;&gt; get</code> is equivalent to <code>put u &gt;&gt; return u</code>
+</dd>
+<dt>Get/Put Law</dt>
+<dd><code>get &gt;&gt;= put</code> is equivalent to <code>return ()</code>
+</dd>
+<dt>Get/Get Law</dt>
+<dd><code>get &gt;&gt;= (\u -&gt; get &gt;&gt;= k u)</code> is equivalent to <code>get &gt;&gt;= (\u -&gt; k u u)</code>
+</dd>
+</dl>
+<p>"Equivalence" is a very powerful statement here; it means that in <em>any</em> program, one expression can be replaced by another without changing either its outcome or its side effects. For instance, the put/put law says that if we overwrite the state, and then overwrite it again, the first overwrite may as well not have happened -- in particular, <code>put</code> cannot have any side effects other than overwriting the state.</p>
+<p><code>get</code> and <code>put</code> are the primitive operations on mutable state, but we can define some helper functions in terms of these which capture common usage patterns. <code>gets</code> acts like <code>get</code>, but applies a function to the state; <code>mutate</code> alters the state in place.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1">gets</a>
+<a class="sourceLine" id="cb4-2" title="2"><span class="ot">  ::</span> ( <span class="dt">MonadReadWrite</span> s m )</a>
+<a class="sourceLine" id="cb4-3" title="3">  <span class="ot">=&gt;</span> (s <span class="ot">-&gt;</span> u) <span class="ot">-&gt;</span> m u</a>
+<a class="sourceLine" id="cb4-4" title="4">gets f <span class="ot">=</span> <span class="fu">fmap</span> f get</a>
+<a class="sourceLine" id="cb4-5" title="5"></a>
+<a class="sourceLine" id="cb4-6" title="6">mutate</a>
+<a class="sourceLine" id="cb4-7" title="7"><span class="ot">  ::</span> ( <span class="dt">MonadReadWrite</span> s m )</a>
+<a class="sourceLine" id="cb4-8" title="8">  <span class="ot">=&gt;</span> (s <span class="ot">-&gt;</span> s) <span class="ot">-&gt;</span> m ()</a>
+<a class="sourceLine" id="cb4-9" title="9">mutate f <span class="ot">=</span> get <span class="op">&gt;&gt;=</span> (put <span class="op">.</span> f)</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Read-Only State</h2>
+<p><a name='crossref-1'></a></p>
+<p>Monads with access to a <em>read-only</em> environment variable which must be initialized inhabit the <code>MonadReadOnly</code> class. Such monads have an associated type representing the environment -- given here as a parameter to the class -- and two primitives: <code>ask</code>, which gets the value of the environment, and <code>local</code>, which runs a subcomputation with a modified environment.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">class</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">MonadReadOnly</span> r m <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-2" title="2">  <span class="co">-- Retrieve the environment</span></a>
+<a class="sourceLine" id="cb5-3" title="3"><span class="ot">  ask ::</span> m r</a>
+<a class="sourceLine" id="cb5-4" title="4"></a>
+<a class="sourceLine" id="cb5-5" title="5">  <span class="co">-- | Run a subcomputation with a modified environment</span></a>
+<a class="sourceLine" id="cb5-6" title="6"><span class="ot">  local ::</span> (r <span class="ot">-&gt;</span> r) <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m a</a></code></pre></div>
+<p>Instances of this class are required to obey five additional laws which capture the interaction between <code>ask</code> and <code>local</code>.</p>
+<dl>
+<dt>Local/Ask Law</dt>
+<dd><code>local u ask</code> is equivalent to <code>fmap u ask</code>
+</dd>
+<dt>Local/Local Law</dt>
+<dd><code>local u (local v x)</code> is equivalent to <code>local (v . u) x</code>
+</dd>
+<dt>Interchange Law</dt>
+<dd><code>local u x &gt;&gt;= (\a -&gt; ask &gt;&gt;= (\b -&gt; f a b))</code> is equivalent to <code>ask &gt;&gt;= (\b -&gt; local u x &gt;&gt;= (\a -&gt; f a b))</code>
+</dd>
+<dt>Local Unit Law</dt>
+<dd><code>local u (return a)</code> is equivalent to <code>return a</code>
+</dd>
+<dt>Local Bind Law</dt>
+<dd><code>local u (x &gt;&gt;= f)</code> is equivalent to <code>local u x &gt;&gt;= (local u . f)</code>
+</dd>
+</dl>
+<p>As usual, equivalence means that two program fragments can always be substituted. The local unit and local bind laws together state that <code>local u</code> is a monad homomorphism. The interchange law guarantees that <code>ask</code> has no side effects other than making the environment value available.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1">asks</a>
+<a class="sourceLine" id="cb6-2" title="2"><span class="ot">  ::</span> ( <span class="dt">MonadReadOnly</span> r m )</a>
+<a class="sourceLine" id="cb6-3" title="3">  <span class="ot">=&gt;</span> (r <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> m a</a>
+<a class="sourceLine" id="cb6-4" title="4">asks f <span class="ot">=</span> <span class="fu">fmap</span> f ask</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Stream State</h2>
+<p><a name='crossref-2'></a></p>
+<p>A <em>stream</em> is a data type from which we can extract arbitrarily many values. <code>MonadStream</code> is inhabited by monads with access to a stream. These monads must provide primitives for getting and mutating the current stream, as well as for extracting the next value from the stream.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">class</span> <span class="dt">IsStream</span> s <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-2" title="2">  <span class="kw">data</span> <span class="dt">StreamValue</span><span class="ot"> s ::</span> <span class="op">*</span></a>
+<a class="sourceLine" id="cb7-3" title="3"><span class="ot">  advance ::</span> s <span class="ot">-&gt;</span> (<span class="dt">StreamValue</span> s, s)</a>
+<a class="sourceLine" id="cb7-4" title="4"></a>
+<a class="sourceLine" id="cb7-5" title="5"><span class="kw">class</span> (<span class="dt">Monad</span> m, <span class="dt">IsStream</span> s) <span class="ot">=&gt;</span> <span class="dt">MonadStream</span> s m <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-6" title="6">  <span class="co">-- See the stream</span></a>
+<a class="sourceLine" id="cb7-7" title="7"><span class="ot">  rest ::</span> m s</a>
+<a class="sourceLine" id="cb7-8" title="8"></a>
+<a class="sourceLine" id="cb7-9" title="9">  <span class="co">-- Adjust the stream</span></a>
+<a class="sourceLine" id="cb7-10" title="10"><span class="ot">  fiddle ::</span> (s <span class="ot">-&gt;</span> s) <span class="ot">-&gt;</span> m ()</a>
+<a class="sourceLine" id="cb7-11" title="11"></a>
+<a class="sourceLine" id="cb7-12" title="12">  <span class="co">-- Advance the stream</span></a>
+<a class="sourceLine" id="cb7-13" title="13"><span class="ot">  next ::</span> m (<span class="dt">StreamValue</span> s)</a></code></pre></div>
+<p>Instances of this class are required to satisfy the following law governing the interaction between <code>advance</code>, <code>rest</code>, and <code>next</code>:</p>
+<dl>
+<dt>Next/Rest Law</dt>
+<dd><code>(,) &lt;$&gt; next &lt;*&gt; rest</code> is equivalent to <code>advance &lt;$&gt; rest &lt;* next</code>
+</dd>
+<dt>Rest/Rest Law</dt>
+<dd><code>rest &gt;&gt;= (\u -&gt; rest &gt;&gt;= k u)</code> is equivalent to <code>rest &gt;&gt;= (\u -&gt; k u u)</code>
+</dd>
+<dt>Fiddle/Id Law</dt>
+<dd><code>fiddle id</code> is equivalent to <code>return ()</code>
+</dd>
+<dt>Fiddle/Compose Law</dt>
+<dd><code>fiddle u &gt;&gt; fiddle v</code> is equivalent to <code>fiddle (v . u)</code>
+</dd>
+<dt>Fiddle/Rest Law</dt>
+<dd><code>fiddle u &gt;&gt; rest</code> is equivalent to <code>rest &gt;&gt;= (\a -&gt; fiddle u &gt;&gt; return (u a))</code>
+</dd>
+</dl>
+</section>
+</article>
+</body>
+</html>

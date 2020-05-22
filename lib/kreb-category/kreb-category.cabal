@@ -1,0 +1,94 @@
+cabal-version:  2.4
+name:           kreb-category
+version:        0.0.0.0
+description:    Please see the README on GitHub at <https://github.com/nbloomf/krebstar#readme>
+homepage:       https://github.com/nbloomf/krebstar#readme
+bug-reports:    https://github.com/nbloomf/krebstar/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD-3-Clause
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/krebstar
+
+library
+  default-language: Haskell2010
+  hs-source-dirs: src
+  default-extensions:
+      KindSignatures
+    , ScopedTypeVariables
+    , TypeFamilies
+    , InstanceSigs
+    , RankNTypes
+    , GADTs
+    , DataKinds
+    , ConstraintKinds
+    , MultiParamTypeClasses
+    , FunctionalDependencies
+    , FlexibleInstances
+    , QuantifiedConstraints
+    , AllowAmbiguousTypes
+    , TypeApplications
+  exposed-modules:
+      Kreb.Control.Constrained
+    , Kreb.Control.Unconstrained
+    , Kreb.Control.Constrained.Functor
+    , Kreb.Control.Constrained.Functor.Laws
+    , Kreb.Control.Constrained.Traversable
+    , Kreb.Control.Constrained.Traversable.Laws
+
+    , Kreb.Category
+    , Kreb.Category.Class
+    , Kreb.Category.Class.CategoryC
+    , Kreb.Category.Class.CategoryC.Laws
+    , Kreb.Category.Class.FunctorC
+    , Kreb.Category.Class.FunctorC.Laws
+    , Kreb.Category.Class.BifunctorC
+    , Kreb.Category.Class.BifunctorC.Laws
+    , Kreb.Category.Class.ProfunctorC
+    , Kreb.Category.Class.ProfunctorC.Laws
+    , Kreb.Category.Class.MonoidalCategoryC
+    , Kreb.Category.Class.MonoidalCategoryC.Laws
+    , Kreb.Category.Class.MonoidalActionC
+    , Kreb.Category.Class.MonoidalActionC.Laws
+    , Kreb.Category.Data
+    , Kreb.Category.Data.PairC
+    , Kreb.Category.Data.ChoiceC
+  build-depends:
+      base >=4.7 && <5
+    , tasty >=1.2 && <2
+    , kreb-control
+    , kreb-format
+    , kreb-prop
+
+
+
+test-suite kreb-category-test
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Kreb/Category/Test.lhs
+  other-modules:
+      Kreb.Category.Test.Suite
+    , Kreb.Category.CategoryC.Test
+    , Kreb.Category.BifunctorC.Test
+    , Kreb.Category.ProfunctorC.Test
+    , Kreb.Category.MonoidalCategoryC.Test
+    , Kreb.Category.MonoidalActionC.Test
+  default-extensions:
+      ScopedTypeVariables
+    , TypeFamilies
+    , InstanceSigs
+    , KindSignatures
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , tasty >=1.2
+    , kreb-control
+    , kreb-format
+    , kreb-prop
+    , kreb-category

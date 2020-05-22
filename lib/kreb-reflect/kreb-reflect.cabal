@@ -1,0 +1,45 @@
+cabal-version:  2.4
+name:           kreb-reflect
+version:        0.0.0.0
+description:    Please see the README on GitHub at <https://github.com/nbloomf/krebstar#readme>
+homepage:       https://github.com/nbloomf/krebstar#readme
+bug-reports:    https://github.com/nbloomf/krebstar/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD-3-Clause
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/krebstar
+
+library
+  default-language: Haskell2010
+  hs-source-dirs: src
+  exposed-modules:
+      Kreb.Reflect
+    , Kreb.Reflect.Nat
+  default-extensions:
+      ScopedTypeVariables
+    , InstanceSigs
+    , RankNTypes
+  build-depends:
+      base >=4.7 && <5
+    , kreb-prop
+
+test-suite kreb-reflect-test
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Kreb/Reflect/Test.lhs
+  other-modules:
+      Kreb.Reflect.Test.Suite
+    , Kreb.Reflect.Nat.Test
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , tasty >=1.2
+    , kreb-prop
+    , kreb-reflect

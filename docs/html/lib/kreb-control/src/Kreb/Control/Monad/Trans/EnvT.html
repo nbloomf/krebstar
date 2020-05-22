@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>The EnvT Monad Transformer</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">The EnvT Monad Transformer</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">module</span> <span class="dt">Kreb.Control.Monad.Trans.EnvT</span> (</a>
+<a class="sourceLine" id="cb1-4" title="4">    <span class="dt">EnvT</span>(<span class="op">..</span>)</a>
+<a class="sourceLine" id="cb1-5" title="5">  , runEnvT</a>
+<a class="sourceLine" id="cb1-6" title="6"></a>
+<a class="sourceLine" id="cb1-7" title="7">  , <span class="dt">Env</span></a>
+<a class="sourceLine" id="cb1-8" title="8">  , runEnv</a>
+<a class="sourceLine" id="cb1-9" title="9">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-10" title="10"></a>
+<a class="sourceLine" id="cb1-11" title="11"><span class="kw">import</span> <span class="dt">Kreb.Control.Compare</span></a>
+<a class="sourceLine" id="cb1-12" title="12"><span class="kw">import</span> <span class="dt">Kreb.Control.Monad</span></a>
+<a class="sourceLine" id="cb1-13" title="13"><span class="kw">import</span> <span class="dt">Kreb.Control.Monad.Trans</span></a>
+<a class="sourceLine" id="cb1-14" title="14"><span class="kw">import</span> <span class="dt">Kreb.Control.Monad.Identity</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>In this module we'll define a monad transformer called <code>EnvT</code>. This transformer takes a monad <code>m</code> and adds a new side effect to it: specifically the ability to read an immutable "environment" variable of some type <code>r</code> and to run subcomputations with a modified environment. Before writing down the definition of the type, let's think about what it <em>should</em> look like.</p>
+<p>We have:</p>
+<ul>
+<li>A monad <code>m</code> describing a class of side-effectful computations;</li>
+<li>A type <code>r</code> of possible <em>environments</em> for our computation.</li>
+</ul>
+<p>And we want:</p>
+<ul>
+<li>An <code>m</code> computation that may depend on the specific <code>r</code> we have, but which cannot alter it.</li>
+</ul>
+<p>That is, an <code>EnvT r m</code> computation is a function taking in the initial environment <code>r</code> and producing an <code>m</code>-computation. In code:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">newtype</span> <span class="dt">EnvT</span> r m a <span class="ot">=</span> <span class="dt">EnvT</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  {<span class="ot"> unEnvT ::</span> r <span class="ot">-&gt;</span> m a }</a></code></pre></div>
+<p>There is only one way to evaluate an <code>EnvT</code> computation.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1">runEnvT</a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb3-3" title="3">  <span class="ot">=&gt;</span> r <span class="ot">-&gt;</span> <span class="dt">EnvT</span> r m a <span class="ot">-&gt;</span> m a</a>
+<a class="sourceLine" id="cb3-4" title="4">runEnvT r (<span class="dt">EnvT</span> x) <span class="ot">=</span> x r</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Class Instances</h2>
+<p>The <code>Monad</code> instance for <code>EnvT</code> writes itself. We don't use <code>do</code> notation here to make the <a href="EnvT/Proofs.html#crossref-0">proofs</a> simpler.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb4-2" title="2">  ( <span class="dt">Monad</span> m</a>
+<a class="sourceLine" id="cb4-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (<span class="dt">EnvT</span> r m)</a>
+<a class="sourceLine" id="cb4-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-5" title="5">    <span class="fu">return</span> a <span class="ot">=</span></a>
+<a class="sourceLine" id="cb4-6" title="6">      <span class="dt">EnvT</span> <span class="op">$</span> \_ <span class="ot">-&gt;</span> <span class="fu">return</span> a</a>
+<a class="sourceLine" id="cb4-7" title="7"></a>
+<a class="sourceLine" id="cb4-8" title="8">    x <span class="op">&gt;&gt;=</span> f <span class="ot">=</span></a>
+<a class="sourceLine" id="cb4-9" title="9">      <span class="dt">EnvT</span> <span class="op">$</span> \r <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb4-10" title="10">        unEnvT x r <span class="op">&gt;&gt;=</span> (\a <span class="ot">-&gt;</span> unEnvT (f a) r)</a></code></pre></div>
+<p>With a <code>Monad</code> instance in hand we of course get <code>Functor</code> and <code>Applicative</code> for free.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Functor</span> (<span class="dt">EnvT</span> r m) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-2" title="2">  <span class="fu">fmap</span> f x <span class="ot">=</span> x <span class="op">&gt;&gt;=</span> (<span class="fu">return</span> <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb5-3" title="3"></a>
+<a class="sourceLine" id="cb5-4" title="4"><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Applicative</span> (<span class="dt">EnvT</span> r m) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-5" title="5">  <span class="fu">pure</span> <span class="ot">=</span> <span class="fu">return</span></a>
+<a class="sourceLine" id="cb5-6" title="6"></a>
+<a class="sourceLine" id="cb5-7" title="7">  f <span class="op">&lt;*&gt;</span> x <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-8" title="8">    f&#39; <span class="ot">&lt;-</span> f</a>
+<a class="sourceLine" id="cb5-9" title="9">    x&#39; <span class="ot">&lt;-</span> x</a>
+<a class="sourceLine" id="cb5-10" title="10">    <span class="fu">return</span> (f&#39; x&#39;)</a></code></pre></div>
+<p>Finally, <code>EnvT r</code> is a monad transformer, meaning we can (lawfully) lift <code>m</code> computations up to <code>EnvT r m</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">instance</span> <span class="dt">MonadTrans</span> (<span class="dt">EnvT</span> r) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-2" title="2">  lift x <span class="ot">=</span> <span class="dt">EnvT</span> <span class="op">$</span> \_ <span class="ot">-&gt;</span> x</a></code></pre></div>
+<p>The <a href="./EnvT/Proofs.html">proofs</a> that these instances are lawful are routine.</p>
+</section>
+<section class="level2">
+<h2>Specializing to Identity</h2>
+<p>When we want an environment variable but don't need the full power of a transformer, we can instead use this specialization over the identity monad.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">type</span> <span class="dt">Env</span> r a <span class="ot">=</span> <span class="dt">EnvT</span> r <span class="dt">Identity</span> a</a>
+<a class="sourceLine" id="cb7-2" title="2"></a>
+<a class="sourceLine" id="cb7-3" title="3">runEnv</a>
+<a class="sourceLine" id="cb7-4" title="4"><span class="ot">  ::</span> r <span class="ot">-&gt;</span> <span class="dt">Env</span> r a <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb7-5" title="5">runEnv r <span class="ot">=</span> unIdentity <span class="op">.</span> runEnvT r</a></code></pre></div>
+<p>Of course <code>ask</code>, <code>local</code>, and <code>asks</code> are still part of the API for <code>Env</code>.</p>
+</section>
+<section class="level2">
+<h2>The Read-Only Interface</h2>
+<p><code>EnvT r m</code> was designed to be an instance of <code>MonadReadOnly</code>. However, if <code>m</code> is itself an instance of <code>MonadReadOnly</code>, we'd like to be able to lift this instance to <code>EnvT r m</code>. On its face this appears to require writing two different (and overlapping) <code>MonadReadOnly</code> instances for <code>EnvT r m</code>, but with some type hackery we can get around this. The trick works by having a copy of the <code>MonadReadOnly</code> class taking an extra type paramter.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1"><span class="kw">class</span> <span class="dt">HasReadOnlyState</span> flag env m <span class="kw">where</span></a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="ot">  ask&#39; ::</span> m env</a>
+<a class="sourceLine" id="cb8-3" title="3"><span class="ot">  local&#39; ::</span> (env <span class="ot">-&gt;</span> env) <span class="ot">-&gt;</span> m a <span class="ot">-&gt;</span> m a</a></code></pre></div>
+<p>Now we can define a <code>MonadReadOnly</code> instance for any type inhabiting <code>HasReadOnlyState</code>, using the <code>Compare</code> type-level function.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb9-2" title="2">  ( <span class="dt">Monad</span> m, <span class="dt">Compare</span> r t <span class="op">~</span> flag</a>
+<a class="sourceLine" id="cb9-3" title="3">  , <span class="dt">HasReadOnlyState</span> flag t (<span class="dt">EnvT</span> r m)</a>
+<a class="sourceLine" id="cb9-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">MonadReadOnly</span> t (<span class="dt">EnvT</span> r m)</a>
+<a class="sourceLine" id="cb9-5" title="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-6" title="6">    ask <span class="ot">=</span> ask&#39; <span class="op">@</span>flag</a>
+<a class="sourceLine" id="cb9-7" title="7">    local <span class="ot">=</span> local&#39; <span class="op">@</span>flag</a></code></pre></div>
+<p>Now we can write two different instances of <code>HasReadOnlyState</code> for <code>EnvT</code>, one for the "natural" instance and one for the "lifted" instance. These are not overlapping due to the extra type constraint (<code>Equal</code> or <code>NotEqual</code>).</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb10-2" title="2">  ( <span class="dt">Monad</span> m</a>
+<a class="sourceLine" id="cb10-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">HasReadOnlyState</span> <span class="dt">Equal</span> r (<span class="dt">EnvT</span> r m)</a>
+<a class="sourceLine" id="cb10-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-5" title="5"><span class="ot">    ask&#39; ::</span> <span class="dt">EnvT</span> r m r</a>
+<a class="sourceLine" id="cb10-6" title="6">    ask&#39; <span class="ot">=</span> <span class="dt">EnvT</span> <span class="op">$</span> \r <span class="ot">-&gt;</span> <span class="fu">return</span> r</a>
+<a class="sourceLine" id="cb10-7" title="7"></a>
+<a class="sourceLine" id="cb10-8" title="8"><span class="ot">    local&#39; ::</span> (r <span class="ot">-&gt;</span> r) <span class="ot">-&gt;</span> <span class="dt">EnvT</span> r m a <span class="ot">-&gt;</span> <span class="dt">EnvT</span> r m a</a>
+<a class="sourceLine" id="cb10-9" title="9">    local&#39; f x <span class="ot">=</span></a>
+<a class="sourceLine" id="cb10-10" title="10">      <span class="dt">EnvT</span> <span class="op">$</span> \r <span class="ot">-&gt;</span> unEnvT x (f r)</a>
+<a class="sourceLine" id="cb10-11" title="11"></a>
+<a class="sourceLine" id="cb10-12" title="12"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb10-13" title="13">  ( <span class="dt">MonadReadOnly</span> t m, <span class="dt">Compare</span> r t <span class="op">~</span> <span class="dt">NotEqual</span></a>
+<a class="sourceLine" id="cb10-14" title="14">  ) <span class="ot">=&gt;</span> <span class="dt">HasReadOnlyState</span> <span class="dt">NotEqual</span> t (<span class="dt">EnvT</span> r m)</a>
+<a class="sourceLine" id="cb10-15" title="15">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-16" title="16"><span class="ot">    ask&#39; ::</span> <span class="dt">EnvT</span> r m t</a>
+<a class="sourceLine" id="cb10-17" title="17">    ask&#39; <span class="ot">=</span> lift ask</a>
+<a class="sourceLine" id="cb10-18" title="18"></a>
+<a class="sourceLine" id="cb10-19" title="19"><span class="ot">    local&#39; ::</span> (t <span class="ot">-&gt;</span> t) <span class="ot">-&gt;</span> <span class="dt">EnvT</span> r m a <span class="ot">-&gt;</span> <span class="dt">EnvT</span> r m a</a>
+<a class="sourceLine" id="cb10-20" title="20">    local&#39; f x <span class="ot">=</span> <span class="dt">EnvT</span> <span class="op">$</span> \r <span class="ot">-&gt;</span> local f (unEnvT x r)</a></code></pre></div>
+<p>The <a href="EnvT/Proofs.html#crossref-2">proofs</a> that these instances are lawful are tedious but straightforward.</p>
+</section>
+<section class="level2">
+<h2>Lifted Instances</h2>
+<p>If <code>m</code> is a lawful instance of <code>MonadReadWrite</code>, we can lift this to a lawful instance for <code>EnvT r m</code> with <a href="EnvT/Proofs.html#crossref-3">proof</a>.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb11-2" title="2">  ( <span class="dt">MonadReadWrite</span> s m</a>
+<a class="sourceLine" id="cb11-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadReadWrite</span> s (<span class="dt">EnvT</span> t m)</a>
+<a class="sourceLine" id="cb11-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb11-5" title="5">    get <span class="ot">=</span> lift get</a>
+<a class="sourceLine" id="cb11-6" title="6">    put <span class="ot">=</span> lift <span class="op">.</span> put</a></code></pre></div>
+<p>If <code>m</code> is a lawful instance of <code>MonadStream</code>, we can lift this to a lawful instance for <code>EnvT r m</code> with <a href="EnvT/Proofs.html#crossref-4">proof</a>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb12-2" title="2">  ( <span class="dt">MonadStream</span> s m, <span class="dt">IsStream</span> s</a>
+<a class="sourceLine" id="cb12-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadStream</span> s (<span class="dt">EnvT</span> t m)</a>
+<a class="sourceLine" id="cb12-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb12-5" title="5">    rest <span class="ot">=</span> lift rest</a>
+<a class="sourceLine" id="cb12-6" title="6">    fiddle f <span class="ot">=</span> lift (fiddle f)</a>
+<a class="sourceLine" id="cb12-7" title="7">    next <span class="ot">=</span> lift (next <span class="op">@</span>s)</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

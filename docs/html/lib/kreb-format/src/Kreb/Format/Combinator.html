@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>A Document Algebra</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">A Document Algebra</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Format.Combinator</span> (</a>
+<a class="sourceLine" id="cb1-2" title="2">    emptyDoc, char, space, spaces, (<span class="op">&lt;+&gt;</span>), annotate</a>
+<a class="sourceLine" id="cb1-3" title="3">  , enclose, parens, braces, bracks, squote, dquote, surround</a>
+<a class="sourceLine" id="cb1-4" title="4">  , lineS, lineE, softlineS, softlineE, hardline</a>
+<a class="sourceLine" id="cb1-5" title="5">  , nest, align, hang, indent</a>
+<a class="sourceLine" id="cb1-6" title="6">  , <span class="fu">group</span>, flatAlt</a>
+<a class="sourceLine" id="cb1-7" title="7">  , hcat, hsep, vcat, vsep, fillCat, fillSep, cat, sep</a>
+<a class="sourceLine" id="cb1-8" title="8">  , text, string, reflow</a>
+<a class="sourceLine" id="cb1-9" title="9">  , withColumn, withPageWidth, withNesting, width, fill, fillBreak</a>
+<a class="sourceLine" id="cb1-10" title="10">  , ifColumn</a>
+<a class="sourceLine" id="cb1-11" title="11">  , encloseSep, brackList, braceList, parenList, punctuate</a>
+<a class="sourceLine" id="cb1-12" title="12">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-13" title="13"></a>
+<a class="sourceLine" id="cb1-14" title="14"><span class="kw">import</span>           <span class="dt">Data.String</span></a>
+<a class="sourceLine" id="cb1-15" title="15"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span> <span class="kw">as</span> <span class="dt">T</span></a>
+<a class="sourceLine" id="cb1-16" title="16"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.List</span> <span class="kw">as</span> <span class="dt">L</span></a>
+<a class="sourceLine" id="cb1-17" title="17"></a>
+<a class="sourceLine" id="cb1-18" title="18"><span class="kw">import</span> <span class="dt">Kreb.Format.Util</span></a>
+<a class="sourceLine" id="cb1-19" title="19"><span class="kw">import</span> <span class="dt">Kreb.Format.Doc</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>We've defined a type <code>Doc</code> of abstract annotated document layouts and the machinery needed to efficiently render them. In this module we define a more convenient combinator library for constructing <code>Doc</code>s. This is also a lightly edited copy of the corresponding code from the <a href="http://hackage.haskell.org/package/prettyprinter">prettyprinter</a> library.</p>
+</section>
+<section class="level2">
+<h2>Primitives</h2>
+<p>The simplest document has nothing in it.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1">emptyDoc</a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb2-3" title="3">emptyDoc <span class="ot">=</span> <span class="dt">Empty</span></a></code></pre></div>
+<p>Note that <code>emptyDoc</code> is a document with width 0 and height 1. This may be surprising if we expect it to have height 0, for instance when vertically concatenating documents.</p>
+<p>The next simplest document has a single character in it. Note that we capture newlines here as a special case to maintain the invariant on <code>Doc</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="ot">char ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb3-2" title="2">char c <span class="ot">=</span> <span class="kw">case</span> c <span class="kw">of</span></a>
+<a class="sourceLine" id="cb3-3" title="3">  <span class="ch">&#39;\n&#39;</span> <span class="ot">-&gt;</span> <span class="dt">Line</span></a>
+<a class="sourceLine" id="cb3-4" title="4">  _    <span class="ot">-&gt;</span> <span class="dt">Char</span> c</a></code></pre></div>
+<p>We can also define spaces as documents. Note that these are <em>content</em> whitespace, rather than <em>layout</em> whitespace.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="ot">space ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb4-2" title="2">space <span class="ot">=</span> <span class="dt">Char</span> <span class="ch">&#39; &#39;</span></a>
+<a class="sourceLine" id="cb4-3" title="3"></a>
+<a class="sourceLine" id="cb4-4" title="4"><span class="ot">spaces ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb4-5" title="5">spaces n <span class="ot">=</span> <span class="kw">case</span> <span class="fu">compare</span> n <span class="dv">1</span> <span class="kw">of</span></a>
+<a class="sourceLine" id="cb4-6" title="6">  <span class="dt">LT</span> <span class="ot">-&gt;</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb4-7" title="7">  <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="dt">Char</span> <span class="ch">&#39; &#39;</span></a>
+<a class="sourceLine" id="cb4-8" title="8">  <span class="dt">GT</span> <span class="ot">-&gt;</span> <span class="dt">Text</span> n (textSpaces n)</a></code></pre></div>
+<p>Recall that <code>Doc</code> is a (semantic!) monoid, and that (&lt;&gt;) is horizontal concatenation.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="ot">(&lt;+&gt;) ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb5-2" title="2">x <span class="op">&lt;+&gt;</span> y <span class="ot">=</span> x <span class="op">&lt;&gt;</span> space <span class="op">&lt;&gt;</span> y</a>
+<a class="sourceLine" id="cb5-3" title="3"><span class="kw">infixr</span> <span class="dv">6</span> <span class="op">&lt;+&gt;</span> <span class="co">-- same as &lt;&gt;</span></a></code></pre></div>
+<p>We can use this to assemble some basic examples.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb6-4" title="4"><span class="co">--   emptyDoc</span></a>
+<a class="sourceLine" id="cb6-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-6" title="6"><span class="co">-- </span></a>
+<a class="sourceLine" id="cb6-7" title="7"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-8" title="8"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-9" title="9"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb6-10" title="10"><span class="co">--   char &#39;a&#39;</span></a>
+<a class="sourceLine" id="cb6-11" title="11"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-12" title="12"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb6-13" title="13"><span class="co">-- </span></a>
+<a class="sourceLine" id="cb6-14" title="14"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-15" title="15"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-16" title="16"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb6-17" title="17"><span class="co">--   char &#39;a&#39; &lt;&gt; char &#39;b&#39;</span></a>
+<a class="sourceLine" id="cb6-18" title="18"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-19" title="19"><span class="co">-- ab</span></a>
+<a class="sourceLine" id="cb6-20" title="20"><span class="co">-- </span></a>
+<a class="sourceLine" id="cb6-21" title="21"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-22" title="22"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-23" title="23"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb6-24" title="24"><span class="co">--   char &#39;a&#39; &lt;&gt; emptyDoc &lt;&gt; char &#39;b&#39;</span></a>
+<a class="sourceLine" id="cb6-25" title="25"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-26" title="26"><span class="co">-- ab</span></a>
+<a class="sourceLine" id="cb6-27" title="27"><span class="co">--</span></a>
+<a class="sourceLine" id="cb6-28" title="28"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-29" title="29"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-30" title="30"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb6-31" title="31"><span class="co">--   char &#39;a&#39; &lt;&gt; space &lt;&gt; char &#39;b&#39;</span></a>
+<a class="sourceLine" id="cb6-32" title="32"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-33" title="33"><span class="co">-- a b</span></a>
+<a class="sourceLine" id="cb6-34" title="34"><span class="co">--</span></a>
+<a class="sourceLine" id="cb6-35" title="35"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb6-36" title="36"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb6-37" title="37"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb6-38" title="38"><span class="co">--   char &#39;a&#39; &lt;&gt; spaces 4 &lt;&gt; char &#39;b&#39;</span></a>
+<a class="sourceLine" id="cb6-39" title="39"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb6-40" title="40"><span class="co">-- a    b</span></a></code></pre></div>
+</div>
+<p>With just the tools on hand we can define some common convenience functions. <code>enclose</code> wraps its third argument between the first two using <code>&lt;&gt;</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">enclose</a>
+<a class="sourceLine" id="cb7-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="co">-- left side</span></a>
+<a class="sourceLine" id="cb7-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="co">-- right side</span></a>
+<a class="sourceLine" id="cb7-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="co">-- contents</span></a>
+<a class="sourceLine" id="cb7-5" title="5">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb7-6" title="6">enclose lhs rhs x <span class="ot">=</span></a>
+<a class="sourceLine" id="cb7-7" title="7">  lhs <span class="op">&lt;&gt;</span> x <span class="op">&lt;&gt;</span> rhs</a></code></pre></div>
+<p>A common example of this pattern is wrapping text</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1"><span class="ot">parens ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb8-2" title="2">parens <span class="ot">=</span> enclose (char <span class="ch">&#39;(&#39;</span>) (char <span class="ch">&#39;)&#39;</span>)</a>
+<a class="sourceLine" id="cb8-3" title="3"></a>
+<a class="sourceLine" id="cb8-4" title="4"><span class="ot">braces ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb8-5" title="5">braces <span class="ot">=</span> enclose (char <span class="ch">&#39;{&#39;</span>) (char <span class="ch">&#39;}&#39;</span>)</a>
+<a class="sourceLine" id="cb8-6" title="6"></a>
+<a class="sourceLine" id="cb8-7" title="7"><span class="ot">bracks ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb8-8" title="8">bracks <span class="ot">=</span> enclose (char <span class="ch">&#39;[&#39;</span>) (char <span class="ch">&#39;]&#39;</span>)</a>
+<a class="sourceLine" id="cb8-9" title="9"></a>
+<a class="sourceLine" id="cb8-10" title="10"><span class="ot">squote ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb8-11" title="11">squote <span class="ot">=</span> enclose (char <span class="ch">&#39;\&#39;&#39;</span>) (char <span class="ch">&#39;\&#39;&#39;</span>)</a>
+<a class="sourceLine" id="cb8-12" title="12"></a>
+<a class="sourceLine" id="cb8-13" title="13"><span class="ot">dquote ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb8-14" title="14">dquote <span class="ot">=</span> enclose (char <span class="ch">&#39;&quot;&#39;</span>) (char <span class="ch">&#39;&quot;&#39;</span>)</a></code></pre></div>
+<p><code>surround</code> is an argument-reordering of <code>enclose</code>, which is handy for treating "concatenate around" as a binary operation on documents.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1">surround</a>
+<a class="sourceLine" id="cb9-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="co">-- contents</span></a>
+<a class="sourceLine" id="cb9-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="co">-- left side</span></a>
+<a class="sourceLine" id="cb9-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="co">-- right side</span></a>
+<a class="sourceLine" id="cb9-5" title="5">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb9-6" title="6">surround x lhs rhs <span class="ot">=</span> lhs <span class="op">&lt;&gt;</span> x <span class="op">&lt;&gt;</span> rhs</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb10-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb10-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb10-4" title="4"><span class="co">--   parens (char &#39;a&#39; &lt;&gt; space &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb10-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb10-6" title="6"><span class="co">-- (a b)</span></a>
+<a class="sourceLine" id="cb10-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb10-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb10-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb10-10" title="10"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb10-11" title="11"><span class="co">--   squote $ bracks (char &#39;a&#39; &lt;&gt; space &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb10-12" title="12"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb10-13" title="13"><span class="co">-- &#39;[a b]&#39;</span></a>
+<a class="sourceLine" id="cb10-14" title="14"><span class="co">--</span></a>
+<a class="sourceLine" id="cb10-15" title="15"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb10-16" title="16"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb10-17" title="17"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb10-18" title="18"><span class="co">--   foldr1 (surround (char &#39;.&#39;)) $ map char &quot;abcd&quot;</span></a>
+<a class="sourceLine" id="cb10-19" title="19"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb10-20" title="20"><span class="co">-- a.b.c.d</span></a></code></pre></div>
+</div>
+<p>Next up we have several different kinds of line break. These behave differently when grouped or flattened.</p>
+<p><code>lineS</code> advances to the next line and indents to the current nesting level, but devolves to a single space if the line break is undone by <code>group</code>.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" title="1"><span class="ot">lineS ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb11-2" title="2">lineS <span class="ot">=</span> <span class="dt">FlatAlt</span> <span class="dt">Line</span> (<span class="dt">Char</span> <span class="ch">&#39; &#39;</span>)</a></code></pre></div>
+<p><code>lineE</code> is almost identical to <code>lineS</code>, but devolves to <code>emptyDoc</code> rather than a single space when grouped.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" title="1"><span class="ot">lineE ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb12-2" title="2">lineE <span class="ot">=</span> <span class="dt">FlatAlt</span> <span class="dt">Line</span> emptyDoc</a></code></pre></div>
+<p><code>softlineS</code> inserts a single space if the resulting layout fits on the page, and otherwise inserts a line break.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" title="1"><span class="ot">softlineS ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb13-2" title="2">softlineS <span class="ot">=</span> <span class="dt">Union</span> (<span class="dt">Char</span> <span class="ch">&#39; &#39;</span>) <span class="dt">Line</span></a></code></pre></div>
+<p><code>softlineE</code> is almost identical to <code>softlineS</code>, but attempts to insert <code>emptyDoc</code> rather than a single space.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" title="1"><span class="ot">softlineE ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb14-2" title="2">softlineE <span class="ot">=</span> <span class="dt">Union</span> emptyDoc <span class="dt">Line</span></a></code></pre></div>
+<p><code>hardline</code> is always laid out as a line break, even when grouped or when there's plenty of space remaining on the current line.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" title="1"><span class="ot">hardline ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb15-2" title="2">hardline <span class="ot">=</span> <span class="dt">Line</span></a></code></pre></div>
+<p>Showing examples of these will be difficult until we've defined the combinators that distinguish them. But here's an example for <code>hardline</code>:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb16-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb16-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb16-4" title="4"><span class="co">--   char &#39;a&#39; &lt;&gt; hardline &lt;&gt; char &#39;b&#39;</span></a>
+<a class="sourceLine" id="cb16-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb16-6" title="6"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb16-7" title="7"><span class="co">-- b</span></a></code></pre></div>
+</div>
+<p>We might as well define <code>annotate</code> here too; it is only relevant when we need our documents to target a backend that handles specific annotation types.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" title="1"><span class="ot">annotate ::</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb17-2" title="2">annotate <span class="ot">=</span> <span class="dt">Annotated</span></a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Indentation</h2>
+<p>There are a few different ways to handle indentation. The primitive <code>Doc</code> constructor behind these is <code>Nest</code>, but they behave differently with respect to the current column position.</p>
+<p>The most blunt instrument for indentation is <code>nest</code>. This combinator takes a <em>change</em> in the nesting level and applies it to a subdocument. Notably, the change argument can be negative.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" title="1">nest</a>
+<a class="sourceLine" id="cb18-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="co">-- Change of nesting level</span></a>
+<a class="sourceLine" id="cb18-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb18-4" title="4">nest k doc <span class="ot">=</span> <span class="kw">if</span> k <span class="op">==</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb18-5" title="5">  <span class="kw">then</span> doc</a>
+<a class="sourceLine" id="cb18-6" title="6">  <span class="kw">else</span> <span class="dt">Nest</span> k doc</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb19-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb19-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb19-4" title="4"><span class="co">--   char &#39;a&#39; &lt;&gt; nest 2 (char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb19-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb19-6" title="6"><span class="co">-- ab</span></a>
+<a class="sourceLine" id="cb19-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb19-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb19-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb19-10" title="10"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb19-11" title="11"><span class="co">--   char &#39;a&#39; &lt;&gt; nest 2 (hardline &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb19-12" title="12"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb19-13" title="13"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb19-14" title="14"><span class="co">--   b</span></a>
+<a class="sourceLine" id="cb19-15" title="15"><span class="co">--</span></a>
+<a class="sourceLine" id="cb19-16" title="16"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb19-17" title="17"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb19-18" title="18"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb19-19" title="19"><span class="co">--   char &#39;a&#39; &lt;&gt; nest 2 (lineS &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb19-20" title="20"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb19-21" title="21"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb19-22" title="22"><span class="co">--   b</span></a>
+<a class="sourceLine" id="cb19-23" title="23"><span class="co">--</span></a>
+<a class="sourceLine" id="cb19-24" title="24"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb19-25" title="25"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb19-26" title="26"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb19-27" title="27"><span class="co">--   char &#39;a&#39; &lt;&gt; nest 2 (softlineS &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb19-28" title="28"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb19-29" title="29"><span class="co">-- a b</span></a>
+<a class="sourceLine" id="cb19-30" title="30"><span class="co">--</span></a>
+<a class="sourceLine" id="cb19-31" title="31"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb19-32" title="32"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb19-33" title="33"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb19-34" title="34"><span class="co">--   char &#39;a&#39; &lt;&gt; nest 2</span></a>
+<a class="sourceLine" id="cb19-35" title="35"><span class="co">--     (lineS &lt;&gt; char &#39;b&#39; &lt;&gt; nest (-1) (lineS &lt;&gt; char &#39;c&#39;))</span></a>
+<a class="sourceLine" id="cb19-36" title="36"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb19-37" title="37"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb19-38" title="38"><span class="co">--   b</span></a>
+<a class="sourceLine" id="cb19-39" title="39"><span class="co">--  c</span></a>
+<a class="sourceLine" id="cb19-40" title="40"><span class="co">--</span></a>
+<a class="sourceLine" id="cb19-41" title="41"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb19-42" title="42"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb19-43" title="43"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb19-44" title="44"><span class="co">--   char &#39;a&#39; &lt;&gt; nest 2 (lineS &lt;&gt; char &#39;b&#39; &lt;&gt; lineS &lt;&gt; char &#39;c&#39;)</span></a>
+<a class="sourceLine" id="cb19-45" title="45"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb19-46" title="46"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb19-47" title="47"><span class="co">--   b</span></a>
+<a class="sourceLine" id="cb19-48" title="48"><span class="co">--   c</span></a></code></pre></div>
+</div>
+<p><code>align</code> lays out its argument with the nesting level set to the "current" column. This allows for dynamically setting the indentation level.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" title="1">align</a>
+<a class="sourceLine" id="cb20-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb20-3" title="3">align doc <span class="ot">=</span> <span class="dt">WithColumn</span> <span class="op">$</span> \k <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb20-4" title="4">  <span class="dt">WithNesting</span> <span class="op">$</span> \i <span class="ot">-&gt;</span> nest (k <span class="op">-</span> i) doc</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb21-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb21-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb21-4" title="4"><span class="co">--   char &#39;a&#39; &lt;&gt; align (char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb21-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb21-6" title="6"><span class="co">-- ab</span></a>
+<a class="sourceLine" id="cb21-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb21-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb21-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb21-10" title="10"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb21-11" title="11"><span class="co">--   char &#39;a&#39; &lt;&gt; align (hardline &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb21-12" title="12"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb21-13" title="13"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb21-14" title="14"><span class="co">--  b</span></a></code></pre></div>
+</div>
+<p><code>hang</code> takes a <em>change</em> in indentation and lays out its argument with the nesting level set to the current column plus the change. As with <code>nest</code>, negative values are allowed.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" title="1">hang</a>
+<a class="sourceLine" id="cb22-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="co">-- Change of nesting level relative to the current column</span></a>
+<a class="sourceLine" id="cb22-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb22-4" title="4">hang i doc <span class="ot">=</span> align (nest i doc)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb23-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb23-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb23-4" title="4"><span class="co">--   char &#39;a&#39; &lt;&gt; hang 2 (char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb23-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb23-6" title="6"><span class="co">-- ab</span></a>
+<a class="sourceLine" id="cb23-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb23-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb23-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb23-10" title="10"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb23-11" title="11"><span class="co">--   char &#39;a&#39; &lt;&gt; hang 2 (hardline &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb23-12" title="12"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb23-13" title="13"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb23-14" title="14"><span class="co">--    b</span></a>
+<a class="sourceLine" id="cb23-15" title="15"><span class="co">--</span></a>
+<a class="sourceLine" id="cb23-16" title="16"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb23-17" title="17"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb23-18" title="18"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb23-19" title="19"><span class="co">--   char &#39;a&#39; &lt;&gt; hang 2 (hardline &lt;&gt; char &#39;b&#39; &lt;&gt; hardline &lt;&gt; char &#39;c&#39;)</span></a>
+<a class="sourceLine" id="cb23-20" title="20"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb23-21" title="21"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb23-22" title="22"><span class="co">--    b</span></a>
+<a class="sourceLine" id="cb23-23" title="23"><span class="co">--    c</span></a></code></pre></div>
+</div>
+<p><code>indent</code> takes a number and indents its subdocument by that many spaces, from the current cursor position.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" title="1">indent</a>
+<a class="sourceLine" id="cb24-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="co">-- Number of spaces to increase indentation by</span></a>
+<a class="sourceLine" id="cb24-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb24-4" title="4">indent i doc <span class="ot">=</span> hang i (spaces i <span class="op">&lt;&gt;</span> doc)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb25-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb25-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb25-4" title="4"><span class="co">--   char &#39;a&#39; &lt;&gt; indent 2 (char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb25-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb25-6" title="6"><span class="co">-- a  b</span></a>
+<a class="sourceLine" id="cb25-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb25-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb25-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb25-10" title="10"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb25-11" title="11"><span class="co">--   char &#39;a&#39; &lt;&gt; indent 2 (hardline &lt;&gt; char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb25-12" title="12"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb25-13" title="13"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb25-14" title="14"><span class="co">--    b</span></a></code></pre></div>
+</div>
+</section>
+<section class="level2">
+<h2>Grouping</h2>
+<p>The combinators we've defined so far are not reactive to the space available -- time to fix that. The <code>group</code> combinator tries to lay out its argument on a single line by removing line breaks. If the result doesn't fit, it falls back to the original layout.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" title="1"><span class="fu">group</span><span class="ot"> ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb26-2" title="2"><span class="fu">group</span> x <span class="ot">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb26-3" title="3">  <span class="dt">Union</span> _ _ <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb26-4" title="4">  <span class="dt">FlatAlt</span> a b <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb26-5" title="5">    <span class="kw">case</span> flattenAttempt b <span class="kw">of</span></a>
+<a class="sourceLine" id="cb26-6" title="6">      <span class="dt">Flattened</span> b&#39; <span class="ot">-&gt;</span> <span class="dt">Union</span> b&#39; a</a>
+<a class="sourceLine" id="cb26-7" title="7">      <span class="dt">AlreadyFlat</span>  <span class="ot">-&gt;</span> <span class="dt">Union</span> b a</a>
+<a class="sourceLine" id="cb26-8" title="8">      <span class="dt">NeverFlat</span>    <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb26-9" title="9">  _ <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb26-10" title="10">    <span class="kw">case</span> flattenAttempt x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb26-11" title="11">      <span class="dt">Flattened</span> x&#39; <span class="ot">-&gt;</span> <span class="dt">Union</span> x&#39; x</a>
+<a class="sourceLine" id="cb26-12" title="12">      <span class="dt">AlreadyFlat</span>  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb26-13" title="13">      <span class="dt">NeverFlat</span>    <span class="ot">-&gt;</span> x</a></code></pre></div>
+<p>Note that <code>group</code> works by constructing a union of two documents, which is expensive for layout. If we can avoid constructing the <code>Union</code> we can save some effort. As an optimization, <code>group</code> first attempts to determine whether its argument <em>can</em> be flattened. If not then there's no need to construct the union. This helps to avoid exponential behavior for some documents. <code>flattenAttempt</code> is the helper function that decides this, and it returns a <code>FlattenResult</code>.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" title="1"><span class="kw">data</span> <span class="dt">FlattenResult</span> a</a>
+<a class="sourceLine" id="cb27-2" title="2">  <span class="ot">=</span> <span class="dt">Flattened</span> a <span class="co">-- an equivalent document likely</span></a>
+<a class="sourceLine" id="cb27-3" title="3">                <span class="co">-- to be flatter than the input.</span></a>
+<a class="sourceLine" id="cb27-4" title="4">  <span class="op">|</span> <span class="dt">AlreadyFlat</span> <span class="co">-- signals that the input was</span></a>
+<a class="sourceLine" id="cb27-5" title="5">                <span class="co">-- already flat, e.g. a &#39;Text&#39;.</span></a>
+<a class="sourceLine" id="cb27-6" title="6">  <span class="op">|</span> <span class="dt">NeverFlat</span>   <span class="co">-- signals that the input couldn&#39;t</span></a>
+<a class="sourceLine" id="cb27-7" title="7">                <span class="co">-- be flattened.</span></a>
+<a class="sourceLine" id="cb27-8" title="8"></a>
+<a class="sourceLine" id="cb27-9" title="9"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">FlattenResult</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb27-10" title="10">  <span class="fu">fmap</span> f x <span class="ot">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb27-11" title="11">    <span class="dt">Flattened</span> a <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (f a)</a>
+<a class="sourceLine" id="cb27-12" title="12">    <span class="dt">AlreadyFlat</span> <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb27-13" title="13">    <span class="dt">NeverFlat</span>   <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a></code></pre></div>
+<p>Now <code>flattenAttempt</code> tries to determine whether a document can be flattened. Using the invariants of <code>Union</code> it always takes the first option, and always takes the second option of a <code>FlatAlt</code>.</p>
+<p>The output is <code>Flattened</code> when the document represents more than one layout that can be flattened, <code>AlreadyFlat</code> if it contains only one layout, and <code>NeverFlat</code> if it cannot be flattened because it contains a <code>Line</code> or <code>Fail</code>.</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" title="1">flattenAttempt</a>
+<a class="sourceLine" id="cb28-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">FlattenResult</span> (<span class="dt">Doc</span> a)</a>
+<a class="sourceLine" id="cb28-3" title="3">flattenAttempt doc <span class="ot">=</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-4" title="4">  <span class="dt">Fail</span>     <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb28-5" title="5">  <span class="dt">Empty</span>    <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb28-6" title="6">  <span class="dt">Line</span>     <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb28-7" title="7">  <span class="dt">Char</span> _   <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb28-8" title="8">  <span class="dt">Text</span> _ _ <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb28-9" title="9">  <span class="dt">Nest</span> i x <span class="ot">-&gt;</span> <span class="fu">fmap</span> (<span class="dt">Nest</span> i) (flattenAttempt x)</a>
+<a class="sourceLine" id="cb28-10" title="10"></a>
+<a class="sourceLine" id="cb28-11" title="11">  <span class="dt">Cat</span> x y <span class="ot">-&gt;</span> <span class="kw">case</span> (flattenAttempt x, flattenAttempt y) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-12" title="12">    (<span class="dt">NeverFlat</span>    ,  _          ) <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb28-13" title="13">    (_            , <span class="dt">NeverFlat</span>   ) <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb28-14" title="14">    (<span class="dt">Flattened</span> x&#39; , <span class="dt">Flattened</span> y&#39;) <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">Cat</span> x&#39; y&#39;)</a>
+<a class="sourceLine" id="cb28-15" title="15">    (<span class="dt">Flattened</span> x&#39; , <span class="dt">AlreadyFlat</span> ) <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">Cat</span> x&#39; y)</a>
+<a class="sourceLine" id="cb28-16" title="16">    (<span class="dt">AlreadyFlat</span>  , <span class="dt">Flattened</span> y&#39;) <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">Cat</span> x y&#39;)</a>
+<a class="sourceLine" id="cb28-17" title="17">    (<span class="dt">AlreadyFlat</span>  , <span class="dt">AlreadyFlat</span> ) <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb28-18" title="18"></a>
+<a class="sourceLine" id="cb28-19" title="19">  <span class="dt">FlatAlt</span> _ y     <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (flatten y)</a>
+<a class="sourceLine" id="cb28-20" title="20">  <span class="dt">Union</span> x _       <span class="ot">-&gt;</span> <span class="dt">Flattened</span> x</a>
+<a class="sourceLine" id="cb28-21" title="21"></a>
+<a class="sourceLine" id="cb28-22" title="22">  <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">WithColumn</span> (flatten <span class="op">.</span> f))</a>
+<a class="sourceLine" id="cb28-23" title="23">  <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">WithNesting</span> (flatten <span class="op">.</span> f))</a>
+<a class="sourceLine" id="cb28-24" title="24">  <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">WithPageWidth</span> (flatten <span class="op">.</span> f))</a>
+<a class="sourceLine" id="cb28-25" title="25">  <span class="dt">Annotated</span> a x   <span class="ot">-&gt;</span> <span class="fu">fmap</span> (<span class="dt">Annotated</span> a) (flattenAttempt x)</a>
+<a class="sourceLine" id="cb28-26" title="26"></a>
+<a class="sourceLine" id="cb28-27" title="27">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb28-28" title="28">    <span class="co">-- Flatten, but don’t report whether anything changes.</span></a>
+<a class="sourceLine" id="cb28-29" title="29"><span class="ot">    flatten ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb28-30" title="30">    flatten doc <span class="ot">=</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb28-31" title="31">      <span class="dt">Fail</span>     <span class="ot">-&gt;</span> doc</a>
+<a class="sourceLine" id="cb28-32" title="32">      <span class="dt">Empty</span>    <span class="ot">-&gt;</span> doc</a>
+<a class="sourceLine" id="cb28-33" title="33">      <span class="dt">Line</span>     <span class="ot">-&gt;</span> <span class="dt">Fail</span></a>
+<a class="sourceLine" id="cb28-34" title="34">      <span class="dt">Char</span> _   <span class="ot">-&gt;</span> doc</a>
+<a class="sourceLine" id="cb28-35" title="35">      <span class="dt">Text</span> _ _ <span class="ot">-&gt;</span> doc</a>
+<a class="sourceLine" id="cb28-36" title="36">      <span class="dt">Nest</span> i x <span class="ot">-&gt;</span> <span class="dt">Nest</span> i (flatten x)</a>
+<a class="sourceLine" id="cb28-37" title="37"></a>
+<a class="sourceLine" id="cb28-38" title="38">      <span class="dt">Cat</span> x y     <span class="ot">-&gt;</span> <span class="dt">Cat</span> (flatten x) (flatten y)</a>
+<a class="sourceLine" id="cb28-39" title="39">      <span class="dt">FlatAlt</span> _ y <span class="ot">-&gt;</span> flatten y</a>
+<a class="sourceLine" id="cb28-40" title="40">      <span class="dt">Union</span> x _   <span class="ot">-&gt;</span> flatten x</a>
+<a class="sourceLine" id="cb28-41" title="41"></a>
+<a class="sourceLine" id="cb28-42" title="42">      <span class="dt">WithColumn</span> f    <span class="ot">-&gt;</span> <span class="dt">WithColumn</span> (flatten <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb28-43" title="43">      <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">WithPageWidth</span> (flatten <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb28-44" title="44">      <span class="dt">WithNesting</span> f   <span class="ot">-&gt;</span> <span class="dt">WithNesting</span> (flatten <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb28-45" title="45">      <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="dt">Annotated</span> ann (flatten x)</a></code></pre></div>
+<p>To make the effects of <code>group</code> available in our documents we also define <code>flatAlt</code>: this combinator renders its first argument by default, but falls back to the second when it is subject to a <code>group</code> operator. It's up to us to make sure the two options are semantically equivalent. Also, note that the layout algorithm depends on <code>group</code> shrinking the width of its input, and <code>flatAlt</code> does not enforce this. So remember to make the second argument of <code>flatAlt</code> narrower than the first.</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" title="1">flatAlt</a>
+<a class="sourceLine" id="cb29-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="co">-- default</span></a>
+<a class="sourceLine" id="cb29-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="co">-- group fallback</span></a>
+<a class="sourceLine" id="cb29-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb29-5" title="5">flatAlt <span class="ot">=</span> <span class="dt">FlatAlt</span></a></code></pre></div>
+<p><code>group</code> is a subtle and important combinator; it will be easier to give good examples when we have a few more primitives available. But we can see some examples using <code>flatAlt</code>.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb30-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb30-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb30-4" title="4"><span class="co">--   flatAlt (char &#39;a&#39;) (char &#39;b&#39;)</span></a>
+<a class="sourceLine" id="cb30-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb30-6" title="6"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb30-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb30-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb30-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb30-10" title="10"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb30-11" title="11"><span class="co">--   group (flatAlt (char &#39;a&#39;) (char &#39;b&#39;))</span></a>
+<a class="sourceLine" id="cb30-12" title="12"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb30-13" title="13"><span class="co">-- b</span></a></code></pre></div>
+</div>
+</section>
+<section class="level2">
+<h2>Many Flavors of Concatenation</h2>
+<p>We start with a generic concatenation function, parameterized on a binary concat function.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" title="1">concatWith</a>
+<a class="sourceLine" id="cb31-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Foldable</span> t )</a>
+<a class="sourceLine" id="cb31-3" title="3">  <span class="ot">=&gt;</span> (<span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a)</a>
+<a class="sourceLine" id="cb31-4" title="4">  <span class="ot">-&gt;</span> t (<span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb31-5" title="5">concatWith f ds <span class="ot">=</span> <span class="kw">if</span> <span class="fu">null</span> ds</a>
+<a class="sourceLine" id="cb31-6" title="6">  <span class="kw">then</span> emptyDoc</a>
+<a class="sourceLine" id="cb31-7" title="7">  <span class="kw">else</span> <span class="fu">foldr1</span> f ds</a></code></pre></div>
+<p><code>hcat</code> concatenates documents horizontally with nothing between them; this is identical to <code>mconcat</code> on documents.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" title="1">hcat</a>
+<a class="sourceLine" id="cb32-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb32-3" title="3">hcat <span class="ot">=</span> concatWith (<span class="op">&lt;&gt;</span>)</a></code></pre></div>
+<p>An example:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb33-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb33-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb33-4" title="4"><span class="co">--   hcat [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb33-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb33-6" title="6"><span class="co">-- abc</span></a></code></pre></div>
+</div>
+<p><code>hsep</code> concatenates documents horizontally with a space between them, using <code>&lt;+&gt;</code>. Note that it will not introduce line breaks, and if used carelessly can result in documents that will not fit on the line.</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" title="1">hsep</a>
+<a class="sourceLine" id="cb34-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb34-3" title="3">hsep <span class="ot">=</span> concatWith (<span class="op">&lt;+&gt;</span>)</a></code></pre></div>
+<p>An example:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb35-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb35-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb35-4" title="4"><span class="co">--   hsep [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb35-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb35-6" title="6"><span class="co">-- a b c</span></a></code></pre></div>
+</div>
+<p><code>vcat</code> vertically concatenates documents by interspersing <code>lineE</code> between them. Inside a <code>group</code>, the line breaks are removed (and replaced with nothing).</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" title="1">vcat</a>
+<a class="sourceLine" id="cb36-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb36-3" title="3">vcat <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> lineE <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb37-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb37-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb37-4" title="4"><span class="co">--   vcat [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb37-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb37-6" title="6"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb37-7" title="7"><span class="co">-- b</span></a>
+<a class="sourceLine" id="cb37-8" title="8"><span class="co">-- c</span></a>
+<a class="sourceLine" id="cb37-9" title="9"><span class="co">--</span></a>
+<a class="sourceLine" id="cb37-10" title="10"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb37-11" title="11"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb37-12" title="12"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb37-13" title="13"><span class="co">--   group $ vcat [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb37-14" title="14"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb37-15" title="15"><span class="co">-- abc</span></a></code></pre></div>
+</div>
+<p><code>vsep</code> vertically concatenates documents by interspersing <code>lineS</code> between them. Inside a <code>group</code>, the line breaks are replaced by spaces.</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" title="1">vsep</a>
+<a class="sourceLine" id="cb38-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb38-3" title="3">vsep <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> lineS <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb39-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb39-3" title="3"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb39-4" title="4"><span class="co">--   vsep [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb39-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb39-6" title="6"><span class="co">-- a</span></a>
+<a class="sourceLine" id="cb39-7" title="7"><span class="co">-- b</span></a>
+<a class="sourceLine" id="cb39-8" title="8"><span class="co">-- c</span></a>
+<a class="sourceLine" id="cb39-9" title="9"><span class="co">--</span></a>
+<a class="sourceLine" id="cb39-10" title="10"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb39-11" title="11"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb39-12" title="12"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb39-13" title="13"><span class="co">--   char &#39;d&#39; &lt;+&gt;</span></a>
+<a class="sourceLine" id="cb39-14" title="14"><span class="co">--     (align $ vsep [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;])</span></a>
+<a class="sourceLine" id="cb39-15" title="15"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb39-16" title="16"><span class="co">-- d a</span></a>
+<a class="sourceLine" id="cb39-17" title="17"><span class="co">--   b</span></a>
+<a class="sourceLine" id="cb39-18" title="18"><span class="co">--   c</span></a>
+<a class="sourceLine" id="cb39-19" title="19"><span class="co">--</span></a>
+<a class="sourceLine" id="cb39-20" title="20"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb39-21" title="21"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb39-22" title="22"><span class="co">-- printDoc pretty $</span></a>
+<a class="sourceLine" id="cb39-23" title="23"><span class="co">--   group $ vsep [char &#39;a&#39;, char &#39;b&#39;, char &#39;c&#39;]</span></a>
+<a class="sourceLine" id="cb39-24" title="24"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb39-25" title="25"><span class="co">-- a b c</span></a></code></pre></div>
+</div>
+<p>Finally, we can use <code>vsep</code> to define primitives for <code>String</code> and <code>Text</code>. Note how <code>text</code> preserves the <code>Doc</code> constructors' invariants. <code>reflow</code> is a helper function for turning paragraphs into documents.</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" title="1"><span class="ot">text ::</span> <span class="dt">T.Text</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb40-2" title="2">text <span class="ot">=</span> vsep <span class="op">.</span> <span class="fu">map</span> f <span class="op">.</span> T.splitOn <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb40-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb40-4" title="4">    <span class="co">-- invariant: x contains no &#39;\n&#39;s</span></a>
+<a class="sourceLine" id="cb40-5" title="5">    f x <span class="ot">=</span> <span class="kw">case</span> T.uncons x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb40-6" title="6">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb40-7" title="7">      <span class="dt">Just</span> (c,cs) <span class="ot">-&gt;</span> <span class="kw">if</span> T.null cs</a>
+<a class="sourceLine" id="cb40-8" title="8">        <span class="kw">then</span> <span class="dt">Char</span> c</a>
+<a class="sourceLine" id="cb40-9" title="9">        <span class="kw">else</span> <span class="dt">Text</span> (T.length x) x</a>
+<a class="sourceLine" id="cb40-10" title="10"></a>
+<a class="sourceLine" id="cb40-11" title="11"><span class="ot">string ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb40-12" title="12">string <span class="ot">=</span> text <span class="op">.</span> T.pack</a>
+<a class="sourceLine" id="cb40-13" title="13"></a>
+<a class="sourceLine" id="cb40-14" title="14">reflow</a>
+<a class="sourceLine" id="cb40-15" title="15"><span class="ot">  ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb40-16" title="16">reflow <span class="ot">=</span> fillSep <span class="op">.</span> <span class="fu">map</span> string <span class="op">.</span> L.words</a>
+<a class="sourceLine" id="cb40-17" title="17"></a>
+<a class="sourceLine" id="cb40-18" title="18"><span class="kw">instance</span> <span class="dt">IsString</span> (<span class="dt">Doc</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb40-19" title="19">  fromString <span class="ot">=</span> string</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb41-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb41-3" title="3"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb41-4" title="4"><span class="co">--   string &quot;this is a chunk of text too wide to fit&quot;</span></a>
+<a class="sourceLine" id="cb41-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb41-6" title="6"><span class="co">-- this is a chunk of text too wide to fit</span></a></code></pre></div>
+</div>
+<p><code>fillCat</code> concatenates documents horizontally with <code>&lt;&gt;</code> as long as doing so fits on the line, and otherwise inserts a line break before continuing to concatenate with <code>&lt;&gt;</code>. This is analogous to word wrapping in a text editor except that adjacent documents are not separated by anything.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" title="1">fillCat</a>
+<a class="sourceLine" id="cb42-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb42-3" title="3">fillCat <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> softlineE <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb43-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb43-3" title="3"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb43-4" title="4"><span class="co">--   fillCat</span></a>
+<a class="sourceLine" id="cb43-5" title="5"><span class="co">--     [ string &quot;this&quot;, string &quot;is&quot;, string &quot;a&quot;</span></a>
+<a class="sourceLine" id="cb43-6" title="6"><span class="co">--     , string &quot;chunk&quot;, string &quot;of&quot;, string &quot;text&quot;</span></a>
+<a class="sourceLine" id="cb43-7" title="7"><span class="co">--     , string &quot;too&quot;, string &quot;wide&quot;, string &quot;to&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb43-8" title="8"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb43-9" title="9"><span class="co">-- thisisachunkof</span></a>
+<a class="sourceLine" id="cb43-10" title="10"><span class="co">-- texttoowideto</span></a>
+<a class="sourceLine" id="cb43-11" title="11"><span class="co">-- fit</span></a>
+<a class="sourceLine" id="cb43-12" title="12"><span class="co">--</span></a>
+<a class="sourceLine" id="cb43-13" title="13"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb43-14" title="14"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb43-15" title="15"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb43-16" title="16"><span class="co">--   group $ fillCat</span></a>
+<a class="sourceLine" id="cb43-17" title="17"><span class="co">--     [ string &quot;this&quot;, string &quot;is&quot;, string &quot;a&quot;</span></a>
+<a class="sourceLine" id="cb43-18" title="18"><span class="co">--     , string &quot;chunk&quot;, string &quot;of&quot;, string &quot;text&quot;</span></a>
+<a class="sourceLine" id="cb43-19" title="19"><span class="co">--     , string &quot;too&quot;, string &quot;wide&quot;, string &quot;to&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb43-20" title="20"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb43-21" title="21"><span class="co">-- thisisachunkof</span></a>
+<a class="sourceLine" id="cb43-22" title="22"><span class="co">-- texttoowideto</span></a>
+<a class="sourceLine" id="cb43-23" title="23"><span class="co">-- fit</span></a>
+<a class="sourceLine" id="cb43-24" title="24"><span class="co">--</span></a>
+<a class="sourceLine" id="cb43-25" title="25"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb43-26" title="26"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb43-27" title="27"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb43-28" title="28"><span class="co">--   string &quot;howdy:&quot; &lt;+&gt; fillCat</span></a>
+<a class="sourceLine" id="cb43-29" title="29"><span class="co">--     [ string &quot;this&quot;, string &quot;is&quot;, string &quot;a&quot;</span></a>
+<a class="sourceLine" id="cb43-30" title="30"><span class="co">--     , string &quot;chunk&quot;, string &quot;of&quot;, string &quot;text&quot;</span></a>
+<a class="sourceLine" id="cb43-31" title="31"><span class="co">--     , string &quot;too&quot;, string &quot;wide&quot;, string &quot;to&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb43-32" title="32"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb43-33" title="33"><span class="co">-- howdy: thisisa</span></a>
+<a class="sourceLine" id="cb43-34" title="34"><span class="co">-- chunkoftexttoo</span></a>
+<a class="sourceLine" id="cb43-35" title="35"><span class="co">-- widetofit</span></a></code></pre></div>
+</div>
+<p><code>fillSep</code> is analogous to <code>fillCat</code>, but concatenates with a space between unless inserting a line break.</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" title="1">fillSep</a>
+<a class="sourceLine" id="cb44-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb44-3" title="3">fillSep <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> softlineS <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb45"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb45-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb45-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb45-3" title="3"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb45-4" title="4"><span class="co">--   fillSep</span></a>
+<a class="sourceLine" id="cb45-5" title="5"><span class="co">--     [ string &quot;this&quot;, string &quot;is&quot;, string &quot;a&quot;</span></a>
+<a class="sourceLine" id="cb45-6" title="6"><span class="co">--     , string &quot;chunk&quot;, string &quot;of&quot;, string &quot;text&quot;</span></a>
+<a class="sourceLine" id="cb45-7" title="7"><span class="co">--     , string &quot;too&quot;, string &quot;wide&quot;, string &quot;to&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb45-8" title="8"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb45-9" title="9"><span class="co">-- this is a chunk</span></a>
+<a class="sourceLine" id="cb45-10" title="10"><span class="co">-- of text too</span></a>
+<a class="sourceLine" id="cb45-11" title="11"><span class="co">-- wide to fit</span></a>
+<a class="sourceLine" id="cb45-12" title="12"><span class="co">--</span></a>
+<a class="sourceLine" id="cb45-13" title="13"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb45-14" title="14"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb45-15" title="15"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb45-16" title="16"><span class="co">--   group $ fillSep</span></a>
+<a class="sourceLine" id="cb45-17" title="17"><span class="co">--     [ string &quot;this&quot;, string &quot;is&quot;, string &quot;a&quot;</span></a>
+<a class="sourceLine" id="cb45-18" title="18"><span class="co">--     , string &quot;chunk&quot;, string &quot;of&quot;, string &quot;text&quot;</span></a>
+<a class="sourceLine" id="cb45-19" title="19"><span class="co">--     , string &quot;too&quot;, string &quot;wide&quot;, string &quot;to&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb45-20" title="20"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb45-21" title="21"><span class="co">-- this is a chunk</span></a>
+<a class="sourceLine" id="cb45-22" title="22"><span class="co">-- of text too</span></a>
+<a class="sourceLine" id="cb45-23" title="23"><span class="co">-- wide to fit</span></a>
+<a class="sourceLine" id="cb45-24" title="24"><span class="co">--</span></a>
+<a class="sourceLine" id="cb45-25" title="25"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb45-26" title="26"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb45-27" title="27"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb45-28" title="28"><span class="co">--   string &quot;howdy:&quot; &lt;+&gt; fillSep</span></a>
+<a class="sourceLine" id="cb45-29" title="29"><span class="co">--     [ string &quot;this&quot;, string &quot;is&quot;, string &quot;a&quot;</span></a>
+<a class="sourceLine" id="cb45-30" title="30"><span class="co">--     , string &quot;chunk&quot;, string &quot;of&quot;, string &quot;text&quot;</span></a>
+<a class="sourceLine" id="cb45-31" title="31"><span class="co">--     , string &quot;too&quot;, string &quot;wide&quot;, string &quot;to&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb45-32" title="32"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb45-33" title="33"><span class="co">-- howdy: this is</span></a>
+<a class="sourceLine" id="cb45-34" title="34"><span class="co">-- a chunk of text</span></a>
+<a class="sourceLine" id="cb45-35" title="35"><span class="co">-- too wide to fit</span></a></code></pre></div>
+</div>
+<p><code>cat</code> attempts to lay out a list of documents separated by nothing, but if this does not fit, separates them <em>all</em> with newlines.</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb46-1" title="1">cat</a>
+<a class="sourceLine" id="cb46-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb46-3" title="3">cat <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> vcat</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb47"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb47-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb47-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb47-3" title="3"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb47-4" title="4"><span class="co">--   cat [ string &quot;this&quot;, string &quot;fits&quot; ]</span></a>
+<a class="sourceLine" id="cb47-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb47-6" title="6"><span class="co">-- thisfits</span></a>
+<a class="sourceLine" id="cb47-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb47-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb47-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb47-10" title="10"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb47-11" title="11"><span class="co">--   cat</span></a>
+<a class="sourceLine" id="cb47-12" title="12"><span class="co">--     [ string &quot;this&quot;, string &quot;does&quot;</span></a>
+<a class="sourceLine" id="cb47-13" title="13"><span class="co">--     , string &quot;not&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb47-14" title="14"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb47-15" title="15"><span class="co">-- this</span></a>
+<a class="sourceLine" id="cb47-16" title="16"><span class="co">-- does</span></a>
+<a class="sourceLine" id="cb47-17" title="17"><span class="co">-- not</span></a>
+<a class="sourceLine" id="cb47-18" title="18"><span class="co">-- fit</span></a></code></pre></div>
+</div>
+<p><code>sep</code> is analogous to <code>cat</code>, but attempts to separate its arguments with spaces before falling back to newlines.</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb48-1" title="1">sep</a>
+<a class="sourceLine" id="cb48-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb48-3" title="3">sep <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> vsep</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb49"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb49-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb49-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb49-3" title="3"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb49-4" title="4"><span class="co">--   sep [ string &quot;this&quot;, string &quot;fits&quot; ]</span></a>
+<a class="sourceLine" id="cb49-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb49-6" title="6"><span class="co">-- this fits</span></a>
+<a class="sourceLine" id="cb49-7" title="7"><span class="co">--</span></a>
+<a class="sourceLine" id="cb49-8" title="8"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb49-9" title="9"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb49-10" title="10"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb49-11" title="11"><span class="co">--   sep</span></a>
+<a class="sourceLine" id="cb49-12" title="12"><span class="co">--     [ string &quot;this&quot;, string &quot;does&quot;</span></a>
+<a class="sourceLine" id="cb49-13" title="13"><span class="co">--     , string &quot;not&quot;, string &quot;fit&quot; ]</span></a>
+<a class="sourceLine" id="cb49-14" title="14"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb49-15" title="15"><span class="co">-- this</span></a>
+<a class="sourceLine" id="cb49-16" title="16"><span class="co">-- does</span></a>
+<a class="sourceLine" id="cb49-17" title="17"><span class="co">-- not</span></a>
+<a class="sourceLine" id="cb49-18" title="18"><span class="co">-- fit</span></a></code></pre></div>
+</div>
+</section>
+<section class="level2">
+<h2>Reactive Combinators</h2>
+<p>We have three primitive <em>reactive</em> combinators, allowing us to describe layouts that depend on the current column number, the page width, and the nesting level.</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb50-1" title="1">withColumn</a>
+<a class="sourceLine" id="cb50-2" title="2"><span class="ot">  ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb50-3" title="3">withColumn <span class="ot">=</span> <span class="dt">WithColumn</span></a>
+<a class="sourceLine" id="cb50-4" title="4"></a>
+<a class="sourceLine" id="cb50-5" title="5">withPageWidth</a>
+<a class="sourceLine" id="cb50-6" title="6"><span class="ot">  ::</span> (<span class="dt">PageWidth</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb50-7" title="7">withPageWidth <span class="ot">=</span> <span class="dt">WithPageWidth</span></a>
+<a class="sourceLine" id="cb50-8" title="8"></a>
+<a class="sourceLine" id="cb50-9" title="9">withNesting</a>
+<a class="sourceLine" id="cb50-10" title="10"><span class="ot">  ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb50-11" title="11">withNesting <span class="ot">=</span> <span class="dt">WithNesting</span></a></code></pre></div>
+<p>One application of these is the <em>width</em> combinator, which lays out one document and makes its width (in columns) available to another.</p>
+<div class="sourceCode" id="cb51"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb51-1" title="1">width</a>
+<a class="sourceLine" id="cb51-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann) <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb51-3" title="3">width doc f <span class="ot">=</span></a>
+<a class="sourceLine" id="cb51-4" title="4">  withColumn (\colStart <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb51-5" title="5">    doc <span class="op">&lt;&gt;</span> withColumn (\colEnd <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb51-6" title="6">      f (colEnd <span class="op">-</span> colStart)))</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb52"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb52-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb52-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb52-3" title="3"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb52-4" title="4"><span class="co">--   width (string &quot;xxxxx&quot;)</span></a>
+<a class="sourceLine" id="cb52-5" title="5"><span class="co">--     (\k -&gt; string &quot;&lt;- width:&quot; &lt;+&gt; string (show k))</span></a>
+<a class="sourceLine" id="cb52-6" title="6"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb52-7" title="7"><span class="co">-- xxxxx&lt;- width: 5</span></a>
+<a class="sourceLine" id="cb52-8" title="8"><span class="co">--</span></a>
+<a class="sourceLine" id="cb52-9" title="9"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb52-10" title="10"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb52-11" title="11"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb52-12" title="12"><span class="co">--   width (string &quot;xxxxx&quot; &lt;&gt; indent 2 (string &quot;yy&quot;))</span></a>
+<a class="sourceLine" id="cb52-13" title="13"><span class="co">--     (\k -&gt; string &quot;&lt;- width:&quot; &lt;+&gt; string (show k))</span></a>
+<a class="sourceLine" id="cb52-14" title="14"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb52-15" title="15"><span class="co">-- xxxxx  yy&lt;- width: 9</span></a>
+<a class="sourceLine" id="cb52-16" title="16"><span class="co">--</span></a>
+<a class="sourceLine" id="cb52-17" title="17"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb52-18" title="18"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb52-19" title="19"><span class="co">-- printDoc (prettyWith 10 1.0) $</span></a>
+<a class="sourceLine" id="cb52-20" title="20"><span class="co">--   string &quot;zzz&quot; &lt;+&gt; align</span></a>
+<a class="sourceLine" id="cb52-21" title="21"><span class="co">--     (width (string &quot;xxxxx&quot; &lt;&gt; hardline &lt;&gt; string &quot;yy&quot;)</span></a>
+<a class="sourceLine" id="cb52-22" title="22"><span class="co">--       (\k -&gt; string &quot;&lt;- width:&quot; &lt;+&gt; string (show k)))</span></a>
+<a class="sourceLine" id="cb52-23" title="23"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb52-24" title="24"><span class="co">-- zzz xxxxx</span></a>
+<a class="sourceLine" id="cb52-25" title="25"><span class="co">--     yy&lt;- width: 2</span></a></code></pre></div>
+</div>
+<p>The <code>fill</code> combinator pads a document on the right to a given length using spaces.</p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb53-1" title="1">fill</a>
+<a class="sourceLine" id="cb53-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb53-3" title="3">fill n doc <span class="ot">=</span> width doc (\w <span class="ot">-&gt;</span> spaces (n <span class="op">-</span> w))</a></code></pre></div>
+<p>An example:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb54"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb54-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb54-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb54-3" title="3"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb54-4" title="4"><span class="co">--   align (vcat $ map (\(a, b) -&gt; fill 4 a &lt;&gt; char &#39;:&#39; &lt;+&gt; b)</span></a>
+<a class="sourceLine" id="cb54-5" title="5"><span class="co">--     [ (string &quot;a&quot;, string &quot;A&quot;), (string &quot;foo&quot;, string &quot;FOO&quot;)</span></a>
+<a class="sourceLine" id="cb54-6" title="6"><span class="co">--     , (string &quot;munge&quot;, string &quot;MUNGE&quot;) ])</span></a>
+<a class="sourceLine" id="cb54-7" title="7"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb54-8" title="8"><span class="co">-- a   : A</span></a>
+<a class="sourceLine" id="cb54-9" title="9"><span class="co">-- foo : FOO</span></a>
+<a class="sourceLine" id="cb54-10" title="10"><span class="co">-- munge: MUNGE</span></a></code></pre></div>
+</div>
+<p><code>fillBreak</code> is similar to fill, but inserts a line break an adjusts the nesting level if the input document is wider than the padding width.</p>
+<div class="sourceCode" id="cb55"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb55-1" title="1">fillBreak</a>
+<a class="sourceLine" id="cb55-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb55-3" title="3">fillBreak f x <span class="ot">=</span> width x (\w <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb55-4" title="4">  <span class="kw">if</span> w <span class="op">&gt;</span> f</a>
+<a class="sourceLine" id="cb55-5" title="5">    <span class="kw">then</span> nest f lineE</a>
+<a class="sourceLine" id="cb55-6" title="6">    <span class="kw">else</span> spaces (f <span class="op">-</span> w))</a></code></pre></div>
+<p>An example:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb56"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb56-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb56-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb56-3" title="3"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb56-4" title="4"><span class="co">--   align (vcat $ map (\(a, b) -&gt; fillBreak 4 a &lt;&gt; char &#39;:&#39; &lt;+&gt; b)</span></a>
+<a class="sourceLine" id="cb56-5" title="5"><span class="co">--     [ (string &quot;a&quot;, string &quot;A&quot;), (string &quot;foo&quot;, string &quot;FOO&quot;)</span></a>
+<a class="sourceLine" id="cb56-6" title="6"><span class="co">--     , (string &quot;munge&quot;, string &quot;MUNGE&quot;) ])</span></a>
+<a class="sourceLine" id="cb56-7" title="7"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb56-8" title="8"><span class="co">-- a   : A</span></a>
+<a class="sourceLine" id="cb56-9" title="9"><span class="co">-- foo : FOO</span></a>
+<a class="sourceLine" id="cb56-10" title="10"><span class="co">-- munge</span></a>
+<a class="sourceLine" id="cb56-11" title="11"><span class="co">--     : MUNGE</span></a></code></pre></div>
+</div>
+<p><code>ifColumn</code> lets us selectively alter a document if the starting column satisfies some predicate.</p>
+<div class="sourceCode" id="cb57"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb57-1" title="1">ifColumn</a>
+<a class="sourceLine" id="cb57-2" title="2"><span class="ot">  ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> (<span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb57-3" title="3">ifColumn p f doc <span class="ot">=</span></a>
+<a class="sourceLine" id="cb57-4" title="4">  withColumn <span class="op">$</span> \c <span class="ot">-&gt;</span> <span class="kw">if</span> p c</a>
+<a class="sourceLine" id="cb57-5" title="5">    <span class="kw">then</span> f doc</a>
+<a class="sourceLine" id="cb57-6" title="6">    <span class="kw">else</span> doc</a></code></pre></div>
+<div class="doctest">
+<div class="sourceCode" id="cb58"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb58-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb58-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb58-3" title="3"><span class="co">--   let</span></a>
+<a class="sourceLine" id="cb58-4" title="4"><span class="co">--     doc = ifColumn (== 0) ((string &quot;foo&quot;) &lt;+&gt;) (string &quot;bar&quot;)</span></a>
+<a class="sourceLine" id="cb58-5" title="5"><span class="co">--   in printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb58-6" title="6"><span class="co">--     align $ vcat</span></a>
+<a class="sourceLine" id="cb58-7" title="7"><span class="co">--       [ doc</span></a>
+<a class="sourceLine" id="cb58-8" title="8"><span class="co">--       , string &quot;&gt;&gt;&gt;&gt;&gt;&quot; &lt;+&gt; doc</span></a>
+<a class="sourceLine" id="cb58-9" title="9"><span class="co">--       ]</span></a>
+<a class="sourceLine" id="cb58-10" title="10"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb58-11" title="11"><span class="co">-- foo bar</span></a>
+<a class="sourceLine" id="cb58-12" title="12"><span class="co">-- &gt;&gt;&gt;&gt;&gt; bar</span></a></code></pre></div>
+</div>
+</section>
+<section class="level2">
+<h2>Lists</h2>
+<p>Here we define some helper functions for defining lists. The basic pattern used here is <code>encloseSep</code>, which intersperses a separator document between items in a list, and wraps the result between two delimiters. The use of <code>cat</code> here means the resulting document will be laid out on one line if it fits, and with one item per line (with separators at the beginning) otherwise.</p>
+<div class="sourceCode" id="cb59"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb59-1" title="1">encloseSep</a>
+<a class="sourceLine" id="cb59-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a   <span class="co">-- left delimiter</span></a>
+<a class="sourceLine" id="cb59-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a   <span class="co">-- right delimiter</span></a>
+<a class="sourceLine" id="cb59-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a   <span class="co">-- separator</span></a>
+<a class="sourceLine" id="cb59-5" title="5">  <span class="ot">-&gt;</span> [<span class="dt">Doc</span> a] <span class="co">-- input documents</span></a>
+<a class="sourceLine" id="cb59-6" title="6">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb59-7" title="7">encloseSep lhs rhs sep ds <span class="ot">=</span> <span class="kw">case</span> ds <span class="kw">of</span></a>
+<a class="sourceLine" id="cb59-8" title="8">  []  <span class="ot">-&gt;</span> lhs <span class="op">&lt;&gt;</span> rhs</a>
+<a class="sourceLine" id="cb59-9" title="9">  [d] <span class="ot">-&gt;</span> lhs <span class="op">&lt;&gt;</span> d <span class="op">&lt;&gt;</span> rhs</a>
+<a class="sourceLine" id="cb59-10" title="10">  _   <span class="ot">-&gt;</span> cat (<span class="fu">zipWith</span> (<span class="op">&lt;&gt;</span>) (lhs <span class="op">:</span> <span class="fu">repeat</span> sep) ds) <span class="op">&lt;&gt;</span> rhs</a></code></pre></div>
+<p>We also define some common delimited list patterns.</p>
+<div class="sourceCode" id="cb60"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb60-1" title="1"><span class="ot">brackList ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb60-2" title="2">brackList <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb60-3" title="3">  (flatAlt (text <span class="st">&quot;[ &quot;</span>) (text <span class="st">&quot;[&quot;</span>))</a>
+<a class="sourceLine" id="cb60-4" title="4">  (flatAlt (text <span class="st">&quot; ]&quot;</span>) (text <span class="st">&quot;]&quot;</span>))</a>
+<a class="sourceLine" id="cb60-5" title="5">  (text <span class="st">&quot;, &quot;</span>)</a>
+<a class="sourceLine" id="cb60-6" title="6"></a>
+<a class="sourceLine" id="cb60-7" title="7"><span class="ot">braceList ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb60-8" title="8">braceList <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb60-9" title="9">  (flatAlt (text <span class="st">&quot;{ &quot;</span>) (text <span class="st">&quot;{&quot;</span>))</a>
+<a class="sourceLine" id="cb60-10" title="10">  (flatAlt (text <span class="st">&quot; }&quot;</span>) (text <span class="st">&quot;}&quot;</span>))</a>
+<a class="sourceLine" id="cb60-11" title="11">  (text <span class="st">&quot;, &quot;</span>)</a>
+<a class="sourceLine" id="cb60-12" title="12"></a>
+<a class="sourceLine" id="cb60-13" title="13"><span class="ot">parenList ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb60-14" title="14">parenList <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb60-15" title="15">  (flatAlt (text <span class="st">&quot;( &quot;</span>) (text <span class="st">&quot;(&quot;</span>))</a>
+<a class="sourceLine" id="cb60-16" title="16">  (flatAlt (text <span class="st">&quot; )&quot;</span>) (text <span class="st">&quot;)&quot;</span>))</a>
+<a class="sourceLine" id="cb60-17" title="17">  (text <span class="st">&quot;, &quot;</span>)</a></code></pre></div>
+<p>Some examples:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb61"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb61-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb61-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb61-3" title="3"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb61-4" title="4"><span class="co">--   parenList [string &quot;foo&quot;, string &quot;barre&quot;, string &quot;mung&quot;]</span></a>
+<a class="sourceLine" id="cb61-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb61-6" title="6"><span class="co">-- ( foo</span></a>
+<a class="sourceLine" id="cb61-7" title="7"><span class="co">-- , barre</span></a>
+<a class="sourceLine" id="cb61-8" title="8"><span class="co">-- , mung )</span></a>
+<a class="sourceLine" id="cb61-9" title="9"><span class="co">--</span></a>
+<a class="sourceLine" id="cb61-10" title="10"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb61-11" title="11"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb61-12" title="12"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb61-13" title="13"><span class="co">--   string &quot;things:&quot; &lt;+&gt;</span></a>
+<a class="sourceLine" id="cb61-14" title="14"><span class="co">--     braceList [string &quot;foo&quot;, string &quot;barre&quot;, string &quot;mung&quot;]</span></a>
+<a class="sourceLine" id="cb61-15" title="15"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb61-16" title="16"><span class="co">-- things: { foo</span></a>
+<a class="sourceLine" id="cb61-17" title="17"><span class="co">-- , barre</span></a>
+<a class="sourceLine" id="cb61-18" title="18"><span class="co">-- , mung }</span></a>
+<a class="sourceLine" id="cb61-19" title="19"><span class="co">--</span></a>
+<a class="sourceLine" id="cb61-20" title="20"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb61-21" title="21"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb61-22" title="22"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb61-23" title="23"><span class="co">--   string &quot;things:&quot; &lt;+&gt;</span></a>
+<a class="sourceLine" id="cb61-24" title="24"><span class="co">--     align (brackList [string &quot;foo&quot;, string &quot;barre&quot;, string &quot;mung&quot;])</span></a>
+<a class="sourceLine" id="cb61-25" title="25"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb61-26" title="26"><span class="co">-- things: [ foo</span></a>
+<a class="sourceLine" id="cb61-27" title="27"><span class="co">--         , barre</span></a>
+<a class="sourceLine" id="cb61-28" title="28"><span class="co">--         , mung ]</span></a></code></pre></div>
+</div>
+<p><code>punctuate</code> concatenates a separator to the right of each item in a list except for the last one.</p>
+<div class="sourceCode" id="cb62"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb62-1" title="1">punctuate</a>
+<a class="sourceLine" id="cb62-2" title="2"><span class="ot">    ::</span> <span class="dt">Doc</span> ann <span class="co">-- ^ Punctuation, e.g. &#39;comma&#39;</span></a>
+<a class="sourceLine" id="cb62-3" title="3">    <span class="ot">-&gt;</span> [<span class="dt">Doc</span> ann]</a>
+<a class="sourceLine" id="cb62-4" title="4">    <span class="ot">-&gt;</span> [<span class="dt">Doc</span> ann]</a>
+<a class="sourceLine" id="cb62-5" title="5">punctuate p <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb62-6" title="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb62-7" title="7">    go []     <span class="ot">=</span> []</a>
+<a class="sourceLine" id="cb62-8" title="8">    go [d]    <span class="ot">=</span> [d]</a>
+<a class="sourceLine" id="cb62-9" title="9">    go (d<span class="op">:</span>ds) <span class="ot">=</span> (d <span class="op">&lt;&gt;</span> p) <span class="op">:</span> go ds</a></code></pre></div>
+<p>An example:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb63"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb63-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb63-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb63-3" title="3"><span class="co">-- printDoc (prettyWith 15 1.0) $</span></a>
+<a class="sourceLine" id="cb63-4" title="4"><span class="co">--   hsep $ punctuate (char &#39;,&#39;)</span></a>
+<a class="sourceLine" id="cb63-5" title="5"><span class="co">--     [string &quot;foo&quot;, string &quot;barre&quot;, string &quot;mung&quot;]</span></a>
+<a class="sourceLine" id="cb63-6" title="6"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb63-7" title="7"><span class="co">-- foo, barre, mung</span></a></code></pre></div>
+</div>
+</section>
+</article>
+</body>
+</html>

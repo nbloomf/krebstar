@@ -1,0 +1,8 @@
+resolver: lts-13.26
+
+packages:
+- .
+
+extra-deps:
+- ../kreb-format
+- ../kreb-prop

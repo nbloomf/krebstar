@@ -1,0 +1,11 @@
+resolver: lts-13.26
+
+packages:
+- .
+
+extra-deps:
+- ../kreb-control
+- ../kreb-format
+- ../kreb-prop
+- ../kreb-unit
+- ../kreb-category

@@ -1,0 +1,83 @@
+cabal-version:  2.4
+name:           kreb-prop
+version:        0.0.0.0
+description:    Please see the README on GitHub at <https://github.com/nbloomf/krebstar#readme>
+homepage:       https://github.com/nbloomf/krebstar#readme
+bug-reports:    https://github.com/nbloomf/krebstar/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD-3-Clause
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/krebstar
+
+library
+  default-language: Haskell2010
+  hs-source-dirs: src
+  exposed-modules:
+      Kreb.Prop
+    , Kreb.Prop.Sample
+    , Kreb.Prop.Arb
+    , Kreb.Prop.Check
+    , Kreb.Prop.Tests
+    , Kreb.Prop.Tasty
+    , Kreb.Prop.Alg
+    , Kreb.Prop.Fun
+    , Kreb.Prop.Build
+    , Kreb.Prop.StateMachine
+    , Kreb.Prop.Laws
+    , Kreb.Prop.Laws.Eq
+    , Kreb.Prop.Laws.Semigroup
+    , Kreb.Prop.Laws.Monoid
+    , Kreb.Prop.Laws.Functor
+    , Kreb.Prop.Laws.Foldable
+    , Kreb.Prop.Laws.Ringlike
+    , Kreb.Prop.Class
+    , Kreb.Prop.Class.FromZZ
+    , Kreb.Prop.Class.Positive
+    , Kreb.Prop.Class.MinMax
+  default-extensions:
+      ScopedTypeVariables
+    , TypeFamilies
+    , TypeApplications
+    , InstanceSigs
+    , RankNTypes
+    , GADTs
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.6.0.1
+    , tasty >=1.2
+    , random >=1.1
+    , kreb-control
+    , kreb-format
+
+test-suite kreb-prop-doctest
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: doctest, src
+  main-is: Kreb/Prop/DocTest.lhs
+  ghc-options:
+    -threaded
+  other-modules:
+      Kreb.Prop.DocTest.Suite
+  build-depends:
+      base >4 && <5
+    , doctest >=0.16.0.1
+
+test-suite kreb-prop-test
+  type: exitcode-stdio-1.0
+  default-language: Haskell2010
+  hs-source-dirs: test
+  main-is: Kreb/Prop/Test.lhs
+  other-modules:
+      Kreb.Prop.Test.Suite
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , tasty >=1.2
+    , kreb-format
+    , kreb-prop

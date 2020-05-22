@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>A Document Algebra</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/?config=TeX-AMS_CHTML-full" type="text/javascript"></script>
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">A Document Algebra</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE OverloadedStrings, BangPatterns #-}</span></a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Format.Format</span> (</a>
+<a class="sourceLine" id="cb2-2" title="2">    emptyDoc, isEmptyDoc</a>
+<a class="sourceLine" id="cb2-3" title="3">  , line, line&#39;, softline, softline&#39;, hardline</a>
+<a class="sourceLine" id="cb2-4" title="4">  , flatAlt</a>
+<a class="sourceLine" id="cb2-5" title="5">  , withColumn, withPageWidth, withNesting</a>
+<a class="sourceLine" id="cb2-6" title="6">  , nest, align, hang, indent</a>
+<a class="sourceLine" id="cb2-7" title="7">  , spaces, reflow</a>
+<a class="sourceLine" id="cb2-8" title="8">  , space</a>
+<a class="sourceLine" id="cb2-9" title="9">  , fillSep</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1">  , sep, vsep, vcat</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1">  , enclose, surround, parens, braces, braceList, braced, bracks</a>
+<a class="sourceLine" id="cb4-2" title="2">  , squoted, dquoted</a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1">  , concatWith</a>
+<a class="sourceLine" id="cb5-2" title="2">  , hcat, hsep</a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1">  , char, string, text</a></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">  , list, tupled</a>
+<a class="sourceLine" id="cb7-2" title="2">  , (<span class="op">&lt;+&gt;</span>)</a>
+<a class="sourceLine" id="cb7-3" title="3">) <span class="kw">where</span></a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span> <span class="kw">as</span> <span class="dt">T</span></a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.List</span> <span class="kw">as</span> <span class="dt">L</span></a>
+<a class="sourceLine" id="cb8-3" title="3"><span class="kw">import</span>           <span class="dt">Data.String</span></a></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1"><span class="kw">import</span> <span class="dt">Kreb.Format.Doc</span></a>
+<a class="sourceLine" id="cb9-2" title="2"><span class="kw">import</span> <span class="dt">Kreb.Format.Util</span></a></code></pre></div>
+<p>-- | The empty document behaves like @('pretty' "")@, so it has a height of 1. -- This may lead to surprising behaviour if we expect it to bear no weight -- inside e.g. 'vcat', where we get an empty line of output from it.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1">emptyDoc</a>
+<a class="sourceLine" id="cb10-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb10-3" title="3">emptyDoc <span class="ot">=</span> <span class="dt">Empty</span></a></code></pre></div>
+<p>-- | The @'line'@ document advances to the next line and indents to the current -- nesting level. Behaves like @'space'@ if the line break is undone by 'group'</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" title="1"><span class="ot">line ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb11-2" title="2">line <span class="ot">=</span> <span class="dt">FlatAlt</span> <span class="dt">Line</span> (<span class="dt">Char</span> <span class="ch">&#39; &#39;</span>)</a></code></pre></div>
+<p>-- | @'line''@ is like @'line'@, but behaves like @'mempty'@ if the line break -- is undone by 'group' (instead of @'space'@).</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" title="1"><span class="ot">line&#39; ::</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb12-2" title="2">line&#39; <span class="ot">=</span> <span class="dt">FlatAlt</span> <span class="dt">Line</span> emptyDoc</a></code></pre></div>
+<p>-- | @softline@ behaves like @'space'@ if the resulting output fits the page, -- otherwise like @'line'@.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" title="1"><span class="ot">softline ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb13-2" title="2">softline <span class="ot">=</span> <span class="dt">Union</span> (<span class="dt">Char</span> <span class="ch">&#39; &#39;</span>) <span class="dt">Line</span></a></code></pre></div>
+<p>-- | @'softline''@ is like @'softline'@, but behaves like @'mempty'@ if the -- resulting output does not fit on the page (instead of @'space'@). In other -- words, @'line'@ is to @'line''@ how @'softline'@ is to @'softline''@.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" title="1"><span class="ot">softline&#39; ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb14-2" title="2">softline&#39; <span class="ot">=</span> <span class="dt">Union</span> emptyDoc <span class="dt">Line</span></a></code></pre></div>
+<p>-- | A @'hardline'@ is /always/ laid out as a line break, even when 'group'ed or -- when there is plenty of space. Note that it might still be simply discarded -- if it is part of a 'flatAlt' inside a 'group'.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" title="1"><span class="ot">hardline ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb15-2" title="2">hardline <span class="ot">=</span> <span class="dt">Line</span></a></code></pre></div>
+<p>-- @('flatAlt' x fallback)@ renders as @x@ by default, but falls back to -- @fallback@ when 'group'ed. Since the layout algorithms rely on 'group' having -- an effect of shortening the width of the contained text, careless usage of -- 'flatAlt' with wide fallbacks might lead to unappealingly long lines.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" title="1">flatAlt</a>
+<a class="sourceLine" id="cb16-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="co">-- default</span></a>
+<a class="sourceLine" id="cb16-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="co">-- group fallback</span></a>
+<a class="sourceLine" id="cb16-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb16-5" title="5">flatAlt <span class="ot">=</span> <span class="dt">FlatAlt</span></a></code></pre></div>
+<p>-- Layout a document depending on which (0-based) column it starts on.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" title="1">withColumn</a>
+<a class="sourceLine" id="cb17-2" title="2"><span class="ot">  ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb17-3" title="3">withColumn <span class="ot">=</span> <span class="dt">WithColumn</span></a></code></pre></div>
+<p>-- | Layout a document depending on the page width, if one has been specified.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" title="1">withPageWidth</a>
+<a class="sourceLine" id="cb18-2" title="2"><span class="ot">  ::</span> (<span class="dt">PageWidth</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb18-3" title="3">withPageWidth <span class="ot">=</span> <span class="dt">WithPageWidth</span></a></code></pre></div>
+<p>-- Layout a document depending on the current nesting level.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" title="1">withNesting</a>
+<a class="sourceLine" id="cb19-2" title="2"><span class="ot">  ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb19-3" title="3">withNesting <span class="ot">=</span> <span class="dt">WithNesting</span></a></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" title="1"><span class="ot">spaces ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb20-2" title="2">spaces n <span class="ot">=</span> <span class="kw">case</span> <span class="fu">compare</span> n <span class="dv">1</span> <span class="kw">of</span></a>
+<a class="sourceLine" id="cb20-3" title="3">  <span class="dt">LT</span> <span class="ot">-&gt;</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb20-4" title="4">  <span class="dt">EQ</span> <span class="ot">-&gt;</span> <span class="dt">Char</span> <span class="ch">&#39; &#39;</span></a>
+<a class="sourceLine" id="cb20-5" title="5">  <span class="dt">GT</span> <span class="ot">-&gt;</span> <span class="dt">Text</span> n (textSpaces n)</a></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" title="1"><span class="ot">space ::</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb21-2" title="2">space <span class="ot">=</span> <span class="dt">Char</span> <span class="ch">&#39; &#39;</span></a></code></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" title="1"><span class="ot">squoted ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb22-2" title="2">squoted doc <span class="ot">=</span> char <span class="ch">&#39;\&#39;&#39;</span> <span class="op">&lt;&gt;</span> doc <span class="op">&lt;&gt;</span> char <span class="ch">&#39;\&#39;&#39;</span></a></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" title="1"><span class="ot">dquoted ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb23-2" title="2">dquoted doc <span class="ot">=</span> char <span class="ch">&#39;&quot;&#39;</span> <span class="op">&lt;&gt;</span> doc <span class="op">&lt;&gt;</span> char <span class="ch">&#39;&quot;&#39;</span></a></code></pre></div>
+<p>-- @('nest' i x)@ lays out the document @x@ with the current nesting level -- (indentation of the following lines) adjusted by @i@. Negative values are -- allowed, and decrease the nesting level accordingly.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" title="1">nest</a>
+<a class="sourceLine" id="cb24-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="co">-- Change of nesting level</span></a>
+<a class="sourceLine" id="cb24-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb24-4" title="4">nest k x <span class="ot">=</span> <span class="kw">if</span> k <span class="op">==</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb24-5" title="5">  <span class="kw">then</span> x</a>
+<a class="sourceLine" id="cb24-6" title="6">  <span class="kw">else</span> <span class="dt">Nest</span> k x</a></code></pre></div>
+<p>-- @('align' x)@ lays out the document @x@ with the nesting level set to the -- current column.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" title="1">align</a>
+<a class="sourceLine" id="cb25-2" title="2"><span class="ot">  ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb25-3" title="3">align d <span class="ot">=</span> withColumn <span class="op">$</span> \k <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb25-4" title="4">  withNesting <span class="op">$</span> \i <span class="ot">-&gt;</span> nest (k <span class="op">-</span> i) d</a></code></pre></div>
+<p>-- @('hang' i x)@ lays out the document @x@ with a nesting level set to the -- /current column/ plus @i@. Negative values are allowed, and decrease the -- nesting level accordingly.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" title="1">hang</a>
+<a class="sourceLine" id="cb26-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="co">-- Change of nesting level, relative to the start of the first line</span></a>
+<a class="sourceLine" id="cb26-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb26-4" title="4">hang i d <span class="ot">=</span> align (nest i d)</a></code></pre></div>
+<p>-- @('indent' i x)@ indents document @x@ with @i@ spaces, starting from the -- current cursor position.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" title="1">indent</a>
+<a class="sourceLine" id="cb27-2" title="2"><span class="ot">  ::</span> <span class="dt">Int</span> <span class="co">-- Number of spaces to increase indentation by</span></a>
+<a class="sourceLine" id="cb27-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb27-4" title="4">indent i d <span class="ot">=</span> hang i (spaces i <span class="op">&lt;&gt;</span> d)</a></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" title="1">concatWith</a>
+<a class="sourceLine" id="cb28-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Foldable</span> t )</a>
+<a class="sourceLine" id="cb28-3" title="3">  <span class="ot">=&gt;</span> (<span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a)</a>
+<a class="sourceLine" id="cb28-4" title="4">  <span class="ot">-&gt;</span> t (<span class="dt">Doc</span> a) <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb28-5" title="5">concatWith f ds <span class="ot">=</span> <span class="kw">if</span> <span class="fu">null</span> ds</a>
+<a class="sourceLine" id="cb28-6" title="6">  <span class="kw">then</span> emptyDoc</a>
+<a class="sourceLine" id="cb28-7" title="7">  <span class="kw">else</span> <span class="fu">foldr1</span> f ds</a></code></pre></div>
+<p>-- | @('hcat' xs)@ concatenates all documents @xs@ horizontally with @'&lt;&gt;'@ -- (i.e. without any spacing).</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" title="1">hcat</a>
+<a class="sourceLine" id="cb29-2" title="2"><span class="ot">  ::</span> [<span class="dt">Doc</span> a] <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb29-3" title="3">hcat <span class="ot">=</span> concatWith <span class="dt">Cat</span></a></code></pre></div>
+<p>-- | @('group' x)@ tries laying out @x@ into a single line by removing the -- contained line breaks; if this does not fit the page, @x@ is laid out without -- any changes. The 'group' function is key to layouts that adapt to available -- space nicely. -- -- See 'vcat', 'line', or 'flatAlt' for examples that are related, or make good -- use of it.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" title="1"><span class="fu">group</span><span class="ot"> ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb30-2" title="2"><span class="fu">group</span> x <span class="ot">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb30-3" title="3">  <span class="dt">Union</span>{} <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb30-4" title="4">  <span class="dt">FlatAlt</span> a b <span class="ot">-&gt;</span> <span class="kw">case</span> changesUponFlattening b <span class="kw">of</span></a>
+<a class="sourceLine" id="cb30-5" title="5">    <span class="dt">Flattened</span> b&#39; <span class="ot">-&gt;</span> <span class="dt">Union</span> b&#39; a</a>
+<a class="sourceLine" id="cb30-6" title="6">    <span class="dt">AlreadyFlat</span>  <span class="ot">-&gt;</span> <span class="dt">Union</span> b a</a>
+<a class="sourceLine" id="cb30-7" title="7">    <span class="dt">NeverFlat</span>    <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb30-8" title="8">  _ <span class="ot">-&gt;</span> <span class="kw">case</span> changesUponFlattening x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb30-9" title="9">    <span class="dt">Flattened</span> x&#39; <span class="ot">-&gt;</span> <span class="dt">Union</span> x&#39; x</a>
+<a class="sourceLine" id="cb30-10" title="10">    <span class="dt">AlreadyFlat</span>  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb30-11" title="11">    <span class="dt">NeverFlat</span>    <span class="ot">-&gt;</span> x</a></code></pre></div>
+<section class="level2">
+<h2>-- Note [Group: special flattening]</h2>
+<p>-- Since certain documents do not change under removal of newlines etc, there is -- no point in creating a 'Union' of the flattened and unflattened version – all -- this does is introducing two branches for the layout algorithm to take, -- resulting in potentially exponential behavior on deeply nested examples, such -- as -- -- pathological n = iterate (\x -&gt; hsep [x, sep []] ) "foobar" !! n -- -- See https://github.com/quchen/prettyprinter/issues/22 for the corresponding -- ticket.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" title="1"><span class="kw">data</span> <span class="dt">FlattenResult</span> a</a>
+<a class="sourceLine" id="cb31-2" title="2">  <span class="ot">=</span> <span class="dt">Flattened</span> a <span class="co">-- @a@ is likely flatter than the input.</span></a>
+<a class="sourceLine" id="cb31-3" title="3">  <span class="op">|</span> <span class="dt">AlreadyFlat</span> <span class="co">-- The input was already flat, e.g. a &#39;Text&#39;.</span></a>
+<a class="sourceLine" id="cb31-4" title="4">  <span class="op">|</span> <span class="dt">NeverFlat</span> <span class="co">-- The input couldn&#39;t be flattened: It contained a &#39;Line&#39; or &#39;Fail&#39;.</span></a></code></pre></div>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" title="1"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">FlattenResult</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb32-2" title="2">  <span class="fu">fmap</span> f (<span class="dt">Flattened</span> a) <span class="ot">=</span> <span class="dt">Flattened</span> (f a)</a>
+<a class="sourceLine" id="cb32-3" title="3">  <span class="fu">fmap</span> _ <span class="dt">AlreadyFlat</span>   <span class="ot">=</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb32-4" title="4">  <span class="fu">fmap</span> _ <span class="dt">NeverFlat</span>     <span class="ot">=</span> <span class="dt">NeverFlat</span></a></code></pre></div>
+<p>-- | Choose the first element of each @Union@, and discard the first field of -- all @FlatAlt@s. -- -- The result is 'Flattened' if the element might change depending on the layout -- algorithm (i.e. contains differently renderable sub-documents), and 'AlreadyFlat' -- if the document is static (e.g. contains only a plain 'Empty' node). -- 'NeverFlat' is returned when the document cannot be flattened because it -- contains a hard 'Line' or 'Fail'.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" title="1"><span class="ot">changesUponFlattening ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">FlattenResult</span> (<span class="dt">Doc</span> a)</a>
+<a class="sourceLine" id="cb33-2" title="2">changesUponFlattening <span class="ot">=</span> \doc <span class="ot">-&gt;</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb33-3" title="3">    <span class="dt">FlatAlt</span> _ y     <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (flatten y)</a>
+<a class="sourceLine" id="cb33-4" title="4">    <span class="dt">Line</span>            <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb33-5" title="5">    <span class="dt">Union</span> x _       <span class="ot">-&gt;</span> <span class="dt">Flattened</span> x</a>
+<a class="sourceLine" id="cb33-6" title="6">    <span class="dt">Nest</span> i x        <span class="ot">-&gt;</span> <span class="fu">fmap</span> (<span class="dt">Nest</span> i) (changesUponFlattening x)</a>
+<a class="sourceLine" id="cb33-7" title="7">    <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="fu">fmap</span> (<span class="dt">Annotated</span> ann) (changesUponFlattening x)</a>
+<a class="sourceLine" id="cb33-8" title="8"></a>
+<a class="sourceLine" id="cb33-9" title="9">    <span class="dt">WithColumn</span> f        <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">WithColumn</span> (flatten <span class="op">.</span> f))</a>
+<a class="sourceLine" id="cb33-10" title="10">    <span class="dt">WithNesting</span> f       <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">WithNesting</span> (flatten <span class="op">.</span> f))</a>
+<a class="sourceLine" id="cb33-11" title="11">    <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">WithPageWidth</span> (flatten <span class="op">.</span> f))</a></code></pre></div>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" title="1">    <span class="dt">Cat</span> x y <span class="ot">-&gt;</span> <span class="kw">case</span> (changesUponFlattening x, changesUponFlattening y) <span class="kw">of</span></a>
+<a class="sourceLine" id="cb34-2" title="2">        (<span class="dt">NeverFlat</span>    ,  _          ) <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb34-3" title="3">        (_            , <span class="dt">NeverFlat</span>   ) <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb34-4" title="4">        (<span class="dt">Flattened</span> x&#39; , <span class="dt">Flattened</span> y&#39;) <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">Cat</span> x&#39; y&#39;)</a>
+<a class="sourceLine" id="cb34-5" title="5">        (<span class="dt">Flattened</span> x&#39; , <span class="dt">AlreadyFlat</span> ) <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">Cat</span> x&#39; y)</a>
+<a class="sourceLine" id="cb34-6" title="6">        (<span class="dt">AlreadyFlat</span>  , <span class="dt">Flattened</span> y&#39;) <span class="ot">-&gt;</span> <span class="dt">Flattened</span> (<span class="dt">Cat</span> x y&#39;)</a>
+<a class="sourceLine" id="cb34-7" title="7">        (<span class="dt">AlreadyFlat</span>  , <span class="dt">AlreadyFlat</span> ) <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb35-1" title="1">    <span class="dt">Empty</span>  <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb35-2" title="2">    <span class="dt">Char</span>{} <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb35-3" title="3">    <span class="dt">Text</span>{} <span class="ot">-&gt;</span> <span class="dt">AlreadyFlat</span></a>
+<a class="sourceLine" id="cb35-4" title="4">    <span class="dt">Fail</span>   <span class="ot">-&gt;</span> <span class="dt">NeverFlat</span></a>
+<a class="sourceLine" id="cb35-5" title="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb35-6" title="6">    <span class="co">-- Flatten, but don’t report whether anything changes.</span></a>
+<a class="sourceLine" id="cb35-7" title="7"><span class="ot">    flatten ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb35-8" title="8">    flatten <span class="ot">=</span> \doc <span class="ot">-&gt;</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb35-9" title="9">        <span class="dt">FlatAlt</span> _ y     <span class="ot">-&gt;</span> flatten y</a>
+<a class="sourceLine" id="cb35-10" title="10">        <span class="dt">Cat</span> x y         <span class="ot">-&gt;</span> <span class="dt">Cat</span> (flatten x) (flatten y)</a>
+<a class="sourceLine" id="cb35-11" title="11">        <span class="dt">Nest</span> i x        <span class="ot">-&gt;</span> <span class="dt">Nest</span> i (flatten x)</a>
+<a class="sourceLine" id="cb35-12" title="12">        <span class="dt">Line</span>            <span class="ot">-&gt;</span> <span class="dt">Fail</span></a>
+<a class="sourceLine" id="cb35-13" title="13">        <span class="dt">Union</span> x _       <span class="ot">-&gt;</span> flatten x</a>
+<a class="sourceLine" id="cb35-14" title="14">        <span class="dt">WithColumn</span> f        <span class="ot">-&gt;</span> <span class="dt">WithColumn</span> (flatten <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb35-15" title="15">        <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">WithPageWidth</span> (flatten <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb35-16" title="16">        <span class="dt">WithNesting</span> f       <span class="ot">-&gt;</span> <span class="dt">WithNesting</span> (flatten <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb35-17" title="17">        <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="dt">Annotated</span> ann (flatten x)</a></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb36-1" title="1">        x<span class="op">@</span><span class="dt">Fail</span>   <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb36-2" title="2">        x<span class="op">@</span><span class="dt">Empty</span>  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb36-3" title="3">        x<span class="op">@</span><span class="dt">Char</span>{} <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb36-4" title="4">        x<span class="op">@</span><span class="dt">Text</span>{} <span class="ot">-&gt;</span> x</a></code></pre></div>
+<p>-- | @('encloseSep' l r sep xs)@ concatenates the documents @xs@ separated by -- @sep@, and encloses the resulting document by @l@ and @r@. -- -- The documents are laid out horizontally if that fits the page, -- -- &gt;&gt;&gt; let doc = "list" &lt;+&gt; align (encloseSep lbracket rbracket comma (map pretty [1,20,300,4000])) -- &gt;&gt;&gt; putDocW 80 doc -- list [1,20,300,4000] -- -- If there is not enough space, then the input is split into lines entry-wise -- therwise they are laid out vertically, with separators put in the front: -- -- &gt;&gt;&gt; putDocW 10 doc -- list [1 -- ,20 -- ,300 -- ,4000] -- -- Note that @doc@ contains an explicit call to 'align' so that the list items -- are aligned vertically. -- -- For putting separators at the end of entries instead, have a look at -- 'punctuate'.</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb37-1" title="1">encloseSep</a>
+<a class="sourceLine" id="cb37-2" title="2"><span class="ot">    ::</span> <span class="dt">Doc</span> a   <span class="co">-- ^ left delimiter</span></a>
+<a class="sourceLine" id="cb37-3" title="3">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> a   <span class="co">-- ^ right delimiter</span></a>
+<a class="sourceLine" id="cb37-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> a   <span class="co">-- ^ separator</span></a>
+<a class="sourceLine" id="cb37-5" title="5">    <span class="ot">-&gt;</span> [<span class="dt">Doc</span> a] <span class="co">-- ^ input documents</span></a>
+<a class="sourceLine" id="cb37-6" title="6">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb37-7" title="7">encloseSep l r s ds <span class="ot">=</span> <span class="kw">case</span> ds <span class="kw">of</span></a>
+<a class="sourceLine" id="cb37-8" title="8">    []  <span class="ot">-&gt;</span> l <span class="op">&lt;&gt;</span> r</a>
+<a class="sourceLine" id="cb37-9" title="9">    [d] <span class="ot">-&gt;</span> l <span class="op">&lt;&gt;</span> d <span class="op">&lt;&gt;</span> r</a>
+<a class="sourceLine" id="cb37-10" title="10">    _   <span class="ot">-&gt;</span> cat (<span class="fu">zipWith</span> (<span class="op">&lt;&gt;</span>) (l <span class="op">:</span> <span class="fu">repeat</span> s) ds) <span class="op">&lt;&gt;</span> r</a></code></pre></div>
+<p>-- | Haskell-inspired variant of 'encloseSep' with braces and comma as -- separator. -- -- &gt;&gt;&gt; let doc = list (map pretty [1,20,300,4000]) -- -- &gt;&gt;&gt; putDocW 80 doc -- [1, 20, 300, 4000]</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb38-1" title="1"><span class="ot">list ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb38-2" title="2">list <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb38-3" title="3">  (flatAlt (text <span class="st">&quot;[ &quot;</span>) (text <span class="st">&quot;[&quot;</span>))</a>
+<a class="sourceLine" id="cb38-4" title="4">  (flatAlt (text <span class="st">&quot; ]&quot;</span>) (text <span class="st">&quot;]&quot;</span>))</a>
+<a class="sourceLine" id="cb38-5" title="5">  (text <span class="st">&quot;, &quot;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb39"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb39-1" title="1"><span class="ot">braceList ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb39-2" title="2">braceList <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb39-3" title="3">  (flatAlt (text <span class="st">&quot;{ &quot;</span>) (text <span class="st">&quot;{&quot;</span>))</a>
+<a class="sourceLine" id="cb39-4" title="4">  (flatAlt (text <span class="st">&quot; }&quot;</span>) (text <span class="st">&quot;}&quot;</span>))</a>
+<a class="sourceLine" id="cb39-5" title="5">  (text <span class="st">&quot;, &quot;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb40"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb40-1" title="1"><span class="ot">text ::</span> <span class="dt">T.Text</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb40-2" title="2">text <span class="ot">=</span> vsep <span class="op">.</span> <span class="fu">map</span> f <span class="op">.</span> T.splitOn <span class="st">&quot;\n&quot;</span></a>
+<a class="sourceLine" id="cb40-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb40-4" title="4">    <span class="co">-- x contains no &#39;\n&#39;s</span></a>
+<a class="sourceLine" id="cb40-5" title="5">    f x <span class="ot">=</span> <span class="kw">case</span> T.uncons x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb40-6" title="6">      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Empty</span></a>
+<a class="sourceLine" id="cb40-7" title="7">      <span class="dt">Just</span> (t,ext) <span class="ot">-&gt;</span> <span class="kw">if</span> T.null ext</a>
+<a class="sourceLine" id="cb40-8" title="8">          <span class="kw">then</span> <span class="dt">Char</span> t</a>
+<a class="sourceLine" id="cb40-9" title="9">          <span class="kw">else</span> <span class="dt">Text</span> (T.length x) x</a></code></pre></div>
+<div class="sourceCode" id="cb41"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb41-1" title="1"><span class="ot">string ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb41-2" title="2">string <span class="ot">=</span> text <span class="op">.</span> T.pack</a></code></pre></div>
+<div class="sourceCode" id="cb42"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb42-1" title="1"><span class="kw">instance</span> <span class="dt">IsString</span> (<span class="dt">Doc</span> a) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb42-2" title="2">  fromString <span class="ot">=</span> string</a></code></pre></div>
+<div class="sourceCode" id="cb43"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb43-1" title="1"><span class="ot">char ::</span> <span class="dt">Char</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb43-2" title="2">char c <span class="ot">=</span> <span class="kw">case</span> c <span class="kw">of</span></a>
+<a class="sourceLine" id="cb43-3" title="3">  <span class="ch">&#39;\n&#39;</span> <span class="ot">-&gt;</span> line</a>
+<a class="sourceLine" id="cb43-4" title="4">  _    <span class="ot">-&gt;</span> <span class="dt">Char</span> c</a></code></pre></div>
+<p>-- | @('vcat' xs)@ vertically concatenates the documents @xs@. If it is -- 'group'ed, the line breaks are removed. -- -- In other words @'vcat'@ is like @'vsep'@, with newlines removed instead of -- replaced by 'space's. -- -- Since 'group'ing a 'vcat' is rather common, 'cat' is a built-in shortcut for -- it.</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb44-1" title="1"><span class="ot">vcat ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb44-2" title="2">vcat <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> line&#39; <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>-- | @('sep' xs)@ tries laying out the documents @xs@ separated with 'space's, -- and if this does not fit the page, separates them with newlines. This is what -- differentiates it from 'vsep', which always lays out its contents beneath -- each other. -- -- &gt;&gt;&gt; let doc = "prefix" &lt;+&gt; sep ["text", "to", "lay", "out"] -- &gt;&gt;&gt; putDocW 80 doc -- prefix text to lay out -- -- With a narrower layout, the entries are separated by newlines: -- -- &gt;&gt;&gt; putDocW 20 doc -- prefix text -- to -- lay -- out</p>
+<div class="sourceCode" id="cb45"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb45-1" title="1"><span class="ot">sep ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb45-2" title="2">sep <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> vsep</a></code></pre></div>
+<p>-- | @('cat' xs)@ tries laying out the documents @xs@ separated with nothing, -- and if this does not fit the page, separates them with newlines. This is what -- differentiates it from 'vcat', which always lays out its contents beneath -- each other. -- -- &gt;&gt;&gt; let docs = Util.words "lorem ipsum dolor" -- &gt;&gt;&gt; putDocW 80 ("Docs:" &lt;+&gt; cat docs) -- Docs: loremipsumdolor -- -- When there is enough space, the documents are put above one another, -- -- &gt;&gt;&gt; putDocW 10 ("Docs:" &lt;+&gt; cat docs) -- Docs: lorem -- ipsum -- dolor --</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb46-1" title="1"><span class="ot">cat ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb46-2" title="2">cat <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> vcat</a></code></pre></div>
+<p>-- | @('width' doc f)@ lays out the document 'doc', and makes the column width -- of it available to a function. -- -- &gt;&gt;&gt; let annotate doc = width (brackets doc) (\w -&gt; " &lt;- width:" &lt;+&gt; pretty w) -- &gt;&gt;&gt; align (vsep (map annotate ["---", "------", indent 3 "---", vsep ["---", indent 4 "---"]])) -- [---] &lt;- width: 5 -- [------] &lt;- width: 8 -- [ ---] &lt;- width: 8 -- [--- -- ---] &lt;- width: 8</p>
+<div class="sourceCode" id="cb47"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb47-1" title="1"><span class="ot">width ::</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann) <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb47-2" title="2">width doc f</a>
+<a class="sourceLine" id="cb47-3" title="3">  <span class="ot">=</span> withColumn (\colStart <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb47-4" title="4">        doc <span class="op">&lt;&gt;</span> withColumn (\colEnd <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb47-5" title="5">            f (colEnd <span class="op">-</span> colStart)))</a></code></pre></div>
+<p>-- | @('hsep' xs)@ concatenates all documents @xs@ horizontally with @'&lt;+&gt;'@, -- i.e. it puts a space between all entries. -- -- &gt;&gt;&gt; let docs = Util.words "lorem ipsum dolor sit amet" -- -- &gt;&gt;&gt; hsep docs -- lorem ipsum dolor sit amet -- -- @'hsep'@ does not introduce line breaks on its own, even when the page is too -- narrow: -- -- &gt;&gt;&gt; putDocW 5 (hsep docs) -- lorem ipsum dolor sit amet -- -- For automatic line breaks, consider using 'fillSep' instead.</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb48-1" title="1"><span class="ot">hsep ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb48-2" title="2">hsep <span class="ot">=</span> concatWith (<span class="op">&lt;+&gt;</span>)</a></code></pre></div>
+<p>-- | @('vsep' xs)@ concatenates all documents @xs@ above each other. If a -- 'group' undoes the line breaks inserted by @vsep@, the documents are -- separated with a 'space' instead. -- -- Using 'vsep' alone yields -- -- &gt;&gt;&gt; "prefix" &lt;+&gt; vsep ["text", "to", "lay", "out"] -- prefix text -- to -- lay -- out -- -- 'group'ing a 'vsep' separates the documents with a 'space' if it fits the -- page (and does nothing otherwise). See the @'sep'@ convenience function for -- this use case. -- -- The 'align' function can be used to align the documents under their first -- element: -- -- &gt;&gt;&gt; "prefix" &lt;+&gt; align (vsep ["text", "to", "lay", "out"]) -- prefix text -- to -- lay -- out -- -- Since 'group'ing a 'vsep' is rather common, 'sep' is a built-in for doing -- that.</p>
+<div class="sourceCode" id="cb49"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb49-1" title="1"><span class="ot">vsep ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb49-2" title="2">vsep <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> line <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>-- | @('fillSep' xs)@ concatenates the documents @xs@ horizontally with @'&lt;+&gt;'@ -- as long as it fits the page, then inserts a @'line'@ and continues doing that -- for all documents in @xs@. (@'line'@ means that if 'group'ed, the documents -- are separated with a 'space' instead of newlines. Use 'fillCat' if you do not -- want a 'space'.) -- -- Let's print some words to fill the line: -- -- &gt;&gt;&gt; let docs = take 20 (cycle ["lorem", "ipsum", "dolor", "sit", "amet"]) -- &gt;&gt;&gt; putDocW 80 ("Docs:" &lt;+&gt; fillSep docs) -- Docs: lorem ipsum dolor sit amet lorem ipsum dolor sit amet lorem ipsum dolor -- sit amet lorem ipsum dolor sit amet -- -- The same document, printed at a width of only 40, yields -- -- &gt;&gt;&gt; putDocW 40 ("Docs:" &lt;+&gt; fillSep docs) -- Docs: lorem ipsum dolor sit amet lorem -- ipsum dolor sit amet lorem ipsum dolor -- sit amet lorem ipsum dolor sit amet</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb50-1" title="1"><span class="ot">fillSep ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb50-2" title="2">fillSep <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> softline <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<div class="sourceCode" id="cb51"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb51-1" title="1"><span class="ot">reflow ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb51-2" title="2">reflow <span class="ot">=</span> fillSep <span class="op">.</span> <span class="fu">map</span> string <span class="op">.</span> L.words</a></code></pre></div>
+<p>-- | @('fillCat' xs)@ concatenates documents @xs@ horizontally with @'&lt;&gt;'@ as -- long as it fits the page, then inserts a @'line''@ and continues doing that -- for all documents in @xs@. This is similar to how an ordinary word processor -- lays out the text if you just keep typing after you hit the maximum line -- length. -- -- (@'line''@ means that if 'group'ed, the documents are separated with nothing -- instead of newlines. See 'fillSep' if you want a 'space' instead.) -- -- Observe the difference between 'fillSep' and 'fillCat'. 'fillSep' -- concatenates the entries 'space'd when 'group'ed, -- -- &gt;&gt;&gt; let docs = take 20 (cycle (["lorem", "ipsum", "dolor", "sit", "amet"])) -- &gt;&gt;&gt; putDocW 40 ("Grouped:" &lt;+&gt; group (fillSep docs)) -- Grouped: lorem ipsum dolor sit amet -- lorem ipsum dolor sit amet lorem ipsum -- dolor sit amet lorem ipsum dolor sit -- amet -- -- On the other hand, 'fillCat' concatenates the entries directly when -- 'group'ed, -- -- &gt;&gt;&gt; putDocW 40 ("Grouped:" &lt;+&gt; group (fillCat docs)) -- Grouped: loremipsumdolorsitametlorem -- ipsumdolorsitametloremipsumdolorsitamet -- loremipsumdolorsitamet</p>
+<div class="sourceCode" id="cb52"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb52-1" title="1"><span class="ot">fillCat ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb52-2" title="2">fillCat <span class="ot">=</span> concatWith (\x y <span class="ot">-&gt;</span> x <span class="op">&lt;&gt;</span> softline&#39; <span class="op">&lt;&gt;</span> y)</a></code></pre></div>
+<p>-- | @(x '&lt;+&gt;' y)@ concatenates document @x@ and @y@ with a @'space'@ in -- between. -- -- &gt;&gt;&gt; "hello" &lt;+&gt; "world" -- hello world -- -- @ -- x '&lt;+&gt;' y = x '&lt;&gt;' 'space' '&lt;&gt;' y -- @</p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb53-1" title="1"><span class="ot">(&lt;+&gt;) ::</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb53-2" title="2">x <span class="op">&lt;+&gt;</span> y <span class="ot">=</span> x <span class="op">&lt;&gt;</span> <span class="dt">Char</span> <span class="ch">&#39; &#39;</span> <span class="op">&lt;&gt;</span> y</a>
+<a class="sourceLine" id="cb53-3" title="3"><span class="kw">infixr</span> <span class="dv">6</span> <span class="op">&lt;+&gt;</span> <span class="co">-- like &lt;&gt;</span></a></code></pre></div>
+<p>-- | Haskell-inspired variant of 'encloseSep' with parentheses and comma as -- separator. -- -- &gt;&gt;&gt; let doc = tupled (map pretty [1,20,300,4000]) -- -- &gt;&gt;&gt; putDocW 80 doc -- (1, 20, 300, 4000) -- -- &gt;&gt;&gt; putDocW 10 doc -- ( 1 -- , 20 -- , 300 -- , 4000 )</p>
+<div class="sourceCode" id="cb54"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb54-1" title="1"><span class="ot">tupled ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb54-2" title="2">tupled <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb54-3" title="3">  (flatAlt (text <span class="st">&quot;( &quot;</span>) (text <span class="st">&quot;(&quot;</span>))</a>
+<a class="sourceLine" id="cb54-4" title="4">  (flatAlt (text <span class="st">&quot; )&quot;</span>) (text <span class="st">&quot;)&quot;</span>))</a>
+<a class="sourceLine" id="cb54-5" title="5">  (text <span class="st">&quot;, &quot;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb55"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb55-1" title="1"><span class="ot">braced ::</span> [<span class="dt">Doc</span> ann] <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb55-2" title="2">braced <span class="ot">=</span> <span class="fu">group</span> <span class="op">.</span> encloseSep</a>
+<a class="sourceLine" id="cb55-3" title="3">  (flatAlt (text <span class="st">&quot;{ &quot;</span>) (text <span class="st">&quot;{&quot;</span>))</a>
+<a class="sourceLine" id="cb55-4" title="4">  (flatAlt (text <span class="st">&quot; }&quot;</span>) (text <span class="st">&quot;}&quot;</span>))</a>
+<a class="sourceLine" id="cb55-5" title="5">  (text <span class="st">&quot;, &quot;</span>)</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>-- | @('punctuate' p xs)@ appends @p@ to all but the last document in @xs@.</h2>
+<p>-- &gt;&gt;&gt; let docs = punctuate comma (Util.words "lorem ipsum dolor sit amet") -- &gt;&gt;&gt; putDocW 80 (hsep docs) -- lorem, ipsum, dolor, sit, amet -- -- The separators are put at the end of the entries, which we can see if we -- position the result vertically: -- -- &gt;&gt;&gt; putDocW 20 (vsep docs) -- lorem, -- ipsum, -- dolor, -- sit, -- amet -- -- If you want put the commas in front of their elements instead of at the end, -- you should use 'tupled' or, in general, 'encloseSep'.</p>
+<div class="sourceCode" id="cb56"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb56-1" title="1">punctuate</a>
+<a class="sourceLine" id="cb56-2" title="2"><span class="ot">    ::</span> <span class="dt">Doc</span> ann <span class="co">-- ^ Punctuation, e.g. &#39;comma&#39;</span></a>
+<a class="sourceLine" id="cb56-3" title="3">    <span class="ot">-&gt;</span> [<span class="dt">Doc</span> ann]</a>
+<a class="sourceLine" id="cb56-4" title="4">    <span class="ot">-&gt;</span> [<span class="dt">Doc</span> ann]</a>
+<a class="sourceLine" id="cb56-5" title="5">punctuate p <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb56-6" title="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb56-7" title="7">    go []     <span class="ot">=</span> []</a>
+<a class="sourceLine" id="cb56-8" title="8">    go [d]    <span class="ot">=</span> [d]</a>
+<a class="sourceLine" id="cb56-9" title="9">    go (d<span class="op">:</span>ds) <span class="ot">=</span> (d <span class="op">&lt;&gt;</span> p) <span class="op">:</span> go ds</a></code></pre></div>
+<p>-- | @('fill' i x)@ lays out the document @x@. It then appends @space@s until -- the width is equal to @i@. If the width of @x@ is already larger, nothing is -- appended. -- -- This function is quite useful in practice to output a list of bindings: -- -- &gt;&gt;&gt; let types = [("empty","Doc"), ("nest","Int -&gt; Doc -&gt; Doc"), ("fillSep","[Doc] -&gt; Doc")] -- &gt;&gt;&gt; let ptype (name, tp) = fill 5 (pretty name) &lt;+&gt; "::" &lt;+&gt; pretty tp -- &gt;&gt;&gt; "let" &lt;+&gt; align (vcat (map ptype types)) -- let empty :: Doc -- nest :: Int -&gt; Doc -&gt; Doc -- fillSep :: [Doc] -&gt; Doc</p>
+<div class="sourceCode" id="cb57"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb57-1" title="1">fill</a>
+<a class="sourceLine" id="cb57-2" title="2"><span class="ot">    ::</span> <span class="dt">Int</span> <span class="co">-- ^ Append spaces until the document is at least this wide</span></a>
+<a class="sourceLine" id="cb57-3" title="3">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb57-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb57-5" title="5">fill n doc <span class="ot">=</span> width doc (\w <span class="ot">-&gt;</span> spaces (n <span class="op">-</span> w))</a></code></pre></div>
+<p>-- | @('fillBreak' i x)@ first lays out the document @x@. It then appends @space@s -- until the width is equal to @i@. If the width of @x@ is already larger than -- @i@, the nesting level is increased by @i@ and a @line@ is appended. When we -- redefine @ptype@ in the example given in 'fill' to use @'fillBreak'@, we get -- a useful variation of the output: -- -- &gt;&gt;&gt; let types = [("empty","Doc"), ("nest","Int -&gt; Doc -&gt; Doc"), ("fillSep","[Doc] -&gt; Doc")] -- &gt;&gt;&gt; let ptype (name, tp) = fillBreak 5 (pretty name) &lt;+&gt; "::" &lt;+&gt; pretty tp -- &gt;&gt;&gt; "let" &lt;+&gt; align (vcat (map ptype types)) -- let empty :: Doc -- nest :: Int -&gt; Doc -&gt; Doc -- fillSep -- :: [Doc] -&gt; Doc</p>
+<div class="sourceCode" id="cb58"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb58-1" title="1">fillBreak</a>
+<a class="sourceLine" id="cb58-2" title="2"><span class="ot">    ::</span> <span class="dt">Int</span> <span class="co">-- ^ Append spaces until the document is at least this wide</span></a>
+<a class="sourceLine" id="cb58-3" title="3">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb58-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb58-5" title="5">fillBreak f x <span class="ot">=</span> width x (\w <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb58-6" title="6">    <span class="kw">if</span> w <span class="op">&gt;</span> f</a>
+<a class="sourceLine" id="cb58-7" title="7">        <span class="kw">then</span> nest f line&#39;</a>
+<a class="sourceLine" id="cb58-8" title="8">        <span class="kw">else</span> spaces (f <span class="op">-</span> w))</a></code></pre></div>
+<p>-- | @('enclose' l r x)@ encloses document @x@ between documents @l@ and @r@ -- using @'&lt;&gt;'@. -- -- &gt;&gt;&gt; enclose "A" "Z" "·" -- A·Z -- -- @ -- 'enclose' l r x = l '&lt;&gt;' x '&lt;&gt;' r -- @</p>
+<div class="sourceCode" id="cb59"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb59-1" title="1">enclose</a>
+<a class="sourceLine" id="cb59-2" title="2"><span class="ot">    ::</span> <span class="dt">Doc</span> ann <span class="co">-- ^ L</span></a>
+<a class="sourceLine" id="cb59-3" title="3">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="co">-- ^ R</span></a>
+<a class="sourceLine" id="cb59-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="co">-- ^ x</span></a>
+<a class="sourceLine" id="cb59-5" title="5">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="co">-- ^ LxR</span></a>
+<a class="sourceLine" id="cb59-6" title="6">enclose l r x <span class="ot">=</span> l <span class="op">&lt;&gt;</span> x <span class="op">&lt;&gt;</span> r</a></code></pre></div>
+<div class="sourceCode" id="cb60"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb60-1" title="1"><span class="ot">parens ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb60-2" title="2">parens <span class="ot">=</span> enclose (char <span class="ch">&#39;(&#39;</span>) (char <span class="ch">&#39;)&#39;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb61"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb61-1" title="1"><span class="ot">braces ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb61-2" title="2">braces <span class="ot">=</span> enclose (char <span class="ch">&#39;{&#39;</span>) (char <span class="ch">&#39;}&#39;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb62"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb62-1" title="1"><span class="ot">bracks ::</span> <span class="dt">Doc</span> a <span class="ot">-&gt;</span> <span class="dt">Doc</span> a</a>
+<a class="sourceLine" id="cb62-2" title="2">bracks <span class="ot">=</span> enclose (char <span class="ch">&#39;[&#39;</span>) (char <span class="ch">&#39;]&#39;</span>)</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>-- | @('surround' x l r)@ surrounds document @x@ with @l@ and @r@.</h2>
+<p>-- &gt;&gt;&gt; surround "·" "A" "Z" -- A·Z -- -- This is merely an argument reordering of @'enclose'@, but allows for -- definitions like -- -- &gt;&gt;&gt; concatWith (surround ".") ["Data", "Text", "Prettyprint", "Doc"] -- Data.Text.Prettyprint.Doc</p>
+<div class="sourceCode" id="cb63"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb63-1" title="1">surround</a>
+<a class="sourceLine" id="cb63-2" title="2"><span class="ot">    ::</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb63-3" title="3">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb63-4" title="4">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb63-5" title="5">    <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb63-6" title="6">surround x l r <span class="ot">=</span> l <span class="op">&lt;&gt;</span> x <span class="op">&lt;&gt;</span> r</a></code></pre></div>
+<p>-- | Add an annotation to a @'Doc'@. This annotation can then be used by the -- renderer to e.g. add color to certain parts of the output. For a full -- tutorial example on how to use it, see the -- "Data.Text.Prettyprint.Doc.Render.Tutorials.StackMachineTutorial" or -- "Data.Text.Prettyprint.Doc.Render.Tutorials.TreeRenderingTutorial" modules. -- -- This function is only relevant for custom formats with their own annotations, -- and not relevant for basic prettyprinting. The predefined renderers, e.g. -- "Data.Text.Prettyprint.Doc.Render.Text", should be enough for the most common -- needs.</p>
+<div class="sourceCode" id="cb64"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb64-1" title="1"><span class="ot">annotate ::</span> ann <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb64-2" title="2">annotate <span class="ot">=</span> <span class="dt">Annotated</span></a></code></pre></div>
+<p>-- | Fusion depth parameter, used by 'fuse'.</p>
+<div class="sourceCode" id="cb65"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb65-1" title="1"><span class="kw">data</span> <span class="dt">FusionDepth</span></a>
+<a class="sourceLine" id="cb65-2" title="2">  <span class="ot">=</span> <span class="dt">Shallow</span></a>
+<a class="sourceLine" id="cb65-3" title="3">  <span class="op">|</span> <span class="dt">Deep</span></a>
+<a class="sourceLine" id="cb65-4" title="4">  <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</a></code></pre></div>
+<pre><code>-- | Do not dive deep into nested documents, fusing mostly concatenations of
+-- text nodes together.
+
+
+-- | Recurse into all parts of the &#39;Doc&#39;, including different layout
+-- alternatives, and location-sensitive values such as created by &#39;nesting&#39;
+-- which cannot be fused before, but only during, the layout process. As a
+-- result, the performance cost of using deep fusion is often hard to
+-- predict, and depends on the interplay between page layout and document to
+-- prettyprint.
+--
+-- This value should only be used if profiling shows it is significantly
+-- faster than using &#39;Shallow&#39;.</code></pre>
+<p>-- | @('fuse' depth doc)@ combines text nodes so they can be rendered more -- efficiently. A fused document is always laid out identical to its unfused -- version. -- -- When laying a 'Doc'ument out to a 'DocS', every component of the -- input is translated directly to the simpler output format. This sometimes -- yields undesirable chunking when many pieces have been concatenated together. -- -- For example -- -- &gt;&gt;&gt; "a" &lt;&gt; "b" &lt;&gt; pretty 'c' &lt;&gt; "d" -- abcd -- -- results in a chain of four entries in a 'DocS', although this is fully -- equivalent to the tightly packed -- -- &gt;&gt;&gt; "abcd" :: Doc ann -- abcd -- -- which is only a single 'DocS' entry, and can be processed faster. -- -- It is therefore a good idea to run 'fuse' on concatenations of lots of small -- strings that are used many times, -- -- &gt;&gt;&gt; let oftenUsed = fuse Shallow ("a" &lt;&gt; "b" &lt;&gt; pretty 'c' &lt;&gt; "d") -- &gt;&gt;&gt; hsep (replicate 5 oftenUsed) -- abcd abcd abcd abcd abcd</p>
+<div class="sourceCode" id="cb67"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb67-1" title="1"><span class="ot">fuse ::</span> <span class="dt">FusionDepth</span> <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann <span class="ot">-&gt;</span> <span class="dt">Doc</span> ann</a>
+<a class="sourceLine" id="cb67-2" title="2">fuse depth <span class="ot">=</span> go</a>
+<a class="sourceLine" id="cb67-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb67-4" title="4">    go <span class="ot">=</span> \doc <span class="ot">-&gt;</span> <span class="kw">case</span> doc <span class="kw">of</span></a>
+<a class="sourceLine" id="cb67-5" title="5">        <span class="dt">Cat</span> <span class="dt">Empty</span> x                   <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb67-6" title="6">        <span class="dt">Cat</span> x <span class="dt">Empty</span>                   <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb67-7" title="7">        <span class="dt">Cat</span> (<span class="dt">Char</span> c1) (<span class="dt">Char</span> c2)       <span class="ot">-&gt;</span> <span class="dt">Text</span> <span class="dv">2</span> (T.singleton c1 <span class="op">&lt;&gt;</span> T.singleton c2)</a>
+<a class="sourceLine" id="cb67-8" title="8">        <span class="dt">Cat</span> (<span class="dt">Text</span> lt t) (<span class="dt">Char</span> c)      <span class="ot">-&gt;</span> <span class="dt">Text</span> (lt<span class="op">+</span><span class="dv">1</span>) (T.snoc t c)</a>
+<a class="sourceLine" id="cb67-9" title="9">        <span class="dt">Cat</span> (<span class="dt">Char</span> c) (<span class="dt">Text</span> lt t)      <span class="ot">-&gt;</span> <span class="dt">Text</span> (<span class="dv">1</span><span class="op">+</span>lt) (T.cons c t)</a>
+<a class="sourceLine" id="cb67-10" title="10">        <span class="dt">Cat</span> (<span class="dt">Text</span> l1 t1) (<span class="dt">Text</span> l2 t2) <span class="ot">-&gt;</span> <span class="dt">Text</span> (l1<span class="op">+</span>l2) (t1 <span class="op">&lt;&gt;</span> t2)</a></code></pre></div>
+<div class="sourceCode" id="cb68"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb68-1" title="1">        <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Char</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Char</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb68-2" title="2">        <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Text</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Char</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb68-3" title="3">        <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Char</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Text</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a>
+<a class="sourceLine" id="cb68-4" title="4">        <span class="dt">Cat</span> x<span class="op">@</span><span class="dt">Text</span>{} (<span class="dt">Cat</span> y<span class="op">@</span><span class="dt">Text</span>{} z) <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> (go (<span class="dt">Cat</span> x y)) z)</a></code></pre></div>
+<div class="sourceCode" id="cb69"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb69-1" title="1">        <span class="dt">Cat</span> (<span class="dt">Cat</span> x y<span class="op">@</span><span class="dt">Char</span>{}) z <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> x (go (<span class="dt">Cat</span> y z)))</a>
+<a class="sourceLine" id="cb69-2" title="2">        <span class="dt">Cat</span> (<span class="dt">Cat</span> x y<span class="op">@</span><span class="dt">Text</span>{}) z <span class="ot">-&gt;</span> go (<span class="dt">Cat</span> x (go (<span class="dt">Cat</span> y z)))</a></code></pre></div>
+<div class="sourceCode" id="cb70"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb70-1" title="1">        <span class="dt">Cat</span> x y <span class="ot">-&gt;</span> <span class="dt">Cat</span> (go x) (go y)</a></code></pre></div>
+<div class="sourceCode" id="cb71"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb71-1" title="1">        <span class="dt">Nest</span> i (<span class="dt">Nest</span> j x) <span class="ot">-&gt;</span> <span class="kw">let</span> <span class="op">!</span>fused <span class="ot">=</span> <span class="dt">Nest</span> (i<span class="op">+</span>j) x</a>
+<a class="sourceLine" id="cb71-2" title="2">                             <span class="kw">in</span> go fused</a>
+<a class="sourceLine" id="cb71-3" title="3">        <span class="dt">Nest</span> _ x<span class="op">@</span><span class="dt">Empty</span>{} <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb71-4" title="4">        <span class="dt">Nest</span> _ x<span class="op">@</span><span class="dt">Text</span>{}  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb71-5" title="5">        <span class="dt">Nest</span> _ x<span class="op">@</span><span class="dt">Char</span>{}  <span class="ot">-&gt;</span> x</a>
+<a class="sourceLine" id="cb71-6" title="6">        <span class="dt">Nest</span> <span class="dv">0</span> x         <span class="ot">-&gt;</span> go x</a>
+<a class="sourceLine" id="cb71-7" title="7">        <span class="dt">Nest</span> i x         <span class="ot">-&gt;</span> <span class="dt">Nest</span> i (go x)</a></code></pre></div>
+<div class="sourceCode" id="cb72"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb72-1" title="1">        <span class="dt">Annotated</span> ann x <span class="ot">-&gt;</span> <span class="dt">Annotated</span> ann (go x)</a></code></pre></div>
+<div class="sourceCode" id="cb73"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb73-1" title="1">        <span class="dt">FlatAlt</span> x1 x2 <span class="ot">-&gt;</span> <span class="dt">FlatAlt</span> (go x1) (go x2)</a>
+<a class="sourceLine" id="cb73-2" title="2">        <span class="dt">Union</span> x1 x2   <span class="ot">-&gt;</span> <span class="dt">Union</span> (go x1) (go x2)</a></code></pre></div>
+<div class="sourceCode" id="cb74"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb74-1" title="1">        other <span class="op">|</span> depth <span class="op">==</span> <span class="dt">Shallow</span> <span class="ot">-&gt;</span> other</a></code></pre></div>
+<div class="sourceCode" id="cb75"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb75-1" title="1">        <span class="dt">WithColumn</span> f        <span class="ot">-&gt;</span> <span class="dt">WithColumn</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb75-2" title="2">        <span class="dt">WithPageWidth</span> f <span class="ot">-&gt;</span> <span class="dt">WithPageWidth</span> (go <span class="op">.</span> f)</a>
+<a class="sourceLine" id="cb75-3" title="3">        <span class="dt">WithNesting</span> f       <span class="ot">-&gt;</span> <span class="dt">WithNesting</span> (go <span class="op">.</span> f)</a></code></pre></div>
+<div class="sourceCode" id="cb76"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb76-1" title="1">        other <span class="ot">-&gt;</span> other</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

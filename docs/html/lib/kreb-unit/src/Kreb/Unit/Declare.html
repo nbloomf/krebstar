@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Dirt Cheap Unit Tests</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Dirt Cheap Unit Tests</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">module</span> <span class="dt">Kreb.Unit.Declare</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-4" title="4"></a>
+<a class="sourceLine" id="cb1-5" title="5"><span class="kw">import</span> <span class="dt">Control.Applicative</span></a>
+<a class="sourceLine" id="cb1-6" title="6"><span class="kw">import</span> <span class="dt">Control.Exception</span></a>
+<a class="sourceLine" id="cb1-7" title="7"><span class="kw">import</span> <span class="dt">Data.Typeable</span></a>
+<a class="sourceLine" id="cb1-8" title="8"></a>
+<a class="sourceLine" id="cb1-9" title="9"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Kreb.Format</span> <span class="kw">as</span> <span class="dt">Fmt</span></a>
+<a class="sourceLine" id="cb1-10" title="10"><span class="kw">import</span>           <span class="dt">Kreb.Format</span> (align, fillSep, hang, string, indent, display, (&lt;+&gt;), lineS, nest, sep)</a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>What is the simplest possible interface for a unit testing library you can think of? What is the essence of <em>unit test</em>? Bearing in mind that we're working with an extremely strict type system, and would like to be able to do IO in our tests if needed.</p>
+<p>Well the test will have to be <code>IO</code> <em>something</em>, and presumably the something needs to allow us to signal whether the test succeeded, along with any diagnostic info. But what, exactly? We can't predict in advance all the possible needs the consumers of a unit testing framework will have.</p>
+<p>Fortunately there is another way. Haskell (or rather GHC, although that distinction is not very big) has a powerful and type safe exception mechanism built in, whereby any code -- pure or not -- can throw an exception, which can be caught in <code>IO</code>. Moreover the interface for throwing exceptions is standardized and very flexible such that consumers can provide their own exception types.</p>
+<p>So this is the compromise: rather than trying to anticipate all the different ways we might want to define a unit test and its failure, we will just say that:</p>
+<ol>
+<li>A unit test is an <code>IO</code> action,</li>
+<li>A unit test <em>fails</em> if it throws an exception, and</li>
+<li>A unit test <em>succeeds</em> if it does not throw an exception.</li>
+</ol>
+<p>Since the return type of the action plays no role here, it can be trivial. Thus we define our type of unit tests, called <code>Declaration</code>s, like so.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">type</span> <span class="dt">Declaration</span> <span class="ot">=</span> <span class="dt">IO</span> ()</a></code></pre></div>
+<p>To actually "run" the test we evaluate the action and catch any thrown exceptions.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1">testDeclaration</a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="ot">  ::</span> <span class="dt">Declaration</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> (<span class="dt">Maybe</span> <span class="dt">String</span>)</a>
+<a class="sourceLine" id="cb3-3" title="3">testDeclaration dec <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb3-4" title="4">  result <span class="ot">&lt;-</span> try dec</a>
+<a class="sourceLine" id="cb3-5" title="5">  <span class="fu">return</span> <span class="op">$</span> <span class="kw">case</span> result <span class="kw">of</span></a>
+<a class="sourceLine" id="cb3-6" title="6">    <span class="dt">Right</span> () <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb3-7" title="7">    <span class="dt">Left</span> (<span class="ot">err ::</span> <span class="dt">SomeException</span>) <span class="ot">-&gt;</span> <span class="dt">Just</span> (<span class="fu">show</span> err)</a></code></pre></div>
+<p>Lastly we write a helper function to print the test result to the console.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="ot">testUnit ::</span> <span class="dt">Declaration</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb4-2" title="2">testUnit dec <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-3" title="3">  result <span class="ot">&lt;-</span> testDeclaration dec</a>
+<a class="sourceLine" id="cb4-4" title="4">  <span class="kw">case</span> result <span class="kw">of</span></a>
+<a class="sourceLine" id="cb4-5" title="5">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-6" title="6">      <span class="fu">putStrLn</span> <span class="st">&quot;&gt;=&gt; ok.&quot;</span></a>
+<a class="sourceLine" id="cb4-7" title="7">    <span class="dt">Just</span> ex <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-8" title="8">      <span class="fu">putStrLn</span> <span class="st">&quot;&gt;=&gt; failure!&quot;</span></a>
+<a class="sourceLine" id="cb4-9" title="9">      <span class="fu">putStrLn</span> ex</a></code></pre></div>
+<p>To run a unit test we just pass it to <code>testUnit</code>.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb5-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb5-3" title="3"><span class="co">--   testUnit $ return ()</span></a>
+<a class="sourceLine" id="cb5-4" title="4"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb5-5" title="5"><span class="co">-- &gt;=&gt; ok.</span></a>
+<a class="sourceLine" id="cb5-6" title="6"><span class="co">--</span></a>
+<a class="sourceLine" id="cb5-7" title="7"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb5-8" title="8"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb5-9" title="9"><span class="co">--   testUnit $ throw DivideByZero</span></a>
+<a class="sourceLine" id="cb5-10" title="10"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb5-11" title="11"><span class="co">-- &gt;=&gt; failure!</span></a>
+<a class="sourceLine" id="cb5-12" title="12"><span class="co">-- divide by zero</span></a></code></pre></div>
+</div>
+</section>
+<section class="level2">
+<h2>Prettier Exceptions</h2>
+<p>That's that, right? We already have the bones of a simple unit testing library. There's an awful lot it doesn't do for us, like generating nice reports, but the essence is there.</p>
+<p>As a first quality of life upgrade, it would be nice if our unit testing library integrated with our pretty printing library to give formatted output. We can do this with a custom exception type.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">data</span> <span class="dt">PrettyException</span></a>
+<a class="sourceLine" id="cb6-2" title="2">  <span class="ot">=</span> <span class="dt">PE</span> (<span class="dt">Maybe</span> <span class="dt">Fmt.LayoutOptions</span>) (<span class="dt">Fmt.Doc</span> ())</a>
+<a class="sourceLine" id="cb6-3" title="3"></a>
+<a class="sourceLine" id="cb6-4" title="4"><span class="kw">instance</span> <span class="dt">Show</span> <span class="dt">PrettyException</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-5" title="5">  <span class="fu">show</span> (<span class="dt">PE</span> opts msg) <span class="ot">=</span> <span class="kw">case</span> opts <span class="kw">of</span></a>
+<a class="sourceLine" id="cb6-6" title="6">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> Fmt.renderString msg</a>
+<a class="sourceLine" id="cb6-7" title="7">    <span class="dt">Just</span> lo <span class="ot">-&gt;</span> Fmt.renderStringWith (<span class="dt">Fmt.Smart</span> lo) msg</a>
+<a class="sourceLine" id="cb6-8" title="8"></a>
+<a class="sourceLine" id="cb6-9" title="9"><span class="kw">instance</span> <span class="dt">Exception</span> <span class="dt">PrettyException</span></a></code></pre></div>
+<p>Now we can throw <code>PrettyException</code>s in our declarations, and when the resulting errors get <code>show</code>ed in <code>testDeclaration</code> they will be pretty printed first. We don't even need to expose the type outside of this module; it's enough to provide some simple wrappers around <code>throw</code> and <code>throwIO</code>, which we call <code>raise*</code>. The <code>*Msg</code> variants are convenience functions for when we just want to throw a string.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">raiseDoc</a>
+<a class="sourceLine" id="cb7-2" title="2"><span class="ot">  ::</span> <span class="dt">Fmt.Doc</span> a <span class="ot">-&gt;</span> b</a>
+<a class="sourceLine" id="cb7-3" title="3">raiseDoc doc <span class="ot">=</span></a>
+<a class="sourceLine" id="cb7-4" title="4">  <span class="kw">let</span> err <span class="ot">=</span> <span class="dt">PE</span> <span class="dt">Nothing</span> (Fmt.unAnnotate doc)</a>
+<a class="sourceLine" id="cb7-5" title="5">  <span class="kw">in</span> throw err</a>
+<a class="sourceLine" id="cb7-6" title="6"></a>
+<a class="sourceLine" id="cb7-7" title="7">raise</a>
+<a class="sourceLine" id="cb7-8" title="8"><span class="ot">  ::</span> ( <span class="dt">Fmt.Display</span> t ) <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb7-9" title="9">raise <span class="ot">=</span> raiseDoc <span class="op">.</span> Fmt.display</a>
+<a class="sourceLine" id="cb7-10" title="10"></a>
+<a class="sourceLine" id="cb7-11" title="11">raiseMsg</a>
+<a class="sourceLine" id="cb7-12" title="12"><span class="ot">  ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb7-13" title="13">raiseMsg <span class="ot">=</span> raiseDoc <span class="op">.</span> Fmt.reflow</a>
+<a class="sourceLine" id="cb7-14" title="14"></a>
+<a class="sourceLine" id="cb7-15" title="15">raiseDocIO</a>
+<a class="sourceLine" id="cb7-16" title="16"><span class="ot">  ::</span> <span class="dt">Fmt.Doc</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> b</a>
+<a class="sourceLine" id="cb7-17" title="17">raiseDocIO doc <span class="ot">=</span></a>
+<a class="sourceLine" id="cb7-18" title="18">  <span class="kw">let</span> err <span class="ot">=</span> <span class="dt">PE</span> <span class="dt">Nothing</span> (Fmt.unAnnotate doc)</a>
+<a class="sourceLine" id="cb7-19" title="19">  <span class="kw">in</span> throwIO err</a>
+<a class="sourceLine" id="cb7-20" title="20"></a>
+<a class="sourceLine" id="cb7-21" title="21">raiseIO</a>
+<a class="sourceLine" id="cb7-22" title="22"><span class="ot">  ::</span> ( <span class="dt">Fmt.Display</span> t ) <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">IO</span> a</a>
+<a class="sourceLine" id="cb7-23" title="23">raiseIO <span class="ot">=</span> raiseDocIO <span class="op">.</span> Fmt.display</a>
+<a class="sourceLine" id="cb7-24" title="24"></a>
+<a class="sourceLine" id="cb7-25" title="25">raiseMsgIO</a>
+<a class="sourceLine" id="cb7-26" title="26"><span class="ot">  ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> a</a>
+<a class="sourceLine" id="cb7-27" title="27">raiseMsgIO <span class="ot">=</span> raiseDocIO <span class="op">.</span> Fmt.reflow</a></code></pre></div>
+<p>We're bootstrapping a test library from scratch -- but what tests the testers? We use a separate doctest tool to interleave some simple tests with the source code. These serve as executable examples and, because they are machine checked, a basic test.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb8-3" title="3"><span class="co">--   testUnit $ raiseMsg &quot;bork bork bork&quot;</span></a>
+<a class="sourceLine" id="cb8-4" title="4"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb8-5" title="5"><span class="co">-- &gt;=&gt; failure!</span></a>
+<a class="sourceLine" id="cb8-6" title="6"><span class="co">-- bork bork bork</span></a></code></pre></div>
+</div>
+<p>For funsies, we also provide helpers for catching and re-throwing pretty exceptions with adjustments.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1">adjustPrettyException</a>
+<a class="sourceLine" id="cb9-2" title="2"><span class="ot">  ::</span> (<span class="dt">PrettyException</span> <span class="ot">-&gt;</span> <span class="dt">PrettyException</span>)</a>
+<a class="sourceLine" id="cb9-3" title="3">  <span class="ot">-&gt;</span> <span class="dt">IO</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> a</a>
+<a class="sourceLine" id="cb9-4" title="4">adjustPrettyException f act <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb9-5" title="5">  result <span class="ot">&lt;-</span> try act</a>
+<a class="sourceLine" id="cb9-6" title="6">  <span class="kw">case</span> result <span class="kw">of</span></a>
+<a class="sourceLine" id="cb9-7" title="7">    <span class="dt">Right</span> a  <span class="ot">-&gt;</span> <span class="fu">return</span> a</a>
+<a class="sourceLine" id="cb9-8" title="8">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> throw (f err)</a>
+<a class="sourceLine" id="cb9-9" title="9"></a>
+<a class="sourceLine" id="cb9-10" title="10">prependPrettyException</a>
+<a class="sourceLine" id="cb9-11" title="11"><span class="ot">  ::</span> ( <span class="dt">Fmt.Display</span> t )</a>
+<a class="sourceLine" id="cb9-12" title="12">  <span class="ot">=&gt;</span> t <span class="ot">-&gt;</span> <span class="dt">IO</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> a</a>
+<a class="sourceLine" id="cb9-13" title="13">prependPrettyException t act <span class="ot">=</span></a>
+<a class="sourceLine" id="cb9-14" title="14">  <span class="kw">let</span></a>
+<a class="sourceLine" id="cb9-15" title="15">    f (<span class="dt">PE</span> opts doc) <span class="ot">=</span></a>
+<a class="sourceLine" id="cb9-16" title="16">      <span class="dt">PE</span> opts (display t <span class="op">&lt;&gt;</span> lineS <span class="op">&lt;&gt;</span> indent <span class="dv">2</span> doc)</a>
+<a class="sourceLine" id="cb9-17" title="17">  <span class="kw">in</span> adjustPrettyException f act</a></code></pre></div>
+<p>For example:</p>
+<div class="doctest">
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb10-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb10-3" title="3"><span class="co">--   testUnit $</span></a>
+<a class="sourceLine" id="cb10-4" title="4"><span class="co">--     prependPrettyException (string &quot;in unit:&quot;) $</span></a>
+<a class="sourceLine" id="cb10-5" title="5"><span class="co">--       raiseMsg &quot;bork bork bork&quot;</span></a>
+<a class="sourceLine" id="cb10-6" title="6"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb10-7" title="7"><span class="co">-- &gt;=&gt; failure!</span></a>
+<a class="sourceLine" id="cb10-8" title="8"><span class="co">-- in unit:</span></a>
+<a class="sourceLine" id="cb10-9" title="9"><span class="co">--   bork bork bork</span></a></code></pre></div>
+</div>
+</section>
+</article>
+</body>
+</html>

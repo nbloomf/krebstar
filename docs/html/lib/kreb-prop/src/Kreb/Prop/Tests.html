@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Running Tests</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Running Tests</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Prop.Tests</span> (</a>
+<a class="sourceLine" id="cb1-2" title="2">    testProp, testPropWith, testPropIO, testPropWithIO</a>
+<a class="sourceLine" id="cb1-3" title="3">  , <span class="dt">TestArgs</span>(<span class="op">..</span>), isSuccess</a>
+<a class="sourceLine" id="cb1-4" title="4">) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-5" title="5"></a>
+<a class="sourceLine" id="cb1-6" title="6"><span class="kw">import</span> <span class="dt">System.Random</span> (split, newStdGen, <span class="dt">StdGen</span>)</a>
+<a class="sourceLine" id="cb1-7" title="7"></a>
+<a class="sourceLine" id="cb1-8" title="8"><span class="kw">import</span>           <span class="dt">Kreb.Control</span></a>
+<a class="sourceLine" id="cb1-9" title="9"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Kreb.Format</span> <span class="kw">as</span> <span class="dt">Fmt</span></a>
+<a class="sourceLine" id="cb1-10" title="10"><span class="kw">import</span>           <span class="dt">Kreb.Format</span></a>
+<a class="sourceLine" id="cb1-11" title="11"></a>
+<a class="sourceLine" id="cb1-12" title="12"><span class="kw">import</span> <span class="dt">Kreb.Prop.Sample</span></a>
+<a class="sourceLine" id="cb1-13" title="13"><span class="kw">import</span> <span class="dt">Kreb.Prop.Arb</span></a>
+<a class="sourceLine" id="cb1-14" title="14"><span class="kw">import</span> <span class="dt">Kreb.Prop.Check</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>We're almost done with the core of our quickcheck clone -- the last major piece is a "test runner" to take a <code>Checkable</code> value, apply it to random inputs, and manage some statistics about the outcomes. The runner will need some state, so we implement it using a monad stack.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">type</span> <span class="dt">Test</span> <span class="ot">=</span> <span class="dt">EnvT</span> <span class="dt">TestArgs</span> (<span class="dt">StateT</span> <span class="dt">TestSt</span> <span class="dt">Identity</span>)</a>
+<a class="sourceLine" id="cb2-2" title="2"></a>
+<a class="sourceLine" id="cb2-3" title="3">execTest</a>
+<a class="sourceLine" id="cb2-4" title="4"><span class="ot">  ::</span> <span class="dt">StdGen</span> <span class="ot">-&gt;</span> <span class="dt">TestArgs</span> <span class="ot">-&gt;</span> <span class="dt">Test</span> a <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb2-5" title="5">execTest gen env <span class="ot">=</span></a>
+<a class="sourceLine" id="cb2-6" title="6">  runState (initTestSt gen) <span class="op">.</span> runEnvT env</a></code></pre></div>
+<p>A <code>Test a</code> is a computation that carries the <code>TestArgs</code> (read-only) and <code>TestSt</code> (read-write) state and, when executed, produces a value of type <code>a</code>.</p>
+<p>The state types represent some parameters of the test run.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">data</span> <span class="dt">TestArgs</span> <span class="ot">=</span> <span class="dt">TestArgs</span></a>
+<a class="sourceLine" id="cb3-2" title="2">  {<span class="ot"> maxSuccess      ::</span> <span class="dt">Int</span> <span class="co">-- when to stop trying cases and declare success</span></a>
+<a class="sourceLine" id="cb3-3" title="3">  ,<span class="ot"> maxDiscardRatio ::</span> <span class="dt">Int</span> <span class="co">-- when to stop discarding cases and declare failure</span></a>
+<a class="sourceLine" id="cb3-4" title="4">  ,<span class="ot"> maxSize         ::</span> <span class="dt">Int</span> <span class="co">-- largest size parameter to generate data with</span></a>
+<a class="sourceLine" id="cb3-5" title="5">  ,<span class="ot"> maxPrunes       ::</span> <span class="dt">Int</span> <span class="co">-- when to stop trying to prune failing cases</span></a>
+<a class="sourceLine" id="cb3-6" title="6">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb3-7" title="7"></a>
+<a class="sourceLine" id="cb3-8" title="8"><span class="ot">defaultTestArgs ::</span> <span class="dt">TestArgs</span></a>
+<a class="sourceLine" id="cb3-9" title="9">defaultTestArgs <span class="ot">=</span> <span class="dt">TestArgs</span></a>
+<a class="sourceLine" id="cb3-10" title="10">  { maxSuccess      <span class="ot">=</span> <span class="dv">100</span></a>
+<a class="sourceLine" id="cb3-11" title="11">  , maxDiscardRatio <span class="ot">=</span> <span class="dv">10</span></a>
+<a class="sourceLine" id="cb3-12" title="12">  , maxSize         <span class="ot">=</span> <span class="dv">100</span></a>
+<a class="sourceLine" id="cb3-13" title="13">  , maxPrunes       <span class="ot">=</span> <span class="dv">20000</span></a>
+<a class="sourceLine" id="cb3-14" title="14">  }</a>
+<a class="sourceLine" id="cb3-15" title="15"></a>
+<a class="sourceLine" id="cb3-16" title="16"><span class="kw">data</span> <span class="dt">TestSt</span> <span class="ot">=</span> <span class="dt">TestSt</span></a>
+<a class="sourceLine" id="cb3-17" title="17">  {<span class="ot"> numSuccessfulTests   ::</span> <span class="dt">Int</span> <span class="co">-- how many passing tests we&#39;ve seen so far</span></a>
+<a class="sourceLine" id="cb3-18" title="18">  ,<span class="ot"> numDiscardedTests    ::</span> <span class="dt">Int</span> <span class="co">-- how many cases we&#39;ve discarded so far</span></a>
+<a class="sourceLine" id="cb3-19" title="19">  ,<span class="ot"> recentDiscardedTests ::</span> <span class="dt">Int</span> <span class="co">-- cases discarded since the last success</span></a>
+<a class="sourceLine" id="cb3-20" title="20">  ,<span class="ot"> numSuccessfulPrunes  ::</span> <span class="dt">Int</span> <span class="co">-- how many times we&#39;ve pruned</span></a>
+<a class="sourceLine" id="cb3-21" title="21">  ,<span class="ot"> numPruneAttempts     ::</span> <span class="dt">Int</span> <span class="co">-- number of attempts since the last prune</span></a>
+<a class="sourceLine" id="cb3-22" title="22">  ,<span class="ot"> randomSeed           ::</span> <span class="dt">StdGen</span> <span class="co">-- used to execute individual tests</span></a>
+<a class="sourceLine" id="cb3-23" title="23">  } <span class="kw">deriving</span> <span class="dt">Show</span></a>
+<a class="sourceLine" id="cb3-24" title="24"></a>
+<a class="sourceLine" id="cb3-25" title="25"><span class="ot">initTestSt ::</span> <span class="dt">StdGen</span> <span class="ot">-&gt;</span> <span class="dt">TestSt</span></a>
+<a class="sourceLine" id="cb3-26" title="26">initTestSt gen <span class="ot">=</span> <span class="dt">TestSt</span></a>
+<a class="sourceLine" id="cb3-27" title="27">  { numSuccessfulTests   <span class="ot">=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb3-28" title="28">  , numDiscardedTests    <span class="ot">=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb3-29" title="29">  , recentDiscardedTests <span class="ot">=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb3-30" title="30">  , numSuccessfulPrunes  <span class="ot">=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb3-31" title="31">  , numPruneAttempts     <span class="ot">=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb3-32" title="32">  , randomSeed           <span class="ot">=</span> gen</a>
+<a class="sourceLine" id="cb3-33" title="33">  }</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Running Tests</h2>
+<p>The result of running an individual property test is a value of type <code>Result</code>. Surprise! A property test can end in one of three ways:</p>
+<ul>
+<li><em>Success</em> means we did not find any failures before finding a prescribed number of successes.</li>
+<li><em>Failure</em> means we found a failure before finding enough successes.</li>
+<li><em>Giving up</em> means we didn't find any failures, but had to throw out too many test cases. (If this happens it usually means we need to use a more specific test case generator.)</li>
+</ul>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">data</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb4-2" title="2">  <span class="ot">=</span> <span class="dt">Success</span> <span class="dt">NumTests</span> <span class="dt">NumDiscarded</span></a>
+<a class="sourceLine" id="cb4-3" title="3">  <span class="op">|</span> <span class="dt">GaveUp</span> <span class="dt">NumTests</span> <span class="dt">NumDiscarded</span></a>
+<a class="sourceLine" id="cb4-4" title="4">  <span class="op">|</span> <span class="dt">Failure</span></a>
+<a class="sourceLine" id="cb4-5" title="5">      <span class="dt">NumTests</span> <span class="dt">NumDiscarded</span> <span class="dt">NumPrunes</span></a>
+<a class="sourceLine" id="cb4-6" title="6">      <span class="dt">NumPruneTries</span> <span class="dt">Size</span> <span class="dt">Reason</span> [<span class="dt">ShowArg</span>]</a>
+<a class="sourceLine" id="cb4-7" title="7"></a>
+<a class="sourceLine" id="cb4-8" title="8"><span class="kw">type</span> <span class="dt">NumTests</span>      <span class="ot">=</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb4-9" title="9"><span class="kw">type</span> <span class="dt">NumDiscarded</span>  <span class="ot">=</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb4-10" title="10"><span class="kw">type</span> <span class="dt">NumPrunes</span>     <span class="ot">=</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb4-11" title="11"><span class="kw">type</span> <span class="dt">NumPruneTries</span> <span class="ot">=</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb4-12" title="12"></a>
+<a class="sourceLine" id="cb4-13" title="13"><span class="ot">isSuccess ::</span> <span class="dt">Result</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb4-14" title="14">isSuccess z <span class="ot">=</span> <span class="kw">case</span> z <span class="kw">of</span></a>
+<a class="sourceLine" id="cb4-15" title="15">  <span class="dt">Success</span> _ _ <span class="ot">-&gt;</span> <span class="dt">True</span></a>
+<a class="sourceLine" id="cb4-16" title="16">  _           <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<p>The <code>Result</code> is what gets printed for analysis, so we give it a <code>Display</code> instance.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">instance</span> <span class="dt">Fmt.Display</span> <span class="dt">Result</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-2" title="2">  display z <span class="ot">=</span> unAnnotate <span class="op">$</span> <span class="kw">case</span> z <span class="kw">of</span></a>
+<a class="sourceLine" id="cb5-3" title="3">    <span class="dt">Success</span> good disc <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-4" title="4">      <span class="kw">if</span> disc <span class="op">&lt;=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb5-5" title="5">        <span class="kw">then</span></a>
+<a class="sourceLine" id="cb5-6" title="6">          reflow <span class="st">&quot;&gt;=&gt; ok: passed&quot;</span></a>
+<a class="sourceLine" id="cb5-7" title="7">            <span class="op">&lt;+&gt;</span> display good <span class="op">&lt;+&gt;</span> string <span class="st">&quot;tests&quot;</span></a>
+<a class="sourceLine" id="cb5-8" title="8">        <span class="kw">else</span></a>
+<a class="sourceLine" id="cb5-9" title="9">          reflow <span class="st">&quot;&gt;=&gt; ok: passed&quot;</span></a>
+<a class="sourceLine" id="cb5-10" title="10">            <span class="op">&lt;+&gt;</span> display good <span class="op">&lt;+&gt;</span> string <span class="st">&quot;tests&quot;</span></a>
+<a class="sourceLine" id="cb5-11" title="11">            <span class="op">&lt;+&gt;</span> parens (display disc <span class="op">&lt;+&gt;</span> string <span class="st">&quot;discarded&quot;</span>)</a>
+<a class="sourceLine" id="cb5-12" title="12">    <span class="dt">GaveUp</span> good disc <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-13" title="13">      reflow <span class="st">&quot;&gt;=&gt; gave up after&quot;</span> <span class="op">&lt;+&gt;</span> display good</a>
+<a class="sourceLine" id="cb5-14" title="14">        <span class="op">&lt;+&gt;</span> reflow <span class="st">&quot;successful cases and&quot;</span></a>
+<a class="sourceLine" id="cb5-15" title="15">        <span class="op">&lt;+&gt;</span> display disc <span class="op">&lt;+&gt;</span> reflow <span class="st">&quot;discarded cases&quot;</span></a>
+<a class="sourceLine" id="cb5-16" title="16">    <span class="dt">Failure</span> good disc prunes</a>
+<a class="sourceLine" id="cb5-17" title="17">      pruneTries size msg args <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb5-18" title="18">        <span class="kw">let</span></a>
+<a class="sourceLine" id="cb5-19" title="19">          d <span class="ot">=</span> <span class="kw">if</span> disc <span class="op">&lt;=</span> <span class="dv">0</span> <span class="kw">then</span> emptyDoc</a>
+<a class="sourceLine" id="cb5-20" title="20">            <span class="kw">else</span> space <span class="op">&lt;&gt;</span> parens (display disc <span class="op">&lt;+&gt;</span> string <span class="st">&quot;discarded&quot;</span>)</a>
+<a class="sourceLine" id="cb5-21" title="21">          s <span class="ot">=</span> <span class="kw">if</span> prunes <span class="op">&lt;=</span> <span class="dv">0</span> <span class="kw">then</span> emptyDoc</a>
+<a class="sourceLine" id="cb5-22" title="22">            <span class="kw">else</span> space <span class="op">&lt;&gt;</span> string <span class="st">&quot;and&quot;</span> <span class="op">&lt;+&gt;</span> display prunes <span class="op">&lt;+&gt;</span> string <span class="st">&quot;prunes&quot;</span></a>
+<a class="sourceLine" id="cb5-23" title="23">          r <span class="ot">=</span> <span class="kw">if</span> isEmptyDoc msg <span class="kw">then</span> emptyDoc</a>
+<a class="sourceLine" id="cb5-24" title="24">            <span class="kw">else</span> indent <span class="dv">2</span> (string <span class="st">&quot;Reason:&quot;</span> <span class="op">&lt;&gt;</span> softlineS <span class="op">&lt;&gt;</span> msg)</a>
+<a class="sourceLine" id="cb5-25" title="25">          a <span class="ot">=</span> <span class="kw">if</span> <span class="fu">null</span> args <span class="kw">then</span> emptyDoc</a>
+<a class="sourceLine" id="cb5-26" title="26">            <span class="kw">else</span> indent <span class="dv">2</span> (string <span class="st">&quot;Args:&quot;</span> <span class="op">&lt;+&gt;</span> parenList (<span class="fu">map</span> unAnnotate args))</a>
+<a class="sourceLine" id="cb5-27" title="27">        <span class="kw">in</span> reflow <span class="st">&quot;&gt;=&gt; failed after&quot;</span> <span class="op">&lt;+&gt;</span> display good</a>
+<a class="sourceLine" id="cb5-28" title="28">          <span class="op">&lt;+&gt;</span> reflow <span class="st">&quot;valid cases&quot;</span> <span class="op">&lt;&gt;</span> d <span class="op">&lt;&gt;</span> s <span class="op">&lt;&gt;</span> lineS <span class="op">&lt;&gt;</span> r <span class="op">&lt;&gt;</span> lineS <span class="op">&lt;&gt;</span> a</a></code></pre></div>
+<p>Turning a <code>Check</code> into a <code>Result</code> comes down to running the check on a seed, collecting stats on the outcome, and deciding when to stop.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1">runTest</a>
+<a class="sourceLine" id="cb6-2" title="2"><span class="ot">  ::</span> <span class="dt">Check</span> <span class="ot">-&gt;</span> <span class="dt">Test</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb6-3" title="3">runTest ch <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-4" title="4">  done <span class="ot">&lt;-</span> gets numSuccessfulTests</a>
+<a class="sourceLine" id="cb6-5" title="5">  goal <span class="ot">&lt;-</span> asks maxSuccess</a>
+<a class="sourceLine" id="cb6-6" title="6">  <span class="co">-- have we seen enough successes yet?</span></a>
+<a class="sourceLine" id="cb6-7" title="7">  <span class="kw">if</span> done <span class="op">&gt;=</span> goal</a>
+<a class="sourceLine" id="cb6-8" title="8">    <span class="co">-- if so, quit successfully.</span></a>
+<a class="sourceLine" id="cb6-9" title="9">    <span class="kw">then</span> doneTesting</a>
+<a class="sourceLine" id="cb6-10" title="10">    <span class="kw">else</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-11" title="11">      discards <span class="ot">&lt;-</span> gets numDiscardedTests</a>
+<a class="sourceLine" id="cb6-12" title="12">      badRatio <span class="ot">&lt;-</span> asks maxDiscardRatio</a>
+<a class="sourceLine" id="cb6-13" title="13">      <span class="co">-- have we seen to many discards?</span></a>
+<a class="sourceLine" id="cb6-14" title="14">      <span class="kw">if</span> discards <span class="op">&gt;=</span> badRatio <span class="op">*</span> goal</a>
+<a class="sourceLine" id="cb6-15" title="15">        <span class="co">-- if so, quit unsuccessfully.</span></a>
+<a class="sourceLine" id="cb6-16" title="16">        <span class="kw">then</span> giveUp</a>
+<a class="sourceLine" id="cb6-17" title="17">        <span class="co">-- otherwise get another test outcome.</span></a>
+<a class="sourceLine" id="cb6-18" title="18">        <span class="kw">else</span> testOutcome</a>
+<a class="sourceLine" id="cb6-19" title="19"></a>
+<a class="sourceLine" id="cb6-20" title="20">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-21" title="21"><span class="ot">    doneTesting ::</span> <span class="dt">Test</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb6-22" title="22">    doneTesting <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-23" title="23">      good <span class="ot">&lt;-</span> gets numSuccessfulTests</a>
+<a class="sourceLine" id="cb6-24" title="24">      disc <span class="ot">&lt;-</span> gets numDiscardedTests</a>
+<a class="sourceLine" id="cb6-25" title="25">      <span class="fu">return</span> <span class="op">$</span> <span class="dt">Success</span> good disc</a>
+<a class="sourceLine" id="cb6-26" title="26"></a>
+<a class="sourceLine" id="cb6-27" title="27"><span class="ot">    giveUp ::</span> <span class="dt">Test</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb6-28" title="28">    giveUp <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-29" title="29">      good <span class="ot">&lt;-</span> gets numSuccessfulTests</a>
+<a class="sourceLine" id="cb6-30" title="30">      disc <span class="ot">&lt;-</span> gets numDiscardedTests</a>
+<a class="sourceLine" id="cb6-31" title="31">      <span class="fu">return</span> <span class="op">$</span> <span class="dt">GaveUp</span> good disc</a>
+<a class="sourceLine" id="cb6-32" title="32"></a>
+<a class="sourceLine" id="cb6-33" title="33">    <span class="co">-- run the check once more</span></a>
+<a class="sourceLine" id="cb6-34" title="34">    testOutcome</a>
+<a class="sourceLine" id="cb6-35" title="35"><span class="ot">      ::</span> <span class="dt">Test</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb6-36" title="36">    testOutcome <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-37" title="37">      gen <span class="ot">&lt;-</span> splitSeed</a>
+<a class="sourceLine" id="cb6-38" title="38">      size <span class="ot">&lt;-</span> computeSize</a>
+<a class="sourceLine" id="cb6-39" title="39">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb6-40" title="40">        <span class="co">-- get one check outcome</span></a>
+<a class="sourceLine" id="cb6-41" title="41">        <span class="dt">Rose</span> outcome ts <span class="ot">=</span></a>
+<a class="sourceLine" id="cb6-42" title="42">          runSample gen size (unCheck ch)</a>
+<a class="sourceLine" id="cb6-43" title="43">      <span class="kw">case</span> outcome <span class="kw">of</span></a>
+<a class="sourceLine" id="cb6-44" title="44">        <span class="dt">Accept</span> <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-45" title="45">          recordSuccessfulTestCase gen <span class="op">&gt;&gt;</span> runTest ch</a>
+<a class="sourceLine" id="cb6-46" title="46">        <span class="dt">Discard</span> msg <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-47" title="47">          recordDiscardedTestCase gen msg <span class="op">&gt;&gt;</span> runTest ch</a>
+<a class="sourceLine" id="cb6-48" title="48">        <span class="dt">Reject</span> msg0 args0 <span class="ot">-&gt;</span></a>
+<a class="sourceLine" id="cb6-49" title="49">          <span class="co">-- shut it down</span></a>
+<a class="sourceLine" id="cb6-50" title="50">          reportFailingTestCase size msg0 args0 ts</a>
+<a class="sourceLine" id="cb6-51" title="51"></a>
+<a class="sourceLine" id="cb6-52" title="52">    <span class="co">-- ensure that each check gets a fresh seed.</span></a>
+<a class="sourceLine" id="cb6-53" title="53"><span class="ot">    splitSeed ::</span> <span class="dt">Test</span> <span class="dt">StdGen</span></a>
+<a class="sourceLine" id="cb6-54" title="54">    splitSeed <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-55" title="55">      seed <span class="ot">&lt;-</span> gets randomSeed</a>
+<a class="sourceLine" id="cb6-56" title="56">      <span class="kw">let</span> (gen1, gen2) <span class="ot">=</span> split seed</a>
+<a class="sourceLine" id="cb6-57" title="57">      mutate <span class="op">$</span> \st <span class="ot">-&gt;</span> st { randomSeed <span class="ot">=</span> gen1 }</a>
+<a class="sourceLine" id="cb6-58" title="58">      <span class="fu">return</span> gen2</a>
+<a class="sourceLine" id="cb6-59" title="59"></a>
+<a class="sourceLine" id="cb6-60" title="60">    <span class="co">-- make the size parameter start small and grow to maxSize</span></a>
+<a class="sourceLine" id="cb6-61" title="61"><span class="ot">    computeSize ::</span> <span class="dt">Test</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb6-62" title="62">    computeSize <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-63" title="63">      maxGood <span class="ot">&lt;-</span> asks maxSuccess</a>
+<a class="sourceLine" id="cb6-64" title="64">      largest <span class="ot">&lt;-</span> asks maxSize</a>
+<a class="sourceLine" id="cb6-65" title="65">      n <span class="ot">&lt;-</span> gets numSuccessfulTests</a>
+<a class="sourceLine" id="cb6-66" title="66">      d <span class="ot">&lt;-</span> gets recentDiscardedTests</a>
+<a class="sourceLine" id="cb6-67" title="67">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb6-68" title="68">        p1 <span class="ot">=</span> (largest <span class="op">+</span> (roundTo n largest)) <span class="op">&lt;=</span> maxGood</a>
+<a class="sourceLine" id="cb6-69" title="69">        p2 <span class="ot">=</span> maxGood <span class="op">&lt;=</span> n</a>
+<a class="sourceLine" id="cb6-70" title="70">        p3 <span class="ot">=</span> <span class="dv">0</span> <span class="op">==</span> <span class="fu">mod</span> maxGood largest</a>
+<a class="sourceLine" id="cb6-71" title="71"></a>
+<a class="sourceLine" id="cb6-72" title="72">        q <span class="ot">=</span> <span class="kw">if</span> p1 <span class="op">||</span> p2 <span class="op">||</span> p3</a>
+<a class="sourceLine" id="cb6-73" title="73">          <span class="kw">then</span> <span class="dv">1</span></a>
+<a class="sourceLine" id="cb6-74" title="74">          <span class="kw">else</span> <span class="fu">div</span> largest (<span class="fu">mod</span> maxGood largest)</a>
+<a class="sourceLine" id="cb6-75" title="75">      <span class="fu">return</span> <span class="op">$</span> <span class="fu">min</span> largest <span class="op">$</span> (<span class="fu">div</span> d <span class="dv">10</span>) <span class="op">+</span> (<span class="fu">mod</span> n largest) <span class="op">*</span> q</a>
+<a class="sourceLine" id="cb6-76" title="76">      <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-77" title="77"><span class="ot">        roundTo ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb6-78" title="78">        roundTo n m <span class="ot">=</span> (n <span class="ot">`div`</span> m) <span class="op">*</span> m</a>
+<a class="sourceLine" id="cb6-79" title="79"></a>
+<a class="sourceLine" id="cb6-80" title="80">    recordSuccessfulTestCase</a>
+<a class="sourceLine" id="cb6-81" title="81"><span class="ot">      ::</span> <span class="dt">StdGen</span> <span class="ot">-&gt;</span> <span class="dt">Test</span> ()</a>
+<a class="sourceLine" id="cb6-82" title="82">    recordSuccessfulTestCase gen <span class="ot">=</span></a>
+<a class="sourceLine" id="cb6-83" title="83">      mutate <span class="op">$</span> \st <span class="ot">-&gt;</span> st</a>
+<a class="sourceLine" id="cb6-84" title="84">        { numSuccessfulTests   <span class="ot">=</span> <span class="dv">1</span> <span class="op">+</span> numSuccessfulTests st</a>
+<a class="sourceLine" id="cb6-85" title="85">        , recentDiscardedTests <span class="ot">=</span> <span class="dv">0</span></a>
+<a class="sourceLine" id="cb6-86" title="86">        , randomSeed           <span class="ot">=</span> gen</a>
+<a class="sourceLine" id="cb6-87" title="87">        }</a>
+<a class="sourceLine" id="cb6-88" title="88"></a>
+<a class="sourceLine" id="cb6-89" title="89">    recordDiscardedTestCase</a>
+<a class="sourceLine" id="cb6-90" title="90"><span class="ot">      ::</span> <span class="dt">StdGen</span> <span class="ot">-&gt;</span> <span class="dt">Reason</span> <span class="ot">-&gt;</span> <span class="dt">Test</span> ()</a>
+<a class="sourceLine" id="cb6-91" title="91">    recordDiscardedTestCase gen msg <span class="ot">=</span></a>
+<a class="sourceLine" id="cb6-92" title="92">      mutate <span class="op">$</span> \st <span class="ot">-&gt;</span> st</a>
+<a class="sourceLine" id="cb6-93" title="93">        { numDiscardedTests    <span class="ot">=</span> <span class="dv">1</span> <span class="op">+</span> numDiscardedTests st</a>
+<a class="sourceLine" id="cb6-94" title="94">        , recentDiscardedTests <span class="ot">=</span> <span class="dv">1</span> <span class="op">+</span> recentDiscardedTests st</a>
+<a class="sourceLine" id="cb6-95" title="95">        , randomSeed           <span class="ot">=</span> gen</a>
+<a class="sourceLine" id="cb6-96" title="96">        }</a>
+<a class="sourceLine" id="cb6-97" title="97"></a>
+<a class="sourceLine" id="cb6-98" title="98">    reportFailingTestCase</a>
+<a class="sourceLine" id="cb6-99" title="99"><span class="ot">      ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Reason</span> <span class="ot">-&gt;</span> [<span class="dt">ShowArg</span>] <span class="ot">-&gt;</span> [<span class="dt">Rose</span> <span class="dt">Outcome</span>]</a>
+<a class="sourceLine" id="cb6-100" title="100">      <span class="ot">-&gt;</span> <span class="dt">Test</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb6-101" title="101">    reportFailingTestCase size msg0 args0 ts <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb6-102" title="102">      good <span class="ot">&lt;-</span> gets numSuccessfulTests</a>
+<a class="sourceLine" id="cb6-103" title="103">      disc <span class="ot">&lt;-</span> gets numDiscardedTests</a>
+<a class="sourceLine" id="cb6-104" title="104">      tries <span class="ot">&lt;-</span> asks maxPrunes</a>
+<a class="sourceLine" id="cb6-105" title="105">      <span class="kw">let</span></a>
+<a class="sourceLine" id="cb6-106" title="106">        (ps, pas, msg, args) <span class="ot">=</span></a>
+<a class="sourceLine" id="cb6-107" title="107">          minimizeFailure ts tries (<span class="dv">0</span>, <span class="dv">0</span>, msg0, args0)</a>
+<a class="sourceLine" id="cb6-108" title="108">      <span class="fu">return</span> <span class="op">$</span> <span class="dt">Failure</span> good disc</a>
+<a class="sourceLine" id="cb6-109" title="109">        ps pas size msg args</a></code></pre></div>
+<p>All that business with <code>Test</code> and <code>Result</code> is only needed inside this module; all we need to export are some helper functions for setting up and running the property test for a <code>Checkable</code> value.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">testPropWith</a>
+<a class="sourceLine" id="cb7-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Checkable</span> check )</a>
+<a class="sourceLine" id="cb7-3" title="3">  <span class="ot">=&gt;</span> <span class="dt">StdGen</span> <span class="ot">-&gt;</span> <span class="dt">TestArgs</span> <span class="ot">-&gt;</span> check <span class="ot">-&gt;</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb7-4" title="4">testPropWith gen env p <span class="ot">=</span></a>
+<a class="sourceLine" id="cb7-5" title="5">  execTest gen env (runTest <span class="op">$</span> check p)</a>
+<a class="sourceLine" id="cb7-6" title="6"></a>
+<a class="sourceLine" id="cb7-7" title="7">testProp</a>
+<a class="sourceLine" id="cb7-8" title="8"><span class="ot">  ::</span> ( <span class="dt">Checkable</span> check )</a>
+<a class="sourceLine" id="cb7-9" title="9">  <span class="ot">=&gt;</span> <span class="dt">StdGen</span> <span class="ot">-&gt;</span> check <span class="ot">-&gt;</span> <span class="dt">Result</span></a>
+<a class="sourceLine" id="cb7-10" title="10">testProp gen <span class="ot">=</span></a>
+<a class="sourceLine" id="cb7-11" title="11">  testPropWith gen defaultTestArgs</a></code></pre></div>
+<p>For testing, we also define runner functions that take the extra step of getting a random initial seed from IO and printing the results.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1">testPropWithIO</a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Checkable</span> check )</a>
+<a class="sourceLine" id="cb8-3" title="3">  <span class="ot">=&gt;</span> <span class="dt">TestArgs</span> <span class="ot">-&gt;</span> check <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb8-4" title="4">testPropWithIO args ch <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb8-5" title="5">  gen <span class="ot">&lt;-</span> newStdGen</a>
+<a class="sourceLine" id="cb8-6" title="6">  <span class="kw">let</span> res <span class="ot">=</span> testPropWith gen args ch</a>
+<a class="sourceLine" id="cb8-7" title="7">  Fmt.prettyPrint res</a>
+<a class="sourceLine" id="cb8-8" title="8"></a>
+<a class="sourceLine" id="cb8-9" title="9">testPropIO</a>
+<a class="sourceLine" id="cb8-10" title="10"><span class="ot">  ::</span> ( <span class="dt">Checkable</span> check )</a>
+<a class="sourceLine" id="cb8-11" title="11">  <span class="ot">=&gt;</span> check <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb8-12" title="12">testPropIO <span class="ot">=</span> testPropWithIO defaultTestArgs</a></code></pre></div>
+<p>It's still awkward to give examples of this with doctest because to make sure it's really working we need to show that it catches failures -- but it's hard to do that in a static doctest. But we can try!</p>
+<p>Here's what it looks like on some boolean checks.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb9-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb9-3" title="3"><span class="co">--   testPropIO $ claimTrue True</span></a>
+<a class="sourceLine" id="cb9-4" title="4"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb9-5" title="5"><span class="co">-- &gt;=&gt; ok: passed 100 tests</span></a>
+<a class="sourceLine" id="cb9-6" title="6"><span class="co">--</span></a>
+<a class="sourceLine" id="cb9-7" title="7"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb9-8" title="8"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb9-9" title="9"><span class="co">--   testPropIO $ claimTrue False</span></a>
+<a class="sourceLine" id="cb9-10" title="10"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb9-11" title="11"><span class="co">-- &gt;=&gt; failed after 0 valid cases</span></a>
+<a class="sourceLine" id="cb9-12" title="12"><span class="co">--   Reason: Expected True but got False.</span></a></code></pre></div>
+</div>
+<p>Here's what it looks like with a function check. The <code>a</code> parameter is filled in with random inputs at runtime.</p>
+<div class="doctest">
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="co">-- $</span></a>
+<a class="sourceLine" id="cb10-2" title="2"><span class="co">-- &gt;&gt;&gt; :{</span></a>
+<a class="sourceLine" id="cb10-3" title="3"><span class="co">--   testPropIO $ \(a :: Int) -&gt;</span></a>
+<a class="sourceLine" id="cb10-4" title="4"><span class="co">--     claimEqual a (a + 0)</span></a>
+<a class="sourceLine" id="cb10-5" title="5"><span class="co">-- :}</span></a>
+<a class="sourceLine" id="cb10-6" title="6"><span class="co">-- &gt;=&gt; ok: passed 100 tests</span></a></code></pre></div>
+</div>
+<p>And that's it -- the core of our property testing library. We have a small interface: <code>Arb</code>, <code>CoArb</code>, and <code>Prune</code>; the <code>claim*</code> helpers; and the <code>testProp*</code> runners. With these we can describe properties that code must satisfy and generate random data to test them with.</p>
+<p>That's not to say there's nothing more to do. We can build some bonus infrastructure to make the ergonomics of property testing much better. But all that stuff is optional; all the core functionality is already done.</p>
+</section>
+</article>
+</body>
+</html>

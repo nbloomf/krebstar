@@ -1,0 +1,30 @@
+{
+  "configVersion": "0.0",
+  "sources":
+    [ "index.md"
+
+    , "lib/kreb-control/src/Kreb/Control/Monad.lhs"
+    , "lib/kreb-control/src/Kreb/Control/Monad/Trans/EnvT.lhs"
+    , "lib/kreb-control/src/Kreb/Control/Monad/Trans/EnvT/Proofs.lhs"
+    , "lib/kreb-control/src/Kreb/Control/Monad/Trans/StateT.lhs"
+    , "lib/kreb-control/src/Kreb/Control/Monad/Trans/StateT/Proofs.lhs"
+    , "lib/kreb-control/src/Kreb/Control/Monad/Trans/StreamT.lhs"
+    , "lib/kreb-control/src/Kreb/Control/Monad/Trans/StreamT/Proofs.lhs"
+
+    , "lib/kreb-format/src/Kreb/Format/Doc.lhs"
+    , "lib/kreb-format/src/Kreb/Format/Combinator.lhs"
+    , "lib/kreb-format/src/Kreb/Format/Display.lhs"
+
+    , "lib/kreb-unit/src/Kreb/Unit/Declare.lhs"
+    , "lib/kreb-unit/src/Kreb/Unit/Declarable.lhs"
+    , "lib/kreb-unit/src/Kreb/Unit/Helpers.lhs"
+
+    , "lib/kreb-prop/src/Kreb/Prop/Sample.lhs"
+    , "lib/kreb-prop/src/Kreb/Prop/Arb.lhs"
+    , "lib/kreb-prop/src/Kreb/Prop/Check.lhs"
+    , "lib/kreb-prop/src/Kreb/Prop/Tests.lhs"
+    , "lib/kreb-prop/src/Kreb/Prop/Fun.lhs"
+
+    , "lib/kreb-category/src/Kreb/Category/Class/CategoryC.lhs"
+    ]
+}
