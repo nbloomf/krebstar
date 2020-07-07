@@ -1,8 +1,20 @@
-> module Kreb.Category.Class.ProfunctorC where
+---
+title: Profunctors
+author: nbloomf
+---
 
+::: frontmatter
+
+> module Kreb.Category.Class.ProfunctorC where
+> 
 > import Kreb.Category.Class.CategoryC
 
+:::
 
+
+
+Introduction
+------------
 
 > class
 >   ( CategoryC obj1 mor1, CategoryC obj2 mor2, CategoryC obj3 mor3
@@ -15,6 +27,11 @@
 >       -> mor3 (p x1 y1) (p x2 y2)
 
 Examples:
+
+> instance
+>   ProfunctorC Hask (->) Hask (->) Hask (->) (->)
+>   where
+>     dimapC f g h = g . h . f
 
 > instance
 >   ( forall x y. (obj1 x, obj2 y) => obj3 (Map obj1 obj2 x y)

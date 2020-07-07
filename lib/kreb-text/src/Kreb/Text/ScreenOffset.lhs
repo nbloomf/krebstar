@@ -395,15 +395,15 @@ We're finally prepared to define a helper function for constructing screen offse
 >         [ "defNoNewlines "
 >         , showWidth (Proxy :: Proxy w), " "
 >         , showTab (Proxy :: Proxy t), " "
->         , show $ RLE.toRuns xs
+>         , show xs
 >         ]
 >       WithNewlines as k bs -> concat
 >         [ "defWithNewlines "
 >         , showWidth (Proxy :: Proxy w), " "
 >         , showTab (Proxy :: Proxy t), " "
->         , show $ RLE.toRuns as, " "
+>         , show as, " "
 >         , show k, " "
->         , show $ RLE.toRuns bs
+>         , show bs
 >         ]
 
 

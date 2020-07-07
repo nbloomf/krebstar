@@ -27,7 +27,7 @@ title: Pointed Rose Trees -- Testing
 > 
 >   , testGroup "Class Laws"
 >     [ testGroup "Zipper"
->       [ test_Zipper_laws "StemTreeZipper" (Proxy :: Proxy StemTreeZipper) (Proxy :: Proxy Char)
+>       [--  test_Zipper_laws "StemTreeZipper" (Proxy :: Proxy StemTreeZipper) (Proxy :: Proxy Char)
 >       ]
 >     ]
 >   ]

@@ -27,15 +27,16 @@ title: Pointed Rose Trees
 
 > import Control.Monad
 
+> import           Kreb.Control
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format (display, (<+>), braceList)
 > import           Kreb.Prop
-> import           Kreb.Control
-> import           Kreb.Control.Constrained
 
 > import Kreb.Struct.Class
 > import Kreb.Struct.Data.Deque
 > import Kreb.Struct.Data.StemTree
+> import Kreb.Struct.Data.Zipper
 
 :::
 
@@ -189,22 +190,27 @@ Stem tree is a functor in the natural way:
 Stem tree is a container type, and we can define some standard functions.
 
 > instance Container StemTreeZipper where
->   type ContainerConstraint StemTreeZipper = Unconstrained
+>   type ElementOf StemTreeZipper = Hask
 > 
 > instance Singleton StemTreeZipper where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> StemTreeZipper a
 >   singleton a = StemTreeZipper a IsRoot empty empty empty
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => StemTreeZipper a -> Bool
->   isSingleton (StemTreeZipper _ p s b c) = case p of
->     IsInterior _ _ -> False
->     IsRoot -> isEmpty s && isEmpty b && isEmpty c
+>   fromSingleton
+>     :: ( Hask a )
+>     => StemTreeZipper a -> Maybe a
+>   fromSingleton (StemTreeZipper a p s b c) = case p of
+>     IsInterior _ _ -> Nothing
+>     IsRoot ->
+>       if isEmpty s && isEmpty b && isEmpty c
+>         then Just a
+>         else Nothing
 
 Of course stem tree zippers are also zippers.
+
+
 
 > instance Zipper StemTreeZipper where
 >   type Zipped StemTreeZipper = NonEmptyStemTree
@@ -229,6 +235,8 @@ Of course stem tree zippers are also zippers.
 >           , stemBranches = prec <> cons sub succ
 >           , stemContexts = ctx'
 >           }
+
+
 
 
 

@@ -42,12 +42,13 @@ title: DequeZippers
 > 
 > import Data.Foldable
 > 
-> import           Kreb.Prop
 > import           Kreb.Control
-> import           Kreb.Control.Constrained
+> import           Kreb.Category
+> import           Kreb.Prop
 
 > import           Kreb.Struct.Class
 > import qualified Kreb.Struct.Data.FingerTree.Zipper as FTZ
+> import           Kreb.Struct.Data.Zipper
 
 :::
 
@@ -72,21 +73,21 @@ So far we've developed the finger tree data type, and taken its derivative to ge
 
 
 > instance Container DequeZipper where
->   type ContainerConstraint DequeZipper = Unconstrained
+>   type ElementOf DequeZipper = Hask
 
 > instance Container NonEmptyDequeZipper where
->   type ContainerConstraint NonEmptyDequeZipper = Unconstrained
+>   type ElementOf NonEmptyDequeZipper = Hask
 
 > instance Subset NonEmptyDequeZipper where
 >   type SupersetOf NonEmptyDequeZipper = DequeZipper
 > 
 >   inject
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> DequeZipper a
 >   inject = NonEmpty
 > 
 >   restrict
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> Maybe (NonEmptyDequeZipper a)
 >   restrict x = case x of
 >     Empty -> Nothing
@@ -94,12 +95,12 @@ So far we've developed the finger tree data type, and taken its derivative to ge
 
 > instance NonEmpty NonEmptyDequeZipper where
 >   empty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a
 >   empty = Empty
 > 
 >   isEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> Bool
 >   isEmpty x = case x of
 >     Empty -> True
@@ -107,27 +108,27 @@ So far we've developed the finger tree data type, and taken its derivative to ge
 
 > instance Singleton DequeZipper where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> DequeZipper a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => DequeZipper a -> Bool
->   isSingleton x = case x of
->     Empty -> False
->     NonEmpty z -> isSingleton z
+>   fromSingleton
+>     :: ( Hask a )
+>     => DequeZipper a -> Maybe a
+>   fromSingleton x = case x of
+>     Empty      -> Nothing
+>     NonEmpty z -> fromSingleton z
 
 > instance Singleton NonEmptyDequeZipper where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptyDequeZipper a
 >   singleton = NonEmptyDequeZipper . singleton . Counted
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => NonEmptyDequeZipper a -> Bool
->   isSingleton = isSingleton . unNonEmptyDequeZipper
+>   fromSingleton
+>     :: ( Hask a )
+>     => NonEmptyDequeZipper a -> Maybe a
+>   fromSingleton = fmap unCounted . fromSingleton . unNonEmptyDequeZipper
 
 > instance Foldable DequeZipper where
 >   foldr :: (a -> b -> b) -> b -> DequeZipper a -> b
@@ -150,7 +151,9 @@ So far we've developed the finger tree data type, and taken its derivative to ge
 > 
 > instance Functor NonEmptyDequeZipper where
 >   fmap f (NonEmptyDequeZipper x) =
->     NonEmptyDequeZipper $ fmapC (fmap f) x
+>     NonEmptyDequeZipper $
+>       fmapC @Valued @(->) @Valued @(->) @FTZ.FingerTreeZipper
+>         (fmap f) x
 
 > instance Traversable DequeZipper where
 >   traverse f w = case w of
@@ -160,69 +163,70 @@ So far we've developed the finger tree data type, and taken its derivative to ge
 > instance Traversable NonEmptyDequeZipper where
 >   traverse f (NonEmptyDequeZipper x) =
 >     let g = fmap Counted . f . unCounted
->     in fmap NonEmptyDequeZipper $ traverseC g x
+>     in fmap NonEmptyDequeZipper $
+>       traverseC @Valued @(->) @Valued @(->) @FTZ.FingerTreeZipper g x
 
 
 
 > instance LinearZipper DequeZipper where
 >   readPointer
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> Maybe a
 >   readPointer w = case w of
 >     Empty -> Nothing
 >     NonEmpty x -> readPointer x
 > 
 >   alterPointer
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => (a -> a) -> DequeZipper a -> DequeZipper a
 >   alterPointer f w = case w of
 >     Empty -> Empty
 >     NonEmpty x -> NonEmpty $ alterPointer f x
 > 
 >   alterPointerM
->     :: ( Unconstrained a, Monad m )
+>     :: ( Hask a, Monad m )
 >     => (a -> m a) -> DequeZipper a -> m (DequeZipper a)
 >   alterPointerM f w = case w of
 >     Empty -> return Empty
 >     NonEmpty x -> fmap NonEmpty $ alterPointerM f x
 > 
 >   isAtStart
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> Bool
 >   isAtStart w = case w of
 >     Empty -> False
 >     NonEmpty x -> isAtStart x
 > 
 >   isAtEnd
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> Bool
 >   isAtEnd w = case w of
 >     Empty -> False
 >     NonEmpty x -> isAtEnd x
 > 
 >   moveTowardStart
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> DequeZipper a
 >   moveTowardStart w = case w of
 >     Empty -> Empty
 >     NonEmpty x -> NonEmpty $ moveTowardStart x
 > 
 >   moveTowardEnd
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> DequeZipper a
 >   moveTowardEnd w = case w of
 >     Empty -> Empty
 >     NonEmpty x -> NonEmpty $ moveTowardEnd x
 > 
 >   moveToStart
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> DequeZipper a
 >   moveToStart w = case w of
 >     Empty -> Empty
 >     NonEmpty x -> NonEmpty $ moveToStart x
 > 
 >   moveToEnd
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => DequeZipper a -> DequeZipper a
 >   moveToEnd w = case w of
 >     Empty -> Empty
@@ -230,54 +234,54 @@ So far we've developed the finger tree data type, and taken its derivative to ge
 
 > instance LinearZipper NonEmptyDequeZipper where
 >   readPointer
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> Maybe a
 >   readPointer (NonEmptyDequeZipper x) =
 >     fmap unCounted $ readPointer x
 > 
 >   alterPointer
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => (a -> a) -> NonEmptyDequeZipper a -> NonEmptyDequeZipper a
 >   alterPointer f (NonEmptyDequeZipper x) =
 >     NonEmptyDequeZipper $ alterPointer (fmap f) x
 > 
 >   alterPointerM
->     :: ( Unconstrained a, Monad m )
+>     :: ( Hask a, Monad m )
 >     => (a -> m a) -> NonEmptyDequeZipper a -> m (NonEmptyDequeZipper a)
 >   alterPointerM f (NonEmptyDequeZipper x) =
 >     let g = fmap Counted . f . unCounted
 >     in fmap NonEmptyDequeZipper $ alterPointerM g x
 > 
 >   isAtStart
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> Bool
 >   isAtStart (NonEmptyDequeZipper x) = isAtStart x
 > 
 >   isAtEnd
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> Bool
 >   isAtEnd (NonEmptyDequeZipper x) = isAtEnd x
 > 
 >   moveTowardStart
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> NonEmptyDequeZipper a
 >   moveTowardStart (NonEmptyDequeZipper x) =
 >     NonEmptyDequeZipper $ moveTowardStart x
 > 
 >   moveTowardEnd
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> NonEmptyDequeZipper a
 >   moveTowardEnd (NonEmptyDequeZipper x) =
 >     NonEmptyDequeZipper $ moveTowardEnd x
 > 
 >   moveToStart
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> NonEmptyDequeZipper a
 >   moveToStart (NonEmptyDequeZipper x) =
 >     NonEmptyDequeZipper $ moveToStart x
 > 
 >   moveToEnd
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDequeZipper a -> NonEmptyDequeZipper a
 >   moveToEnd (NonEmptyDequeZipper x) =
 >     NonEmptyDequeZipper $ moveToEnd x

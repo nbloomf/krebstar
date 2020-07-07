@@ -19,7 +19,6 @@ title: Finger Trees -- Tests
 > 
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Prop
-> import           Kreb.Control.Constrained
 > 
 > import Kreb.Struct.Class
 > import Kreb.Struct.Data.FingerTree
@@ -167,7 +166,7 @@ title: Finger Trees -- Tests
 >         , test_FromListConsSnocReverse_laws "NonEmptyFingerTree" (Proxy :: Proxy FingerTree) (Proxy :: Proxy (Self [Bool]))
 >         ]
 > 
->       , testGroup "ConstrainedFunctor"
+>    {-   , testGroup "ConstrainedFunctor"
 >         [ test_ConstrainedFunctor_laws (Proxy :: Proxy FingerTree)
 >             (Proxy :: Proxy (Self [Bool])) (Proxy :: Proxy (Self [Bool])) (Proxy :: Proxy (Self [Bool]))
 >         , test_ConstrainedFunctor_laws (Proxy :: Proxy NonEmptyFingerTree)
@@ -204,7 +203,7 @@ title: Finger Trees -- Tests
 >         , test_ConstrainedTraversable_laws (Proxy :: Proxy NonEmptyFingerTree)
 >             (Proxy :: Proxy Counted) (Proxy :: Proxy Counted)
 >             (Proxy :: Proxy (Self [Bool])) (Proxy :: Proxy (Self [Bool])) (Proxy :: Proxy (Self [Bool]))
->         ]
+>         ] -}
 >     ]
 
 

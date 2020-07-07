@@ -10,8 +10,10 @@
 >   , "-XInstanceSigs"
 >   , "-XKindSignatures"
 >   , "-XTypeFamilies"
+>   , "-XTypeApplications"
 > 
->   , "src/Kreb/Text.lhs"
+>   , "-package kreb-prop"
+> 
 >   , "src/Kreb/Text/ScreenOffset.lhs"
 >   , "src/Kreb/Text/MeasureText.lhs"
 >   , "src/Kreb/Text/Pigment.lhs"

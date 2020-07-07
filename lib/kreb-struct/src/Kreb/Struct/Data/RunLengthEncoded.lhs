@@ -40,11 +40,12 @@ title: Run Length Encoding
 > import Prelude hiding (reverse)
 > import Data.Foldable
 > import Data.List (intercalate, genericLength)
+> import Data.Maybe (catMaybes)
 
+> import           Kreb.Control
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format (display, (<+>))
-> import           Kreb.Control
-> import           Kreb.Control.Constrained
 > import           Kreb.Prop
 
 > import Kreb.Struct.Class
@@ -150,14 +151,14 @@ We're now prepared to define run length encoded lists in terms of `RunSize` and 
 >   deriving Eq
 > 
 > instance Container RunLengthEncoded where
->   type ContainerConstraint RunLengthEncoded = Eq
+>   type ElementOf RunLengthEncoded = Eq
 > 
 > newtype NonEmptyRunLengthEncoded a = RLE
 >   { unRLE :: FT.NonEmptyFingerTree (Run a)
 >   } deriving Eq
 > 
 > instance Container NonEmptyRunLengthEncoded where
->   type ContainerConstraint NonEmptyRunLengthEncoded = Eq
+>   type ElementOf NonEmptyRunLengthEncoded = Eq
 
 Both variants are instances of `Valued`:
 
@@ -219,7 +220,9 @@ Both variants are functors (proper functors, since the `Eq` constraint doesn't a
 >     NonEmpty w -> NonEmpty (fmap f w)
 > 
 > instance Functor NonEmptyRunLengthEncoded where
->   fmap f (RLE x) = RLE $ fmapC (fmap f) x
+>   fmap f (RLE x) = RLE $
+>     fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree
+>       (fmap f) x
 
 We'd like for our internal representation to maintain an additional invariant: that two adjacent runs always have distinct 'bases'. For instance, using list notation, a representation like
 
@@ -239,33 +242,40 @@ could be written instead as
 
 with no loss of information. Our `NonEmptyRunLengthEncoded` type can't enforce this on its own, so we'll have to do it using a smart constructor.
 
-> class FromRuns t where
->   fromRuns :: (Eq a) => [(Integer, a)] -> t a
+> class FromRunsMaybe t where
+>   fromRunsMaybe :: (Eq a) => [(Integer, a)] -> Maybe (t a)
 >   toRuns :: t a -> [(Integer, a)]
 > 
 >   showRuns :: (Show a) => t a -> String
 >   showRuns xs = concat
 >     [ "fromRuns ", show (toRuns xs) ]
 > 
-> instance FromRuns RunLengthEncoded where
->   fromRuns :: (Eq a) => [(Integer, a)] -> RunLengthEncoded a
->   fromRuns xs = case combineAndFilter xs of
->     [] -> Empty
->     _  -> NonEmpty $ fromRuns xs
+> class FromRuns t where
+>   fromRuns :: (Eq a) => [(Integer, a)] -> t a
+> 
+> instance FromRunsMaybe RunLengthEncoded where
+>   fromRunsMaybe :: (Eq a) => [(Integer, a)] -> Maybe (RunLengthEncoded a)
+>   fromRunsMaybe xs = Just $ fromRuns xs
 > 
 >   toRuns :: RunLengthEncoded a -> [(Integer, a)]
 >   toRuns x = case x of
 >     Empty -> []
 >     NonEmpty w -> toRuns w
 > 
+> instance FromRuns RunLengthEncoded where
+>   fromRuns :: (Eq a) => [(Integer, a)] -> RunLengthEncoded a
+>   fromRuns xs = case fromRunsMaybe xs of
+>     Nothing -> Empty
+>     Just zs -> NonEmpty zs
+> 
 > instance (Show a) => Show (RunLengthEncoded a) where
 >   show = showRuns
 > 
-> instance FromRuns NonEmptyRunLengthEncoded where
->   fromRuns :: (Eq a) => [(Integer, a)] -> NonEmptyRunLengthEncoded a
->   fromRuns xs = case combineAndFilter xs of
->     [] -> error "NonEmptyRunLengthEncoded: fromRuns panic (empty list)"
->     ys -> RLE $ fromList $ map (uncurry mkRun) ys
+> instance FromRunsMaybe NonEmptyRunLengthEncoded where
+>   fromRunsMaybe :: (Eq a) => [(Integer, a)] -> Maybe (NonEmptyRunLengthEncoded a)
+>   fromRunsMaybe xs = case combineAndFilter xs of
+>     [] -> Nothing
+>     ys -> fmap RLE $ fromListMaybe $ map (uncurry mkRun) ys
 > 
 >   toRuns :: NonEmptyRunLengthEncoded a -> [(Integer, a)]
 >   toRuns (RLE x) = map unRun $ toList x
@@ -316,17 +326,19 @@ We defined these using a class so we can use the same names for both list varian
 >   singleton :: (Eq a) => a -> RunLengthEncoded a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton :: (Eq a) => RunLengthEncoded a -> Bool
->   isSingleton x = case x of
->     Empty -> False
->     NonEmpty w -> isSingleton w
+>   fromSingleton :: (Eq a) => RunLengthEncoded a -> Maybe a
+>   fromSingleton x = case x of
+>     Empty      -> Nothing
+>     NonEmpty w -> fromSingleton w
 > 
 > instance Singleton NonEmptyRunLengthEncoded where
 >   singleton :: (Eq a) => a -> NonEmptyRunLengthEncoded a
->   singleton a = fromRuns [(1, a)]
+>   singleton a = RLE $ singleton (mkRun 1 a)
 > 
->   isSingleton :: NonEmptyRunLengthEncoded a -> Bool
->   isSingleton as = 1 == countItems as
+>   fromSingleton :: NonEmptyRunLengthEncoded a -> Maybe a
+>   fromSingleton as = case toRuns as of
+>     [(1,a)] -> Just a
+>     _       -> Nothing
 > 
 > instance SubsetSingleton NonEmptyRunLengthEncoded
 > instance NonEmptySingleton NonEmptyRunLengthEncoded
@@ -375,17 +387,20 @@ We also have a `Foldable` instance for run length encoded lists.
 Run length encoded lists are isomorphic to cons lists, which we witness with explicit mappings between the two.
 
 > instance FromList RunLengthEncoded where
->   fromList :: (Eq a) => [a] -> RunLengthEncoded a
->   fromList xs = case xs of
->     [] -> Empty
->     _  -> NonEmpty $ fromList xs
+>   fromListMaybe
+>     :: (Eq a) => [a] -> Maybe (RunLengthEncoded a)
+>   fromListMaybe = Just . fromList
 > 
-> instance FromListMonoid RunLengthEncoded
+> instance FromListMonoid RunLengthEncoded where
+>   fromList xs = case fromListMaybe xs of
+>     Nothing -> Empty
+>     Just w  -> NonEmpty w
+> 
 > instance FromListConsSnocReverse RunLengthEncoded
 > 
 > instance FromList NonEmptyRunLengthEncoded where
->   fromList :: (Eq a) => [a] -> NonEmptyRunLengthEncoded a
->   fromList = fromRuns . group
+>   fromListMaybe :: (Eq a) => [a] -> Maybe (NonEmptyRunLengthEncoded a)
+>   fromListMaybe = fromRunsMaybe . group
 >     where
 >       group :: (Eq a) => [a] -> [(Integer, a)]
 >       group xs = case xs of
@@ -476,11 +491,11 @@ With these helpers in hand we can implement cons and uncons for both variants.
 >     => a -> NonEmptyRunLengthEncoded a -> NonEmptyRunLengthEncoded a
 >   cons a x =
 >     let (Run (k, b), w) = firstRunNonEmpty x
->     in case (a == b, w) of
->       (True,  Empty           ) -> fromRuns [(1+k, b)]
->       (True,  NonEmpty (RLE v)) -> RLE $ cons (mkRun (1+k) b) v
->       (False, Empty           ) -> fromRuns [(1, a), (k, b)]
->       (False, NonEmpty (RLE v)) -> RLE $ fromList [mkRun 1 a, mkRun k b] <> v
+>     in RLE $ case (a == b, w) of
+>       (True,  Empty           ) -> singleton $ mkRun (1+k) b
+>       (True,  NonEmpty (RLE v)) -> cons (mkRun (1+k) b) v
+>       (False, Empty           ) -> cons (mkRun 1 a) $ singleton (mkRun k b)
+>       (False, NonEmpty (RLE v)) -> cons (mkRun 1 a) $ cons (mkRun k b) v
 > 
 >   uncons
 >     :: ( Eq a )
@@ -506,7 +521,7 @@ Again the heavy lifting is done by `unconsNonEmpty`:
 >     in case compare k 1 of
 >       EQ -> (a, w)
 >       GT -> case w of
->         Empty            -> (a, NonEmpty $ fromRuns [(k-1, a)])
+>         Empty            -> (a, NonEmpty $ RLE $ singleton (mkRun (k-1) a))
 >         NonEmpty (RLE z) -> (a, NonEmpty $ RLE $ cons (mkRun (k-1) a) z)
 >       LT -> error "RunLengthEncoded: uncons panic"
 
@@ -536,11 +551,11 @@ Snoc is analogous.
 >     => a -> NonEmptyRunLengthEncoded a -> NonEmptyRunLengthEncoded a
 >   snoc a x =
 >     let (Run (k, b), v) = lastRunNonEmpty x
->     in case (a == b, v) of
->       (True,  Empty           ) -> fromRuns [(1+k, b)]
->       (True,  NonEmpty (RLE w)) -> RLE $ snoc (mkRun (1+k) b) w
->       (False, Empty           ) -> fromRuns [(k, b), (1, a)]
->       (False, NonEmpty (RLE w)) -> RLE $ w <> fromList [mkRun k b, mkRun 1 a]
+>     in RLE $ case (a == b, v) of
+>       (True,  Empty           ) -> singleton (mkRun (1+k) b)
+>       (True,  NonEmpty (RLE w)) -> snoc (mkRun (1+k) b) w
+>       (False, Empty           ) -> snoc (mkRun 1 a) $ singleton (mkRun k b)
+>       (False, NonEmpty (RLE w)) -> snoc (mkRun 1 a) $ snoc (mkRun k b) w
 > 
 >   unsnoc
 >     :: ( Eq a )
@@ -565,7 +580,7 @@ Snoc is analogous.
 >     in case compare k 1 of
 >       EQ -> (a, w)
 >       GT -> case w of
->         Empty            -> (a, NonEmpty $ fromRuns [(k-1, a)])
+>         Empty            -> (a, fromRuns [(k-1, a)])
 >         NonEmpty (RLE z) -> (a, NonEmpty $ RLE $ snoc (mkRun (k-1) a) z)
 >       LT -> error "RunLengthEncoded: unsnoc panic"
 
@@ -694,11 +709,13 @@ And finally, we need some class instances to interact with the testing framework
 > 
 > instance (Arb a, Eq a) => Arb (NonEmptyRunLengthEncoded a) where
 >   arb = do
->     xs <- listOf1 arb
->     return $ fromList xs
+>     z <- fmap fromListMaybe $ listOf1 arb
+>     case z of
+>       Nothing -> error "NonEmptyRunLengthEncoded (Arb)"
+>       Just x -> return x
 > 
 > instance (Prune a, Eq a) => Prune (NonEmptyRunLengthEncoded a) where
->   prune = map fromList . filter (/= []) . prune . toList
+>   prune = catMaybes . map fromListMaybe . filter (/= []) . prune . toList
 
 And because run length encoded lists have an essential invariant, we should expose a predicate to make sure the invariant is satisfied.
 

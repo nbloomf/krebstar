@@ -6,8 +6,8 @@
 
 > import Test.Tasty
 
+> import Kreb.Category
 > import Kreb.Prop
-> import Kreb.Control.Constrained
 
 > import Kreb.Struct.Class
 > import Kreb.Struct.Data.Seq

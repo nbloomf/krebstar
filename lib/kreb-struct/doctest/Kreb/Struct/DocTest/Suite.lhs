@@ -7,15 +7,21 @@
 >   [ "-XRankNTypes"
 >   , "-XGADTs"
 >   , "-XScopedTypeVariables"
+>   , "-XMultiParamTypeClasses"
 >   , "-XInstanceSigs"
 >   , "-XKindSignatures"
 >   , "-XTypeFamilies"
+>   , "-XTypeApplications"
+>   , "-XQuantifiedConstraints"
 > 
 >   , "-package text"
 >   , "-package kreb-prop"
 >   , "-package kreb-category"
 > 
->   , "src/Kreb/Struct.lhs"
+>   , "src/Kreb/Struct/Class.lhs"
+>   , "src/Kreb/Struct/Class/Valued.lhs"
+>   , "src/Kreb/Struct/Class/Container.lhs"
+>   , "src/Kreb/Struct/Class/Container/Test.lhs"
 >   , "src/Kreb/Struct/Data.lhs"
 >   , "src/Kreb/Struct/Data/FingerTree.lhs"
 >   ]

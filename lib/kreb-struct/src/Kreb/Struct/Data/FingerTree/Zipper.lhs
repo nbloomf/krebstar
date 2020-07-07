@@ -28,14 +28,15 @@ title: One-Pointed Lists
 > import Data.List (unwords)
 > import Data.Foldable
 > 
+> import           Kreb.Control
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format (display, (<+>))
 > import           Kreb.Prop
-> import           Kreb.Control
-> import           Kreb.Control.Constrained
 
 > import           Kreb.Struct.Class
 > import qualified Kreb.Struct.Data.FingerTree as FT
+> import           Kreb.Struct.Data.Zipper
 
 :::
 
@@ -144,10 +145,10 @@ As usual, we'll build up a theory of `OnePointedList`s by defining queries and o
 >   (toList as, x, toList bs)
 
 > instance Container FingerTreeZipper where
->   type ContainerConstraint FingerTreeZipper = Valued
+>   type ElementOf FingerTreeZipper = Valued
 > 
 > instance Container NonEmptyFingerTreeZipper where
->   type ContainerConstraint NonEmptyFingerTreeZipper = Valued
+>   type ElementOf NonEmptyFingerTreeZipper = Valued
 
 > instance Subset NonEmptyFingerTreeZipper where
 >   type SupersetOf NonEmptyFingerTreeZipper = FingerTreeZipper
@@ -185,12 +186,12 @@ As usual, we'll build up a theory of `OnePointedList`s by defining queries and o
 >     => a -> FingerTreeZipper a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton
+>   fromSingleton
 >     :: ( Valued a )
->     => FingerTreeZipper a -> Bool
->   isSingleton w = case w of
->     Empty -> False
->     NonEmpty x -> isSingleton x
+>     => FingerTreeZipper a -> Maybe a
+>   fromSingleton w = case w of
+>     Empty      -> Nothing
+>     NonEmpty x -> fromSingleton x
 
 
 
@@ -201,14 +202,17 @@ As usual, we'll build up a theory of `OnePointedList`s by defining queries and o
 >   singleton a =
 >     Point mempty a mempty
 > 
->   isSingleton
+>   fromSingleton
 >     :: ( Valued a )
->     => NonEmptyFingerTreeZipper a -> Bool
->   isSingleton (Point as _ bs) =
->     (isEmpty as) && (isEmpty bs)
+>     => NonEmptyFingerTreeZipper a -> Maybe a
+>   fromSingleton (Point as x bs) =
+>     if (isEmpty as) && (isEmpty bs)
+>       then Just x
+>       else Nothing
 > 
 > instance SubsetSingleton NonEmptyFingerTreeZipper
 > instance NonEmptySingleton NonEmptyFingerTreeZipper
+
 
 
 > instance LinearZipper FingerTreeZipper where
@@ -364,6 +368,18 @@ Finally, we also provide a constructor which converts lists to `OnePointedList`s
 Class Instances
 ---------------
 
+> instance (Valued a) => Valued (FingerTreeZipper a) where
+>   type Value (FingerTreeZipper a) = Value a
+> 
+>   value x = case x of
+>     Empty -> mempty
+>     NonEmpty z -> value z
+> 
+> instance (Valued a) => Valued (NonEmptyFingerTreeZipper a) where
+>   type Value (NonEmptyFingerTreeZipper a) = Value a
+> 
+>   value (Point as x bs) = mconcat [ value as, value x, value bs ]
+
 It's not too surprising that we can also give `OnePointedList` a `Foldable` instance.
 
 > instance Foldable NonEmptyFingerTreeZipper where
@@ -407,54 +423,79 @@ It's not too surprising that we can also give `OnePointedList` a `Foldable` inst
 
 Another natural class instance we'd like for `OnePointedList` is `Functor`. Unfortunately we can't write a proper instance in this case, due to the essential `Valued` constraint. We can however get pretty close. `fmapOPL` maps a function over a one-pointed list as we expect.
 
-> instance ConstrainedFunctor FingerTreeZipper where
->   type FunctorConstraint FingerTreeZipper = Valued
-> 
+> instance FunctorC Valued (->) Valued (->) FingerTreeZipper where
 >   fmapC
 >     :: forall a b
 >      . ( Valued a, Valued b )
 >     => (a -> b) -> FingerTreeZipper a -> FingerTreeZipper b
 >   fmapC f w = case w of
 >     Empty -> Empty
->     NonEmpty u -> NonEmpty $ fmapC f u
+>     NonEmpty u -> NonEmpty $
+>       fmapC @Valued @(->) @Valued @(->) @NonEmptyFingerTreeZipper f u
 > 
-> instance ConstrainedFunctor NonEmptyFingerTreeZipper where
->   type FunctorConstraint NonEmptyFingerTreeZipper = Valued
-> 
+> instance FunctorC Valued (->) Valued (->) NonEmptyFingerTreeZipper where
 >   fmapC
 >     :: forall a b
 >      . ( Valued a, Valued b )
 >     => (a -> b) -> NonEmptyFingerTreeZipper a -> NonEmptyFingerTreeZipper b
 >   fmapC f (Point as x bs) =
->     Point (fmapC f as) (f x) (fmapC f bs)
+>     Point
+>       (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree f as)
+>       (f x)
+>       (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree f bs)
 
-> instance ConstrainedTraversable FingerTreeZipper where
+> instance TraversableC Valued (->) Valued (->) FingerTreeZipper where
 >   traverseC
 >     :: ( Applicative f, Valued a, Valued b )
 >     => (a -> f b) -> FingerTreeZipper a -> f (FingerTreeZipper b)
 >   traverseC f w = case w of
 >     Empty -> pure Empty
->     NonEmpty u -> fmap NonEmpty $ traverseC f u
+>     NonEmpty u -> fmap NonEmpty $
+>       traverseC @Valued @(->) @Valued @(->) @NonEmptyFingerTreeZipper f u
 > 
 >   sequenceAC
 >     :: ( Applicative f, Valued a, Valued (f a) )
 >     => FingerTreeZipper (f a) -> f (FingerTreeZipper a)
 >   sequenceAC w = case w of
 >     Empty -> pure Empty
->     NonEmpty u -> fmap NonEmpty $ sequenceAC u
+>     NonEmpty u -> fmap NonEmpty $
+>       sequenceAC @Valued @(->) @Valued @(->) @NonEmptyFingerTreeZipper u
 > 
-> instance ConstrainedTraversable NonEmptyFingerTreeZipper where
+>   consumeC
+>     :: ( Applicative f, Valued a )
+>     => (FingerTreeZipper a -> b) -> FingerTreeZipper (f a) -> f b
+>   consumeC h w = case w of
+>     Empty -> pure (h Empty)
+>     NonEmpty u -> fmap (h . NonEmpty) $
+>       consumeC @Valued @(->) @Valued @(->) id u
+> 
+> instance TraversableC Valued (->) Valued (->) NonEmptyFingerTreeZipper where
 >   traverseC
 >     :: ( Applicative f, Valued a, Valued b )
 >     => (a -> f b) -> NonEmptyFingerTreeZipper a -> f (NonEmptyFingerTreeZipper b)
 >   traverseC f (Point as x bs) =
->     pure Point <*> traverseC f as <*> f x <*> traverseC f bs
+>     pure Point
+>       <*> traverseC @Valued @(->) @Valued @(->) @FT.FingerTree f as
+>       <*> f x
+>       <*> traverseC @Valued @(->) @Valued @(->) @FT.FingerTree f bs
 > 
 >   sequenceAC
 >     :: ( Applicative f, Valued a, Valued (f a) )
 >     => NonEmptyFingerTreeZipper (f a) -> f (NonEmptyFingerTreeZipper a)
 >   sequenceAC (Point as x bs) =
->     pure Point <*> sequenceAC as <*> x <*> sequenceAC bs
+>     pure Point
+>       <*> sequenceAC @Valued @(->) @Valued @(->) @FT.FingerTree as
+>       <*> x
+>       <*> sequenceAC @Valued @(->) @Valued @(->) @FT.FingerTree bs
+> 
+>   consumeC
+>     :: ( Applicative f, Valued a )
+>     => (NonEmptyFingerTreeZipper a -> b) -> NonEmptyFingerTreeZipper (f a) -> f b
+>   consumeC h (Point as x bs) =
+>     fmap h $ Point
+>       <$> sequenceAC @Valued @(->) @Valued @(->) @FT.FingerTree as
+>       <*> x
+>       <*> sequenceAC @Valued @(->) @Valued @(->) @FT.FingerTree bs
 
 Note that types built on top of `OnePointedList` which fix the `m` parameter can generally be given a proper `Functor` instance, which is given by `fmapOPL`.
 

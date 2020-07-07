@@ -1,11 +1,16 @@
+---
+title: Tambara Modules
+author: nbloomf
+---
+
 > module Kreb.Optics.Class.Tambara where
 > 
 > import Kreb.Category
 
 
 
-Tambara Module
---------------
+Tambara Modules
+---------------
 
 Laws:
 - natural in x and y

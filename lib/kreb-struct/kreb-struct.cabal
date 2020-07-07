@@ -22,24 +22,7 @@ library
     , Kreb.Struct.Class
     , Kreb.Struct.Class.Valued
     , Kreb.Struct.Class.Container
-    , Kreb.Struct.Class.Subset
-    , Kreb.Struct.Class.Subset.Test
-    , Kreb.Struct.Class.NonEmpty
-    , Kreb.Struct.Class.NonEmpty.Test
-    , Kreb.Struct.Class.Singleton
-    , Kreb.Struct.Class.Singleton.Test
-    , Kreb.Struct.Class.Cons
-    , Kreb.Struct.Class.Cons.Test
-    , Kreb.Struct.Class.Reverse
-    , Kreb.Struct.Class.Reverse.Test
-    , Kreb.Struct.Class.FromList
-    , Kreb.Struct.Class.FromList.Test
-    , Kreb.Struct.Class.Ideal
-    , Kreb.Struct.Class.Ideal.Test
-    , Kreb.Struct.Class.Zipper
-    , Kreb.Struct.Class.Zipper.Test
-    , Kreb.Struct.Class.Zipper.Linear
-    , Kreb.Struct.Class.Zipper.Linear.Test
+    , Kreb.Struct.Class.Container.Test
 
     , Kreb.Struct.Data
     , Kreb.Struct.Data.FingerTree
@@ -53,12 +36,17 @@ library
     , Kreb.Struct.Data.Deque.Zipper
     , Kreb.Struct.Data.RedBlackTree
     , Kreb.Struct.Data.FiniteMap
+
+    , Kreb.Struct.Data.Zipper
   default-extensions:
       ScopedTypeVariables
     , TypeFamilies
     , InstanceSigs
     , KindSignatures
     , GADTs
+    , MultiParamTypeClasses
+    , TypeApplications
+    , QuantifiedConstraints
   build-depends:
       base >=4.7 && <5
     , tasty >=1.2

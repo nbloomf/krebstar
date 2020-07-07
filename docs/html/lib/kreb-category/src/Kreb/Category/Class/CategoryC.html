@@ -84,10 +84,10 @@
 <div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">class</span>    <span class="dt">Hask</span> a</a>
 <a class="sourceLine" id="cb4-2" title="2"><span class="kw">instance</span> <span class="dt">Hask</span> a</a>
 <a class="sourceLine" id="cb4-3" title="3"></a>
-<a class="sourceLine" id="cb4-4" title="4"><span class="kw">instance</span> <span class="dt">CategoryC</span> <span class="dt">Hask</span> (<span class="ot">-&gt;</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-4" title="4"><span class="kw">instance</span> <span class="dt">CategoryC</span> (<span class="ot">obj ::</span> <span class="dt">Obj</span>) (<span class="ot">-&gt;</span>) <span class="kw">where</span></a>
 <a class="sourceLine" id="cb4-5" title="5">  unit <span class="ot">=</span> <span class="fu">id</span></a>
 <a class="sourceLine" id="cb4-6" title="6">  comp <span class="ot">=</span> (<span class="op">.</span>)</a></code></pre></div>
-<p>To generalize this to arbitrary constraints we need a constrained definition for functions. We can do this with a GADT.</p>
+<p>We can generalize this to constrained functions with a GADT.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">data</span> <span class="dt">Map</span> (<span class="ot">dom ::</span> <span class="dt">Obj</span>) (<span class="ot">cod ::</span> <span class="dt">Obj</span>) a b <span class="kw">where</span></a>
 <a class="sourceLine" id="cb5-2" title="2">  <span class="dt">Map</span></a>
 <a class="sourceLine" id="cb5-3" title="3"><span class="ot">    ::</span> (dom a, cod b)</a>

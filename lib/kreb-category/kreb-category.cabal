@@ -33,19 +33,14 @@ library
     , AllowAmbiguousTypes
     , TypeApplications
   exposed-modules:
-      Kreb.Control.Constrained
-    , Kreb.Control.Unconstrained
-    , Kreb.Control.Constrained.Functor
-    , Kreb.Control.Constrained.Functor.Laws
-    , Kreb.Control.Constrained.Traversable
-    , Kreb.Control.Constrained.Traversable.Laws
-
-    , Kreb.Category
+      Kreb.Category
     , Kreb.Category.Class
     , Kreb.Category.Class.CategoryC
     , Kreb.Category.Class.CategoryC.Laws
     , Kreb.Category.Class.FunctorC
     , Kreb.Category.Class.FunctorC.Laws
+    , Kreb.Category.Class.TraversableC
+    , Kreb.Category.Class.TraversableC.Laws
     , Kreb.Category.Class.BifunctorC
     , Kreb.Category.Class.BifunctorC.Laws
     , Kreb.Category.Class.ProfunctorC
@@ -55,6 +50,9 @@ library
     , Kreb.Category.Class.MonoidalActionC
     , Kreb.Category.Class.MonoidalActionC.Laws
     , Kreb.Category.Data
+    , Kreb.Category.Data.IdC
+    , Kreb.Category.Data.MaybeC
+    , Kreb.Category.Data.ListC
     , Kreb.Category.Data.PairC
     , Kreb.Category.Data.ChoiceC
   build-depends:

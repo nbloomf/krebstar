@@ -21,12 +21,13 @@ title: Seq
 
 > import Prelude hiding (reverse)
 > import Data.Foldable
+> import Data.Maybe (catMaybes)
 
+> import           Kreb.Control
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format (display, (<+>))
 > import           Kreb.Prop
-> import           Kreb.Control
-> import           Kreb.Control.Constrained
 
 > import           Kreb.Struct.Class
 > import qualified Kreb.Struct.Data.FingerTree as FT
@@ -40,10 +41,10 @@ Introduction
 
 > data Seq a where
 >   Empty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a
 >   NonEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a
 >     -> Seq a
 > 
@@ -52,7 +53,7 @@ Introduction
 > 
 > data NonEmptySeq a where
 >   NonEmptySeq
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => FT.NonEmptyFingerTree (Counted a)
 >     -> NonEmptySeq a
 > 
@@ -62,21 +63,21 @@ Introduction
 As usual we split the type into empty and nonempty counterparts. Now both are containers, with nonempty Seqs a subset of possibly empty Seqs.
 
 > instance Container Seq where
->   type ContainerConstraint Seq = Unconstrained
+>   type ElementOf Seq = Hask
 > 
 > instance Container NonEmptySeq where
->   type ContainerConstraint NonEmptySeq = Unconstrained
+>   type ElementOf NonEmptySeq = Hask
 > 
 > instance Subset NonEmptySeq where
 >   type SupersetOf NonEmptySeq = Seq
 > 
 >   inject
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a -> Seq a
 >   inject = NonEmpty
 > 
 >   restrict
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a -> Maybe (NonEmptySeq a)
 >   restrict x = case x of
 >     Empty -> Nothing
@@ -84,12 +85,12 @@ As usual we split the type into empty and nonempty counterparts. Now both are co
 > 
 > instance NonEmpty NonEmptySeq where
 >   empty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a
 >   empty = Empty
 > 
 >   isEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a -> Bool
 >   isEmpty x = case x of
 >     Empty -> True
@@ -105,21 +106,26 @@ Just about everything we need out of Seqs is covered by our container classes, a
 We can convert from lists:
 
 > instance FromList Seq where
->   fromList
->     :: ( Unconstrained a )
->     => [a] -> Seq a
->   fromList xs = case xs of
->     [] -> Empty
->     _  -> NonEmpty $ fromList xs
+>   fromListMaybe
+>     :: ( Hask a )
+>     => [a] -> Maybe (Seq a)
+>   fromListMaybe = Just . fromList
 > 
-> instance FromListMonoid Seq
+> instance FromListMonoid Seq where
+>   fromList
+>     :: ( Hask a )
+>     => [a] -> Seq a
+>   fromList xs = case fromListMaybe xs of
+>     Nothing -> Empty
+>     Just zs -> NonEmpty zs
+> 
 > instance FromListConsSnocReverse Seq
 > 
 > instance FromList NonEmptySeq where
->   fromList
->     :: ( Unconstrained a )
->     => [a] -> NonEmptySeq a
->   fromList = NonEmptySeq . fromList . map Counted
+>   fromListMaybe
+>     :: ( Hask a )
+>     => [a] -> Maybe (NonEmptySeq a)
+>   fromListMaybe = fmap NonEmptySeq . fromListMaybe . map Counted
 > 
 > instance FromListConsSnocReverse NonEmptySeq
 
@@ -146,28 +152,28 @@ Singleton:
 
 > instance Singleton Seq where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> Seq a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => Seq a -> Bool
->   isSingleton x = case x of
->     Empty -> False
->     NonEmpty w -> isSingleton w
+>   fromSingleton
+>     :: ( Hask a )
+>     => Seq a -> Maybe a
+>   fromSingleton x = case x of
+>     Empty      -> Nothing
+>     NonEmpty w -> fromSingleton w
 > 
 > instance Singleton NonEmptySeq where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptySeq a
 >   singleton = NonEmptySeq . singleton . Counted
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => NonEmptySeq a -> Bool
->   isSingleton (NonEmptySeq x) =
->     isSingleton x
+>   fromSingleton
+>     :: ( Hask a )
+>     => NonEmptySeq a -> Maybe a
+>   fromSingleton (NonEmptySeq x) =
+>     fmap unCounted $ fromSingleton x
 
 > instance SubsetSingleton NonEmptySeq
 > instance NonEmptySingleton NonEmptySeq
@@ -180,20 +186,22 @@ Functor:
 >     NonEmpty w -> NonEmpty (fmap f w)
 > 
 > instance Functor NonEmptySeq where
->   fmap f (NonEmptySeq x) = NonEmptySeq (fmapC (fmap f) x)
+>   fmap f (NonEmptySeq x) = NonEmptySeq
+>     (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree
+>       (fmap f) x)
 
 Semigroup:
 
-> instance (Unconstrained a) => Semigroup (Seq a) where
+> instance (Hask a) => Semigroup (Seq a) where
 >   x <> y = case (x,y) of
 >     (Empty,      _         ) -> y
 >     (_,          Empty     ) -> x
 >     (NonEmpty u, NonEmpty v) -> NonEmpty (u <> v)
 > 
-> instance (Unconstrained a) => Monoid (Seq a) where
+> instance (Hask a) => Monoid (Seq a) where
 >   mempty = Empty
 > 
-> instance (Unconstrained a) => Semigroup (NonEmptySeq a) where
+> instance (Hask a) => Semigroup (NonEmptySeq a) where
 >   (NonEmptySeq u) <> (NonEmptySeq v) =
 >     NonEmptySeq (u <> v)
 
@@ -201,14 +209,14 @@ Cons:
 
 > instance Cons Seq where
 >   cons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> Seq a -> Seq a
 >   cons a x = case x of
 >     Empty      -> singleton a
 >     NonEmpty w -> NonEmpty (cons a w)
 > 
 >   uncons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a
 >     -> Maybe (a, Seq a)
 >   uncons x = case x of
@@ -219,13 +227,13 @@ Cons:
 > 
 > instance Cons NonEmptySeq where
 >   cons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptySeq a -> NonEmptySeq a
 >   cons a (NonEmptySeq x) =
 >     NonEmptySeq (cons (Counted a) x)
 > 
 >   uncons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a -> Maybe (a, NonEmptySeq a)
 >   uncons x =
 >     let (a,z) = unconsNonEmpty x
@@ -238,7 +246,7 @@ Cons:
 > 
 > instance UnconsNonEmpty NonEmptySeq where
 >   unconsNonEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a
 >     -> (a, Seq a)
 >   unconsNonEmpty (NonEmptySeq x) =
@@ -251,14 +259,14 @@ Snoc:
 
 > instance Snoc Seq where
 >   snoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> Seq a -> Seq a
 >   snoc a x = case x of
 >     Empty      -> singleton a
 >     NonEmpty w -> NonEmpty (snoc a w)
 > 
 >   unsnoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a
 >     -> Maybe (a, Seq a)
 >   unsnoc x = case x of
@@ -270,13 +278,13 @@ Snoc:
 > 
 > instance Snoc NonEmptySeq where
 >   snoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptySeq a -> NonEmptySeq a
 >   snoc a (NonEmptySeq x) =
 >     NonEmptySeq (snoc (Counted a) x)
 > 
 >   unsnoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a -> Maybe (a, NonEmptySeq a)
 >   unsnoc x =
 >     let (a,z) = unsnocNonEmpty x
@@ -290,7 +298,7 @@ Snoc:
 > 
 > instance UnsnocNonEmpty NonEmptySeq where
 >   unsnocNonEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a
 >     -> (a, Seq a)
 >   unsnocNonEmpty (NonEmptySeq x) =
@@ -303,7 +311,7 @@ Reverse:
 
 > instance Reverse Seq where
 >   reverse
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a -> Seq a
 >   reverse x = case x of
 >     Empty      -> Empty
@@ -316,7 +324,7 @@ Reverse:
 > 
 > instance Reverse NonEmptySeq where
 >   reverse
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a -> NonEmptySeq a
 >   reverse (NonEmptySeq a) =
 >     NonEmptySeq (reverse a)
@@ -332,14 +340,14 @@ And Ideal:
 > 
 > instance Ideal NonEmptySeq where
 >   (@>)
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptySeq a -> Seq a -> NonEmptySeq a
 >   u @> v = case v of
 >     Empty      -> u
 >     NonEmpty w -> u <> w
 > 
 >   (<@)
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Seq a -> NonEmptySeq a -> NonEmptySeq a
 >   u <@ v = case u of
 >     Empty      -> v
@@ -377,16 +385,29 @@ Finally we need some instances to integrate with the test framework.
 >   display (NonEmptySeq x) = "NonEmptySeq" <+> display x
 > 
 > instance (Arb a) => Arb (NonEmptySeq a) where
->   arb =
->     fromList <$> (pure (:) <*> arb <*> arb)
+>   arb = do
+>     x <- fromListMaybe <$> (pure (:) <*> arb <*> arb)
+>     case x of
+>       Nothing -> error "NonEmptySeq Arb (unreachable!)"
+>       Just z -> return z
 > 
 > instance (Prune a) => Prune (NonEmptySeq a) where
 >   prune =
->     map fromList . filter (not . null) . prune . toList
+>     catMaybes . map fromListMaybe . filter (not . null) . prune . toList
 > 
 > instance (CoArb a) => CoArb (NonEmptySeq a) where
 >   coarb x = coarb (toList x)
 > 
 > instance (MakeTo a) => MakeTo (NonEmptySeq a) where
 >   makeTo = makeToExtendWith
->     makeTo toList fromList
+>     makeTo f g
+>     where
+>       f :: NonEmptySeq a -> (a, [a])
+>       f x = case toList x of
+>         a:as -> (a, as)
+>         _ -> error "NonEmptySeq MakeTo (unreachable 1!)"
+> 
+>       g :: (a, [a]) -> NonEmptySeq a
+>       g (a, as) = case fromListMaybe (a:as) of
+>         Just x -> x
+>         _ -> error "NonEmptySeq MakeTo (unreachable 2!)"

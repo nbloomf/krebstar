@@ -37,12 +37,13 @@ title: Finger Trees
 
 > import Prelude hiding (reverse)
 > import Data.Foldable
+> import Data.Maybe (catMaybes)
 
-> import qualified Kreb.Format as Fmt
-> import           Kreb.Format (display, (<+>))
-> import           Kreb.Prop
 > import           Kreb.Control
-> import           Kreb.Control.Constrained
+> import qualified Kreb.Format as Fmt
+> import           Kreb.Format hiding (Empty)
+> import           Kreb.Prop
+> import           Kreb.Category
 
 > import           Kreb.Struct.Class
 
@@ -141,9 +142,7 @@ These constructors are not exposed outside this module since they are only used 
 
 Because of the extra constraint on the type parameter, `Some` cannot be a functor -- at least not a functor on the category of all Haskell types. It is however a _constrained_ functor on the (sub)category of types inhabiting the `Valued` class. We have a special class for constrained functors.
 
-> instance ConstrainedFunctor Some where
->   type FunctorConstraint Some = Valued
-> 
+> instance FunctorC Valued (->) Valued (->) Some where
 >   fmapC
 >     :: ( Valued a, Valued b )
 >     => (a -> b) -> Some a -> Some b
@@ -167,7 +166,7 @@ We should test our intuition for how `fmapC` should behave with an example.
 > --   x, y :: Some (Counted Int)
 > --   x = only3 1 2 3
 > --   y = only3 2 4 6
-> -- in y == fmapC (*2) x
+> -- in y == fmapC @Valued @(->) @Valued @(->) @Some (*2) x
 > -- :}
 > -- True
 
@@ -228,7 +227,7 @@ This instance is mainly used as a helper for defining the instance for `FingerTr
 
 `Some` is also a contrained traversable functor:
 
-> instance ConstrainedTraversable Some where
+> instance TraversableC Valued (->) Valued (->) Some where
 >   traverseC
 >     :: ( Applicative f, Valued a, Valued b )
 >     => (a -> f b) -> Some a -> f (Some b)
@@ -254,6 +253,19 @@ This instance is mainly used as a helper for defining the instance for `FingerTr
 >       pure only3 <*> a1 <*> a2 <*> a3
 >     Only4 _ a1 a2 a3 a4 ->
 >       pure only4 <*> a1 <*> a2 <*> a3 <*> a4
+> 
+>   consumeC
+>     :: ( Applicative f, Valued a )
+>     => (Some a -> b) -> Some (f a) -> f b
+>   consumeC h w = case w of
+>     Only1 _ a1 ->
+>       fmap h (only1 <$> a1)
+>     Only2 _ a1 a2 ->
+>       fmap h (only2 <$> a1 <*> a2)
+>     Only3 _ a1 a2 a3 ->
+>       fmap h (only3 <$> a1 <*> a2 <*> a3)
+>     Only4 _ a1 a2 a3 a4 ->
+>       fmap h (only4 <$> a1 <*> a2 <*> a3 <*> a4)
 
 Next we have a nested tree type. Finger trees are basically rearranged 2-3 trees, and the nested `Node` type represents internal branching nodes of this sort.
 
@@ -293,9 +305,7 @@ Again we cache the value of the internal data, using smart constructors to maint
 
 `Node` is again a constrained functor:
 
-> instance ConstrainedFunctor Node where
->   type FunctorConstraint Node = Valued
-> 
+> instance FunctorC Valued (->) Valued (->) Node where
 >   fmapC
 >     :: ( Valued a, Valued b )
 >     => (a -> b) -> Node a -> Node b
@@ -332,7 +342,7 @@ And `Node` is foldable.
 
 And `Node` is a constrained traversable functor.
 
-> instance ConstrainedTraversable Node where
+> instance TraversableC Valued (->) Valued (->) Node where
 >   traverseC
 >     :: ( Applicative f, Valued a, Valued b )
 >     => (a -> f b) -> Node a -> f (Node b)
@@ -350,6 +360,15 @@ And `Node` is a constrained traversable functor.
 >       pure node2 <*> u1 <*> u2
 >     Node3 _ u1 u2 u3 ->
 >       pure node3 <*> u1 <*> u2 <*> u3
+> 
+>   consumeC
+>     :: ( Applicative f, Valued a )
+>     => (Node a -> b) -> Node (f a) -> f b
+>   consumeC h w = case w of
+>     Node2 _ a1 a2 ->
+>       fmap h (node2 <$> a1 <*> a2)
+>     Node3 _ a1 a2 a3 ->
+>       fmap h (node3 <$> a1 <*> a2 <*> a3)
 
 Finally, note that `Node` can be thought of as a strict subset of `Some`. We use a helper function, `toSome`, to make this formal.
 
@@ -400,10 +419,10 @@ Now for the big show. A finger tree is either empty, or consists of a single nod
 Both versions of finger trees are constrained containers; we will use this to implement a decent chunk of their API using classes.
 
 > instance Container NonEmptyFingerTree where
->   type ContainerConstraint NonEmptyFingerTree = Valued
+>   type ElementOf NonEmptyFingerTree = Valued
 > 
 > instance Container FingerTree where
->   type ContainerConstraint FingerTree = Valued
+>   type ElementOf FingerTree = Valued
 
 First, finger trees inherit a valuation from their item type.
 
@@ -513,12 +532,12 @@ And we also have `Singleton` instances for both variants. This class is inhabite
 >     => a -> FingerTree a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton
+>   fromSingleton
 >     :: ( Valued a )
->     => FingerTree a -> Bool
->   isSingleton x = case x of
->     Empty      -> False
->     NonEmpty w -> isSingleton w
+>     => FingerTree a -> Maybe a
+>   fromSingleton x = case x of
+>     Empty      -> Nothing
+>     NonEmpty w -> fromSingleton w
 > 
 > instance Singleton NonEmptyFingerTree where
 >   singleton
@@ -527,12 +546,12 @@ And we also have `Singleton` instances for both variants. This class is inhabite
 >   singleton a = Leaf m a
 >     where m = value a
 > 
->   isSingleton
+>   fromSingleton
 >     :: ( Valued a )
->     => NonEmptyFingerTree a -> Bool
->   isSingleton x = case x of
->     Leaf _ _ -> True
->     _        -> False
+>     => NonEmptyFingerTree a -> Maybe a
+>   fromSingleton x = case x of
+>     Leaf _ a -> Just a
+>     _        -> Nothing
 > 
 > instance SubsetSingleton NonEmptyFingerTree
 > instance NonEmptySingleton NonEmptyFingerTree
@@ -563,49 +582,57 @@ These constructors are useful inside this module, where we know (and need to kno
 
 Like `Some` and `Node`, both finger tree constructors are constrained functors.
 
-> instance ConstrainedFunctor FingerTree where
->   type FunctorConstraint FingerTree = Valued
-> 
+> instance FunctorC Valued (->) Valued (->) FingerTree where
 >   fmapC
 >     :: ( Valued a, Valued b )
 >     => (a -> b) -> FingerTree a -> FingerTree b
 >   fmapC f x = case x of
 >     Empty      -> empty
->     NonEmpty z -> NonEmpty $ fmapC f z
+>     NonEmpty z -> NonEmpty $
+>       fmapC @Valued @(->) @Valued @(->) @NonEmptyFingerTree f z
 > 
-> instance ConstrainedFunctor NonEmptyFingerTree where
->   type FunctorConstraint NonEmptyFingerTree = Valued
-> 
+> instance FunctorC Valued (->) Valued (->) NonEmptyFingerTree where
 >   fmapC
 >     :: ( Valued a, Valued b )
 >     => (a -> b) -> NonEmptyFingerTree a -> NonEmptyFingerTree b
 >   fmapC f x = case x of
 >     Leaf _ a          -> singleton (f a)
 >     Branch _ as bs cs -> branchNonEmpty
->       (fmapC f as)
->       (fmapC (fmapC f) bs)
->       (fmapC f cs)
+>       (fmapC @Valued @(->) @Valued @(->) @Some f as)
+>       (fmapC @Valued @(->) @Valued @(->) @FingerTree
+>         (fmapC @Valued @(->) @Valued @(->) @Node f) bs)
+>       (fmapC @Valued @(->) @Valued @(->) @Some f cs)
 
 In the constrained functor instance for nonempty finger trees, note that the type parameter of the outer appearance of `FingerTree` is simply `a`, while on the inner appearance it is `Node a`. This is polymorphic recursion, and it took me a while to wrap my head around what it means.
 
 Both variants are also constrained traversable functors:
 
-> instance ConstrainedTraversable FingerTree where
+> instance TraversableC Valued (->) Valued (->) FingerTree where
 >   traverseC
 >     :: ( Applicative f, Valued a, Valued b )
 >     => (a -> f b) -> FingerTree a -> f (FingerTree b)
 >   traverseC f w = case w of
 >     Empty      -> pure empty
->     NonEmpty z -> fmap NonEmpty $ traverseC f z
+>     NonEmpty z -> fmap NonEmpty $
+>       traverseC @Valued @(->) @Valued @(->) @NonEmptyFingerTree f z
 > 
 >   sequenceAC
 >     :: ( Applicative f, Valued a, Valued (f a) )
 >     => FingerTree (f a) -> f (FingerTree a)
 >   sequenceAC w = case w of
 >     Empty      -> pure Empty
->     NonEmpty z -> fmap NonEmpty $ sequenceAC z
+>     NonEmpty z -> fmap NonEmpty $
+>       sequenceAC @Valued @(->) @Valued @(->) @NonEmptyFingerTree z
 > 
-> instance ConstrainedTraversable NonEmptyFingerTree where
+>   consumeC
+>     :: ( Applicative f, Valued a )
+>     => (FingerTree a -> b) -> FingerTree (f a) -> f b
+>   consumeC h w = case w of
+>     Empty      -> pure (h Empty)
+>     NonEmpty z -> fmap (h . NonEmpty) $
+>       consumeC @Valued @(->) @Valued @(->) id z
+> 
+> instance TraversableC Valued (->) Valued (->) NonEmptyFingerTree where
 >   traverseC
 >     :: ( Applicative f, Valued a, Valued b )
 >     => (a -> f b) -> NonEmptyFingerTree a -> f (NonEmptyFingerTree b)
@@ -614,9 +641,10 @@ Both variants are also constrained traversable functors:
 >       singleton <$> f a
 >     Branch _ as bs cs ->
 >       branchNonEmpty
->         <$> traverseC f as
->         <*> traverseC (traverseC f) bs
->         <*> traverseC f cs
+>         <$> traverseC @Valued @(->) @Valued @(->) @Some f as
+>         <*> traverseC @Valued @(->) @Valued @(->) @FingerTree
+>               (traverseC @Valued @(->) @Valued @(->) @Node f) bs
+>         <*> traverseC @Valued @(->) @Valued @(->) @Some f cs
 > 
 >   sequenceAC
 >     :: ( Applicative f, Valued a, Valued (f a) )
@@ -626,9 +654,23 @@ Both variants are also constrained traversable functors:
 >       pure singleton <*> a
 >     Branch _ as bs cs ->
 >       pure branchNonEmpty
->         <*> sequenceAC as
->         <*> traverseC sequenceAC bs
->         <*> sequenceAC cs
+>         <*> sequenceAC @Valued @(->) @Valued @(->) @Some as
+>         <*> traverseC @Valued @(->) @Valued @(->) @FingerTree
+>               (sequenceAC @Valued @(->) @Valued @(->) @Node) bs
+>         <*> sequenceAC @Valued @(->) @Valued @(->) @Some cs
+> 
+>   consumeC
+>     :: ( Applicative f, Valued a )
+>     => (NonEmptyFingerTree a -> b) -> NonEmptyFingerTree (f a) -> f b
+>   consumeC h w = case w of
+>     Leaf _ a ->
+>       fmap h (singleton <$> a)
+>     Branch _ as bs cs ->
+>       fmap h $ branchNonEmpty
+>         <$> sequenceAC @Valued @(->) @Valued @(->) @Some as
+>         <*> traverseC @Valued @(->) @Valued @(->) @FingerTree
+>               (sequenceAC @Valued @(->) @Valued @(->) @Node) bs
+>         <*> sequenceAC @Valued @(->) @Valued @(->) @Some cs
 
 Finally, just as every `Node` can be converted into a `Some`, every `Some` can be converted to a `FingerTree`. This conversion will come in handy later so we define it here, but this code is not exposed outside of this module.
 
@@ -857,21 +899,26 @@ Now's a good time for some examples.
 With `cons` and `snoc` in hand we can define some helper functions. These convert from ordinary lists to finger trees, and are useful for testing.
 
 > instance FromList FingerTree where
+>   fromListMaybe
+>     :: ( Valued a )
+>     => [a] -> Maybe (FingerTree a)
+>   fromListMaybe = Just . fromList
+> 
+> instance FromListMonoid FingerTree where
 >   fromList
 >     :: ( Valued a )
 >     => [a] -> FingerTree a
 >   fromList = foldr cons empty
-> 
-> instance FromListMonoid FingerTree
+
 > instance FromListConsSnocReverse FingerTree
 > 
 > instance FromList NonEmptyFingerTree where
->   fromList
+>   fromListMaybe
 >     :: ( Valued a )
->     => [a] -> NonEmptyFingerTree a
->   fromList xs = case xs of
->     []   -> error "FingerTree: fromList expects a nonempty argument"
->     a:as -> foldl' (flip snoc) (singleton a) as
+>     => [a] -> Maybe (NonEmptyFingerTree a)
+>   fromListMaybe xs = case xs of
+>     []   -> Nothing
+>     a:as -> Just $ foldl' (flip snoc) (singleton a) as
 > 
 > instance FromListConsSnocReverse NonEmptyFingerTree
 
@@ -1486,15 +1533,18 @@ Similarly for `NonEmptyFingerTree`:
 >   ( Arb a, Valued a
 >   ) => Arb (NonEmptyFingerTree a)
 >   where
->     arb =
->       fromList <$> (pure (:) <*> arb <*> arb)
+>     arb = do
+>       x <- fromListMaybe <$> (pure (:) <*> arb <*> arb)
+>       case x of
+>         Just t -> return t
+>         Nothing -> error "Arb NonEmptyFingerTree (unreachable!)"
 > 
 > instance
 >   ( Prune a, Valued a
 >   ) => Prune (NonEmptyFingerTree a)
 >   where
 >     prune =
->       map fromList . filter (not . null) . prune . toList
+>       catMaybes . map fromListMaybe . filter (not . null) . prune . toList
 > 
 > instance
 >   ( CoArb a, Valued a
@@ -1507,7 +1557,17 @@ Similarly for `NonEmptyFingerTree`:
 >   ) => MakeTo (NonEmptyFingerTree a)
 >   where
 >     makeTo = makeToExtendWith
->       makeTo toList fromList
+>       makeTo f g
+>       where
+>         f :: NonEmptyFingerTree a -> (a, [a])
+>         f x = case (toList x) of
+>           a:as -> (a, as)
+>           _ -> error "NonEmptyFingerTree MakeTo (unreachable 1!)"
+> 
+>         g :: (a, [a]) -> NonEmptyFingerTree a
+>         g (a, as) = case fromListMaybe (a:as) of
+>           Just x -> x
+>           _ -> error "NonEmptyFingerTree MakeTo (unreachable 2!)"
 
 Finally, recall that our finger tree type has an internal invariant that needs to be maintained in order for the complexity and correctness proofs of our algorithms to hold. Namely, the cached monoidal value at each Node vust be the product of the monoidal values of the node's contents. We introduce a function (only used for testing) to check this.
 

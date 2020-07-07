@@ -22,11 +22,11 @@ title: Deques
 > import Prelude hiding (reverse)
 > import Data.Foldable
 
+> import           Kreb.Control
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format ((<+>), display)
 > import           Kreb.Prop hiding (Trivial)
-> import           Kreb.Control
-> import           Kreb.Control.Constrained
 
 > import           Kreb.Struct.Class
 > import qualified Kreb.Struct.Data.FingerTree as FT
@@ -42,10 +42,10 @@ We've built a whole family of abstract data structures, the finger trees, which 
 
 > data Deque a where
 >   Empty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a
 >   NonEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a
 >     -> Deque a
 > 
@@ -54,9 +54,14 @@ We've built a whole family of abstract data structures, the finger trees, which 
 > 
 > data NonEmptyDeque a where
 >   NonEmptyDeque
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => FT.NonEmptyFingerTree (Trivial a)
 >     -> NonEmptyDeque a
+> 
+> unNonEmptyDeque
+>   :: ( Hask a )
+>   => NonEmptyDeque a -> FT.NonEmptyFingerTree (Trivial a)
+> unNonEmptyDeque (NonEmptyDeque x) = x
 > 
 > deriving instance (Eq a) => Eq (NonEmptyDeque a)
 > deriving instance (Show a) => Show (NonEmptyDeque a)
@@ -64,21 +69,21 @@ We've built a whole family of abstract data structures, the finger trees, which 
 As usual we split the type into empty and nonempty counterparts. Now both are containers, with nonempty deques a subset of possibly empty deques.
 
 > instance Container Deque where
->   type ContainerConstraint Deque = Unconstrained
+>   type ElementOf Deque = Hask
 > 
 > instance Container NonEmptyDeque where
->   type ContainerConstraint NonEmptyDeque = Unconstrained
+>   type ElementOf NonEmptyDeque = Hask
 > 
 > instance Subset NonEmptyDeque where
 >   type SupersetOf NonEmptyDeque = Deque
 > 
 >   inject
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a -> Deque a
 >   inject = NonEmpty
 > 
 >   restrict
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a -> Maybe (NonEmptyDeque a)
 >   restrict x = case x of
 >     Empty -> Nothing
@@ -86,12 +91,12 @@ As usual we split the type into empty and nonempty counterparts. Now both are co
 > 
 > instance NonEmpty NonEmptyDeque where
 >   empty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a
 >   empty = Empty
 > 
 >   isEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a -> Bool
 >   isEmpty x = case x of
 >     Empty -> True
@@ -107,21 +112,26 @@ Just about everything we need out of deques is covered by our container classes,
 We can convert from lists:
 
 > instance FromList Deque where
->   fromList
->     :: ( Unconstrained a )
->     => [a] -> Deque a
->   fromList xs = case xs of
->     [] -> Empty
->     _  -> NonEmpty $ fromList xs
+>   fromListMaybe
+>     :: ( Hask a )
+>     => [a] -> Maybe (Deque a)
+>   fromListMaybe = Just . fromList
 > 
-> instance FromListMonoid Deque
+> instance FromListMonoid Deque where
+>   fromList
+>     :: ( Hask a )
+>     => [a] -> Deque a
+>   fromList xs = case fromListMaybe xs of
+>     Nothing -> Empty
+>     Just w  -> NonEmpty w
+
 > instance FromListConsSnocReverse Deque
 > 
 > instance FromList NonEmptyDeque where
->   fromList
->     :: ( Unconstrained a )
->     => [a] -> NonEmptyDeque a
->   fromList = NonEmptyDeque . fromList . map Trivial
+>   fromListMaybe
+>     :: ( Hask a )
+>     => [a] -> Maybe (NonEmptyDeque a)
+>   fromListMaybe = fmap NonEmptyDeque . fromListMaybe . map Trivial
 > 
 > instance FromListConsSnocReverse NonEmptyDeque
 
@@ -148,28 +158,28 @@ Singleton:
 
 > instance Singleton Deque where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> Deque a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => Deque a -> Bool
->   isSingleton x = case x of
->     Empty -> False
->     NonEmpty w -> isSingleton w
+>   fromSingleton
+>     :: ( Hask a )
+>     => Deque a -> Maybe a
+>   fromSingleton x = case x of
+>     Empty      -> Nothing
+>     NonEmpty w -> fromSingleton w
 > 
 > instance Singleton NonEmptyDeque where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptyDeque a
 >   singleton = NonEmptyDeque . singleton . Trivial
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => NonEmptyDeque a -> Bool
->   isSingleton (NonEmptyDeque x) =
->     isSingleton x
+>   fromSingleton
+>     :: ( Hask a )
+>     => NonEmptyDeque a -> Maybe a
+>   fromSingleton (NonEmptyDeque x) =
+>     fmap unTrivial $ fromSingleton x
 
 > instance SubsetSingleton NonEmptyDeque
 > instance NonEmptySingleton NonEmptyDeque
@@ -183,7 +193,9 @@ Functor:
 > 
 > instance Functor NonEmptyDeque where
 >   fmap f (NonEmptyDeque x) =
->     NonEmptyDeque $ fmapC (fmap f) x
+>     NonEmptyDeque $
+>       fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree
+>         (fmap f) x
 
 Traversable:
 
@@ -194,20 +206,22 @@ Traversable:
 > 
 > instance Traversable NonEmptyDeque where
 >   traverse f (NonEmptyDeque x) =
->     fmap NonEmptyDeque $ traverseC (traverse f) x
+>     fmap NonEmptyDeque $
+>       traverseC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree
+>         (traverse f) x
 
 Semigroup:
 
-> instance (Unconstrained a) => Semigroup (Deque a) where
+> instance (Hask a) => Semigroup (Deque a) where
 >   x <> y = case (x,y) of
 >     (Empty,      _         ) -> y
 >     (_,          Empty     ) -> x
 >     (NonEmpty u, NonEmpty v) -> NonEmpty (u <> v)
 > 
-> instance (Unconstrained a) => Monoid (Deque a) where
+> instance (Hask a) => Monoid (Deque a) where
 >   mempty = Empty
 > 
-> instance (Unconstrained a) => Semigroup (NonEmptyDeque a) where
+> instance (Hask a) => Semigroup (NonEmptyDeque a) where
 >   (NonEmptyDeque u) <> (NonEmptyDeque v) =
 >     NonEmptyDeque (u <> v)
 
@@ -215,14 +229,14 @@ Cons:
 
 > instance Cons Deque where
 >   cons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> Deque a -> Deque a
 >   cons a x = case x of
 >     Empty      -> singleton a
 >     NonEmpty w -> NonEmpty (cons a w)
 > 
 >   uncons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a
 >     -> Maybe (a, Deque a)
 >   uncons x = case x of
@@ -233,13 +247,13 @@ Cons:
 > 
 > instance Cons NonEmptyDeque where
 >   cons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptyDeque a -> NonEmptyDeque a
 >   cons a (NonEmptyDeque x) =
 >     NonEmptyDeque (cons (Trivial a) x)
 > 
 >   uncons
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a -> Maybe (a, NonEmptyDeque a)
 >   uncons x =
 >     let (a,z) = unconsNonEmpty x
@@ -252,7 +266,7 @@ Cons:
 > 
 > instance UnconsNonEmpty NonEmptyDeque where
 >   unconsNonEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a
 >     -> (a, Deque a)
 >   unconsNonEmpty (NonEmptyDeque x) =
@@ -265,14 +279,14 @@ Snoc:
 
 > instance Snoc Deque where
 >   snoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> Deque a -> Deque a
 >   snoc a x = case x of
 >     Empty      -> singleton a
 >     NonEmpty w -> NonEmpty (snoc a w)
 > 
 >   unsnoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a
 >     -> Maybe (a, Deque a)
 >   unsnoc x = case x of
@@ -284,13 +298,13 @@ Snoc:
 > 
 > instance Snoc NonEmptyDeque where
 >   snoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptyDeque a -> NonEmptyDeque a
 >   snoc a (NonEmptyDeque x) =
 >     NonEmptyDeque (snoc (Trivial a) x)
 > 
 >   unsnoc
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a -> Maybe (a, NonEmptyDeque a)
 >   unsnoc x =
 >     let (a,z) = unsnocNonEmpty x
@@ -304,7 +318,7 @@ Snoc:
 > 
 > instance UnsnocNonEmpty NonEmptyDeque where
 >   unsnocNonEmpty
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a
 >     -> (a, Deque a)
 >   unsnocNonEmpty (NonEmptyDeque x) =
@@ -317,7 +331,7 @@ Reverse:
 
 > instance Reverse Deque where
 >   reverse
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a -> Deque a
 >   reverse x = case x of
 >     Empty      -> Empty
@@ -330,7 +344,7 @@ Reverse:
 > 
 > instance Reverse NonEmptyDeque where
 >   reverse
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a -> NonEmptyDeque a
 >   reverse (NonEmptyDeque a) =
 >     NonEmptyDeque (reverse a)
@@ -346,14 +360,14 @@ And Ideal:
 > 
 > instance Ideal NonEmptyDeque where
 >   (@>)
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyDeque a -> Deque a -> NonEmptyDeque a
 >   u @> v = case v of
 >     Empty      -> u
 >     NonEmpty w -> u <> w
 > 
 >   (<@)
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => Deque a -> NonEmptyDeque a -> NonEmptyDeque a
 >   u <@ v = case u of
 >     Empty      -> v
@@ -391,16 +405,15 @@ Finally we need some instances to integrate with the test framework.
 >   display (NonEmptyDeque x) = "NonEmptyDeque" <+> display x
 > 
 > instance (Arb a) => Arb (NonEmptyDeque a) where
->   arb =
->     fromList <$> (pure (:) <*> arb <*> arb)
+>   arb = NonEmptyDeque <$> arb
 > 
 > instance (Prune a) => Prune (NonEmptyDeque a) where
 >   prune =
->     map fromList . filter (not . null) . prune . toList
+>     map NonEmptyDeque . prune . unNonEmptyDeque
 > 
 > instance (CoArb a) => CoArb (NonEmptyDeque a) where
 >   coarb x = coarb (toList x)
 > 
 > instance (MakeTo a) => MakeTo (NonEmptyDeque a) where
 >   makeTo = makeToExtendWith
->     makeTo toList fromList
+>     makeTo unNonEmptyDeque NonEmptyDeque

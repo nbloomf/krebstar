@@ -26,5 +26,19 @@
     , "lib/kreb-prop/src/Kreb/Prop/Fun.lhs"
 
     , "lib/kreb-category/src/Kreb/Category/Class/CategoryC.lhs"
+    , "lib/kreb-category/src/Kreb/Category/Class/FunctorC.lhs"
+    , "lib/kreb-category/src/Kreb/Category/Class/TraversableC.lhs"
+    , "lib/kreb-category/src/Kreb/Category/Class/BifunctorC.lhs"
+    , "lib/kreb-category/src/Kreb/Category/Class/MonoidalCategoryC.lhs"
+    , "lib/kreb-category/src/Kreb/Category/Class/MonoidalActionC.lhs"
+    , "lib/kreb-category/src/Kreb/Category/Class/ProfunctorC.lhs"
+
+    , "lib/kreb-optics/src/Kreb/Optics/Class/Tambara.lhs"
+
+    , "lib/kreb-reflect/src/Kreb/Reflect/Nat.lhs"
+
+    , "lib/kreb-struct/src/Kreb/Struct/Class/Container.lhs"
+    , "lib/kreb-struct/src/Kreb/Struct/Data/FingerTree.lhs"
+    , "lib/kreb-struct/src/Kreb/Struct/Data/RedBlackTree.lhs"
     ]
 }

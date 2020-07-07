@@ -1,6 +1,13 @@
 ---
-title: Kreb.Reflect.Nat
+title: Reflecting Natural Numbers
+author: nbloomf
 ---
+
+::: frontmatter
+
+
+
+:::
 
 
 

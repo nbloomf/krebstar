@@ -1,5 +1,6 @@
 ---
 title: Red-Black Trees
+author: nbloomf
 ---
 
 ::: contents

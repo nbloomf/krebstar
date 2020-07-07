@@ -40,3 +40,16 @@ I've tried to avoid pulling in dependencies when it's at all reasonable (and eve
 1. **Just Enough Category Theory**
     1. [Categories in Haskell](../html/lib/kreb-category/src/Kreb/Category/Class/CategoryC.html)
     1. [Functors](../html/lib/kreb-category/src/Kreb/Category/Class/FunctorC.html)
+    1. [Traversable Functors](../html/lib/kreb-category/src/Kreb/Category/Class/TraversableC.html)
+    1. [Bifunctors](../html/lib/kreb-category/src/Kreb/Category/Class/BifunctorC.html)
+    1. [Monoidal Categories](../html/lib/kreb-category/src/Kreb/Category/Class/MonoidalCategoryC.html)
+    1. [Monoidal Actions](../html/lib/kreb-category/src/Kreb/Category/Class/MonoidalActionC.html)
+    1. [Profunctors](../html/lib/kreb-category/src/Kreb/Category/Class/ProfunctorC.html)
+1. **Profunctor Optics**
+    1. [Tambara Modules](../html/lib/kreb-optics/src/Kreb/Category/Class/Tambara.html)
+1. **Reflection**
+    1. [Reflecting Natural Numbers](../html/lib/kreb-reflect/src/Kreb/Reflect/Nat.html)
+1. **Data Structures**
+    1. [Container Classes](../html/lib/kreb-struct/src/Kreb/Struct/Class/Container.html)
+    1. [Finger Trees](../html/lib/kreb-struct/src/Kreb/Struct/Data/FingerTree.html)
+    1. [Red-Black Trees](../html/lib/kreb-struct/src/Kreb/Struct/Data/RedBlackTree.html)

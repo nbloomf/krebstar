@@ -3,6 +3,8 @@
 >   , module Kreb.Category.Class.CategoryC.Laws
 >   , module Kreb.Category.Class.FunctorC
 >   , module Kreb.Category.Class.FunctorC.Laws
+>   , module Kreb.Category.Class.TraversableC
+>   , module Kreb.Category.Class.TraversableC.Laws
 >   , module Kreb.Category.Class.BifunctorC
 >   , module Kreb.Category.Class.BifunctorC.Laws
 >   , module Kreb.Category.Class.ProfunctorC
@@ -17,6 +19,8 @@
 > import Kreb.Category.Class.CategoryC.Laws
 > import Kreb.Category.Class.FunctorC
 > import Kreb.Category.Class.FunctorC.Laws
+> import Kreb.Category.Class.TraversableC
+> import Kreb.Category.Class.TraversableC.Laws
 > import Kreb.Category.Class.BifunctorC
 > import Kreb.Category.Class.BifunctorC.Laws
 > import Kreb.Category.Class.ProfunctorC

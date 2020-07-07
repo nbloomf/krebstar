@@ -19,11 +19,11 @@ title: Stem Trees
 >   , StemTreeFromList(..)
 > ) where
 
+> import           Kreb.Control
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format (display, (<+>))
 > import           Kreb.Prop
-> import           Kreb.Control
-> import           Kreb.Control.Constrained
 
 > import Kreb.Struct.Class
 > import Kreb.Struct.Data.Deque
@@ -67,31 +67,31 @@ A _nonempty_ rose tree has a value, a list of successors ordered by depth, and a
 We separate the empty and nonempty cases at the type level to allow for more precise types, but of course nonempty stem trees are canonically a subtype of stem trees.
 
 > instance Container StemTree where
->   type ContainerConstraint StemTree = Unconstrained
+>   type ElementOf StemTree = Hask
 > 
 > instance Container NonEmptyStemTree where
->   type ContainerConstraint NonEmptyStemTree = Unconstrained
+>   type ElementOf NonEmptyStemTree = Hask
 > 
 > instance Subset NonEmptyStemTree where
 >   type SupersetOf NonEmptyStemTree = StemTree
 > 
 >   inject
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => NonEmptyStemTree a -> StemTree a
 >   inject = NonEmpty
 > 
 >   restrict
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => StemTree a -> Maybe (NonEmptyStemTree a)
 >   restrict x = case x of
 >     Empty -> Nothing
 >     NonEmpty w -> Just w
 > 
 > instance NonEmpty NonEmptyStemTree where
->   empty :: ( Unconstrained a ) => StemTree a
+>   empty :: ( Hask a ) => StemTree a
 >   empty = Empty
 > 
->   isEmpty :: ( Unconstrained a ) => StemTree a -> Bool
+>   isEmpty :: ( Hask a ) => StemTree a -> Bool
 >   isEmpty x = case x of
 >     Empty -> True
 >     _ -> False
@@ -100,28 +100,30 @@ We can also construct singleton stem trees in the natural way.
 
 > instance Singleton StemTree where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> StemTree a
 >   singleton = NonEmpty . singleton
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => StemTree a -> Bool
->   isSingleton x = case x of
->     Empty -> False
->     NonEmpty w -> isSingleton w
+>   fromSingleton
+>     :: ( Hask a )
+>     => StemTree a -> Maybe a
+>   fromSingleton x = case x of
+>     Empty      -> Nothing
+>     NonEmpty w -> fromSingleton w
 > 
 > instance Singleton NonEmptyStemTree where
 >   singleton
->     :: ( Unconstrained a )
+>     :: ( Hask a )
 >     => a -> NonEmptyStemTree a
 >   singleton a = NonEmptyStemTree a empty empty
 > 
->   isSingleton
->     :: ( Unconstrained a )
->     => NonEmptyStemTree a -> Bool
->   isSingleton (NonEmptyStemTree _ u v) =
->     (isEmpty u) && (isEmpty v)
+>   fromSingleton
+>     :: ( Hask a )
+>     => NonEmptyStemTree a -> Maybe a
+>   fromSingleton (NonEmptyStemTree a u v) =
+>     if (isEmpty u) && (isEmpty v)
+>       then Just a
+>       else Nothing
 > 
 > instance SubsetSingleton NonEmptyStemTree
 > instance NonEmptySingleton NonEmptyStemTree

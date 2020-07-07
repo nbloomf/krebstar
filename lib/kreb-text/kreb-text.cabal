@@ -39,6 +39,7 @@ library
     , KindSignatures
     , GADTs
     , TypeFamilies
+    , TypeApplications
   build-depends:
       base >=4.7 && <5
     , containers >=0.6.0.1

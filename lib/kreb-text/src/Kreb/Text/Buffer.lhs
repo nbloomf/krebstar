@@ -171,10 +171,10 @@ title: Buffers
 > import           Data.Proxy
 > import qualified Data.Foldable as Fold
 > 
+> import           Kreb.Category
 > import qualified Kreb.Format as Fmt
 > import           Kreb.Format (display, (<+>))
 > import           Kreb.Prop
-> import           Kreb.Control.Constrained
 > import           Kreb.Arith
 > import           Kreb.Reflect
 > 
@@ -324,10 +324,12 @@ For testing purposes we'll need a way to construct buffers with very specific sh
 >   -> [Control (Grapheme w t d)] -> [Grapheme w t d] -> [Control (Grapheme w t d)]
 >   -> Buffer w t d
 > makeFocusMarkBuffer _ _ _ as rs bs =
->   (emptyBuffer :: Buffer w t d)
->     { bufContents =
->         FocusMark (fromList as) (fromList rs) (fromList bs)
->     }
+>   case fromListMaybe rs of
+>     Nothing -> error "makeFocusMarkBuffer: empty rs"
+>     Just x -> (emptyBuffer :: Buffer w t d)
+>       { bufContents =
+>           FocusMark (fromList as) x (fromList bs)
+>       }
 > 
 > makeMarkFocusBuffer
 >   :: forall w t d
@@ -336,10 +338,12 @@ For testing purposes we'll need a way to construct buffers with very specific sh
 >   -> [Control (Grapheme w t d)] -> [Grapheme w t d] -> [Control (Grapheme w t d)]
 >   -> Buffer w t d
 > makeMarkFocusBuffer _ _ _ as rs bs =
->   (emptyBuffer :: Buffer w t d)
->     { bufContents =
->         MarkFocus (fromList as) (fromList rs) (fromList bs)
->     }
+>   case fromListMaybe rs of
+>     Nothing -> error "makeMarkFocusBuffer: empty rs"
+>     Just x -> (emptyBuffer :: Buffer w t d)
+>       { bufContents =
+>           MarkFocus (fromList as) x (fromList bs)
+>       }
 
 > makeFingerTree
 >   :: ( IsWidth w, IsTab t, IsBase d )
@@ -502,12 +506,12 @@ Conversions
 >     [ as, singleton (Focus Nothing), bs ]
 >   FocusMark as rs bs ->
 >     [ as, singleton (Focus (Just OnLeft))
->     , FT.NonEmpty $ fmapC Cell rs
+>     , FT.NonEmpty $ fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs
 >     , singleton MarkRight, bs
 >     ]
 >   MarkFocus as rs bs ->
 >     [ as, singleton MarkLeft
->     , FT.NonEmpty $ fmapC Cell rs
+>     , FT.NonEmpty $ fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs
 >     , singleton (Focus (Just OnRight)), bs
 >     ]
 > 
@@ -682,11 +686,11 @@ Conversions
 >     f :: TBuf w1 t1 d -> TBuf w2 t2 d
 >     f x = case x of
 >       FocusOnly as bs -> FocusOnly
->         (fmapC (fmap resize) as) (fmapC (fmap resize) bs)
+>         (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree (fmap resize) as) (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree (fmap resize) bs)
 >       FocusMark as rs bs -> FocusMark
->         (fmapC (fmap resize) as) (fmapC resize rs) (fmapC (fmap resize) bs)
+>         (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree (fmap resize) as) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree resize rs) (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree (fmap resize) bs)
 >       MarkFocus as rs bs -> MarkFocus
->         (fmapC (fmap resize) as) (fmapC resize rs) (fmapC (fmap resize) bs)
+>         (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree (fmap resize) as) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree resize rs) (fmapC @Valued @(->) @Valued @(->) @FT.FingerTree (fmap resize) bs)
 
 
 
@@ -840,9 +844,9 @@ Navigation
 >       FocusOnly as bs ->
 >         FocusOnly as bs
 >       FocusMark as rs bs ->
->         FocusOnly as ((fmapC Cell rs) >@> bs)
+>         FocusOnly as ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
 >       MarkFocus as rs bs ->
->         FocusOnly (as <@< (fmapC Cell rs)) bs
+>         FocusOnly (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) bs
 >   in Buffer tbuf del mem
 
 > jumpFocusRegionToStart
@@ -855,10 +859,10 @@ Navigation
 >       FocusOnly a b ->
 >         FocusOnly mempty (a <> b)
 >       FocusMark a r b ->
->         let z = fmapC Cell $ FT.NonEmpty r
+>         let z = fmapC @Valued @(->) @Valued @(->) @FT.FingerTree Cell $ FT.NonEmpty r
 >         in FocusOnly mempty (a <> z <> b)
 >       MarkFocus a r b ->
->         let z = fmapC Cell $ FT.NonEmpty r
+>         let z = fmapC @Valued @(->) @Valued @(->) @FT.FingerTree Cell $ FT.NonEmpty r
 >         in FocusOnly mempty (a <> z <> b)
 >   in Buffer tbuf del mem
 > 
@@ -872,10 +876,10 @@ Navigation
 >       FocusOnly a b ->
 >         FocusOnly (a <> b) mempty
 >       FocusMark a r b ->
->         let z = fmapC Cell $ FT.NonEmpty r
+>         let z = fmapC @Valued @(->) @Valued @(->) @FT.FingerTree Cell $ FT.NonEmpty r
 >         in FocusOnly (a <> z <> b) mempty
 >       MarkFocus a r b ->
->         let z = fmapC Cell $ FT.NonEmpty r
+>         let z = fmapC @Valued @(->) @Valued @(->) @FT.FingerTree Cell $ FT.NonEmpty r
 >         in FocusOnly (a <> z <> b) mempty
 >   in Buffer tbuf del mem
 
@@ -973,24 +977,24 @@ Navigation
 >       FocusOnly as bs -> case FT.splitR hasControls as of
 >         FT.NotFound -> case as of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> FocusMark mempty (fmapC unCell vs) bs
+>           FT.NonEmpty vs -> FocusMark mempty (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) bs
 >         FT.Found ds1 x ds2 -> case ds2 of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> FocusMark (snoc x ds1) (fmapC unCell vs) bs
+>           FT.NonEmpty vs -> FocusMark (snoc x ds1) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) bs
 >       FocusMark as rs bs -> case FT.splitR hasControls as of
 >         FT.NotFound -> case as of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> FocusMark mempty ((fmapC unCell vs) <> rs) bs
+>           FT.NonEmpty vs -> FocusMark mempty ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) <> rs) bs
 >         FT.Found ds1 x ds2 -> case ds2 of
->           FT.NonEmpty vs -> FocusMark (snoc x ds1) ((fmapC unCell vs) <> rs) bs
+>           FT.NonEmpty vs -> FocusMark (snoc x ds1) ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) <> rs) bs
 >           FT.Empty -> contents
 >       MarkFocus as rs bs -> case FT.splitR hasControls as of
 >         FT.NotFound -> case as of
->           FT.Empty -> FocusOnly mempty ((fmapC Cell rs) >@> bs)
->           FT.NonEmpty vs -> FocusMark mempty (fmapC unCell vs) ((fmapC Cell rs) >@> bs)
+>           FT.Empty -> FocusOnly mempty ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
+>           FT.NonEmpty vs -> FocusMark mempty (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
 >         FT.Found ds1 x ds2 -> case ds2 of
->           FT.Empty -> FocusOnly as ((fmapC Cell rs) >@> bs)
->           FT.NonEmpty vs -> FocusMark (snoc x ds1) (fmapC unCell vs) ((fmapC Cell rs) >@> bs)
+>           FT.Empty -> FocusOnly as ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
+>           FT.NonEmpty vs -> FocusMark (snoc x ds1) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
 >   in Buffer tbuf del mem
 > 
 > fillFocusPointRight
@@ -1003,23 +1007,23 @@ Navigation
 >       FocusOnly as bs -> case FT.splitL hasControls bs of
 >         FT.NotFound -> case bs of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> MarkFocus as (fmapC unCell vs) mempty
+>           FT.NonEmpty vs -> MarkFocus as (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) mempty
 >         FT.Found ds1 x ds2 -> case ds1 of
 >           FT.Empty -> contents
->           FT.NonEmpty vs ->  MarkFocus as (fmapC unCell vs) (cons x ds2)
+>           FT.NonEmpty vs ->  MarkFocus as (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) (cons x ds2)
 >       FocusMark as rs bs -> case FT.splitL hasControls bs of
 >         FT.NotFound -> case bs of
->           FT.Empty -> FocusOnly (as <@< (fmapC Cell rs)) mempty
->           FT.NonEmpty vs -> MarkFocus (as <@< (fmapC Cell rs)) (fmapC unCell vs) mempty
+>           FT.Empty -> FocusOnly (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) mempty
+>           FT.NonEmpty vs -> MarkFocus (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) mempty
 >         FT.Found ds1 x ds2 -> case ds1 of
->           FT.Empty -> FocusOnly (as <@< (fmapC Cell rs)) bs
->           FT.NonEmpty vs -> MarkFocus (as <@< (fmapC Cell rs)) (fmapC unCell vs) (cons x ds2)
+>           FT.Empty -> FocusOnly (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) bs
+>           FT.NonEmpty vs -> MarkFocus (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) (cons x ds2)
 >       MarkFocus as rs bs -> case FT.splitL hasControls bs of
 >         FT.NotFound -> case bs of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> MarkFocus as (rs <> (fmapC unCell vs)) mempty
+>           FT.NonEmpty vs -> MarkFocus as (rs <> (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs)) mempty
 >         FT.Found ds1 x ds2 -> case ds1 of
->           FT.NonEmpty vs -> MarkFocus as (rs <> (fmapC unCell vs)) (cons x ds2)
+>           FT.NonEmpty vs -> MarkFocus as (rs <> (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs)) (cons x ds2)
 >           FT.Empty -> contents
 >   in Buffer tbuf del mem
 
@@ -1033,23 +1037,23 @@ Navigation
 >       FocusOnly as bs -> case FT.splitR hasControls as of
 >         FT.NotFound -> case as of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> MarkFocus mempty (fmapC unCell vs) bs
+>           FT.NonEmpty vs -> MarkFocus mempty (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) bs
 >         FT.Found ds1 x ds2 -> case ds2 of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> MarkFocus (snoc x ds1) (fmapC unCell vs) bs
+>           FT.NonEmpty vs -> MarkFocus (snoc x ds1) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) bs
 >       FocusMark as rs bs -> case FT.splitR hasControls as of
 >         FT.NotFound -> case as of
->           FT.Empty -> FocusOnly mempty ((fmapC Cell rs) >@> bs)
->           FT.NonEmpty vs -> MarkFocus mempty (fmapC unCell vs) ((fmapC Cell rs) >@> bs)
+>           FT.Empty -> FocusOnly mempty ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
+>           FT.NonEmpty vs -> MarkFocus mempty (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
 >         FT.Found ds1 x ds2 -> case ds2 of
->           FT.Empty -> FocusOnly as ((fmapC Cell rs) >@> bs)
->           FT.NonEmpty vs -> MarkFocus (snoc x ds1) (fmapC unCell vs) ((fmapC Cell rs) >@> bs)
+>           FT.Empty -> FocusOnly as ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
+>           FT.NonEmpty vs -> MarkFocus (snoc x ds1) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs)
 >       MarkFocus as rs bs -> case FT.splitR hasControls as of
 >         FT.NotFound -> case as of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> MarkFocus mempty ((fmapC unCell vs) <> rs) bs
+>           FT.NonEmpty vs -> MarkFocus mempty ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) <> rs) bs
 >         FT.Found ds1 x ds2 -> case ds2 of
->           FT.NonEmpty vs -> MarkFocus (snoc x ds1) ((fmapC unCell vs) <> rs) bs
+>           FT.NonEmpty vs -> MarkFocus (snoc x ds1) ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) <> rs) bs
 >           FT.Empty -> contents
 >   in Buffer tbuf del mem
 > 
@@ -1063,24 +1067,24 @@ Navigation
 >       FocusOnly as bs -> case FT.splitL hasControls bs of
 >         FT.NotFound -> case bs of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> FocusMark as (fmapC unCell vs) mempty
+>           FT.NonEmpty vs -> FocusMark as (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) mempty
 >         FT.Found ds1 x ds2 -> case ds1 of
 >           FT.Empty -> contents
->           FT.NonEmpty vs ->  FocusMark as (fmapC unCell vs) (cons x ds2)
+>           FT.NonEmpty vs ->  FocusMark as (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) (cons x ds2)
 >       FocusMark as rs bs -> case FT.splitL hasControls bs of
 >         FT.NotFound -> case bs of
 >           FT.Empty -> contents
->           FT.NonEmpty vs -> FocusMark as (rs <> (fmapC unCell vs)) mempty
+>           FT.NonEmpty vs -> FocusMark as (rs <> (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs)) mempty
 >         FT.Found ds1 x ds2 -> case ds1 of
->           FT.NonEmpty vs -> FocusMark as (rs <> (fmapC unCell vs)) (cons x ds2)
+>           FT.NonEmpty vs -> FocusMark as (rs <> (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs)) (cons x ds2)
 >           FT.Empty -> contents
 >       MarkFocus as rs bs -> case FT.splitL hasControls bs of
 >         FT.NotFound -> case bs of
->           FT.Empty -> FocusOnly (as <@< (fmapC Cell rs)) mempty
->           FT.NonEmpty vs -> FocusMark (as <@< (fmapC Cell rs)) (fmapC unCell vs) mempty
+>           FT.Empty -> FocusOnly (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) mempty
+>           FT.NonEmpty vs -> FocusMark (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) mempty
 >         FT.Found ds1 x ds2 -> case ds1 of
->           FT.Empty -> FocusOnly (as <@< (fmapC Cell rs)) bs
->           FT.NonEmpty vs -> FocusMark (as <@< (fmapC Cell rs)) (fmapC unCell vs) (cons x ds2)
+>           FT.Empty -> FocusOnly (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) bs
+>           FT.NonEmpty vs -> FocusMark (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree unCell vs) (cons x ds2)
 >   in Buffer tbuf del mem
 
 
@@ -1096,9 +1100,11 @@ Navigation
 > alterRegion f (Buffer buf del mem) =
 >   let
 >     tbuf = case buf :: TBuf w t d of
->       FocusOnly as    bs -> FocusOnly as              bs
->       FocusMark as rs bs -> FocusMark as (fmapC f rs) bs
->       MarkFocus as rs bs -> MarkFocus as (fmapC f rs) bs
+>       FocusOnly as    bs -> FocusOnly as bs
+>       FocusMark as rs bs -> FocusMark as
+>         (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree f rs) bs
+>       MarkFocus as rs bs -> MarkFocus as
+>         (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree f rs) bs
 >   in Buffer tbuf del mem
 
 
@@ -1292,8 +1298,12 @@ Navigation
 > arbBalancedFT'
 >   :: ( IsWidth w, IsTab t, IsBase d )
 >   => Sample (FT.NonEmptyFingerTree (Grapheme w t d))
-> arbBalancedFT' = fromList
->   <$> (makeColorfulGraphemes <$> arb <*> ((:) <$> arb <*> arb))
+> arbBalancedFT' = do
+>   x <- fromListMaybe
+>     <$> (makeColorfulGraphemes <$> arb <*> ((:) <$> arb <*> arb))
+>   case x of
+>     Nothing -> error "arbBalancedFT'"
+>     Just a -> return a
 
 > -- TODO: fix this; pruning does not preserve well-formedness
 > instance
@@ -1899,8 +1909,10 @@ Recall that finger trees, the structure underlying our buffers, admit an efficie
 > 
 >     tbuf = case contents :: TBuf w t d of
 >       FocusOnly as    bs -> FocusOnly (f as) (f bs)
->       FocusMark as rs bs -> FocusOnly (f as) (f ((fmapC Cell rs) >@> bs))
->       MarkFocus as rs bs -> FocusOnly (f (as <@< (fmapC Cell rs))) (f bs)
+>       FocusMark as rs bs -> FocusOnly (f as)
+>         (f ((fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs) >@> bs))
+>       MarkFocus as rs bs -> FocusOnly
+>         (f (as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs))) (f bs)
 >   in Buffer tbuf del mem
 
 > clearAllCursors
@@ -1913,8 +1925,10 @@ Recall that finger trees, the structure underlying our buffers, admit an efficie
 >     p m = CD.E /= CD.cursorWord (cursorData m)
 >   in case buf of
 >     FocusOnly as bs -> FT.removeSplitsL p (as <> bs)
->     FocusMark as rs bs -> FT.removeSplitsL p ((as <@< (fmapC Cell rs)) <> bs)
->     MarkFocus as rs bs -> FT.removeSplitsL p ((as <@< (fmapC Cell rs)) <> bs)
+>     FocusMark as rs bs -> FT.removeSplitsL p
+>       ((as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) <> bs)
+>     MarkFocus as rs bs -> FT.removeSplitsL p
+>       ((as <@< (fmapC @Valued @(->) @Valued @(->) @FT.NonEmptyFingerTree Cell rs)) <> bs)
 > 
 > moveFocusRegion
 >   :: ( IsWidth w, IsTab t, IsBase d )

@@ -20,6 +20,7 @@ library
   exposed-modules:
       Kreb.Effect
     , Kreb.Effect.Data
+    , Kreb.Effect.Region
     , Kreb.Effect.Mock
   build-depends:
       base >=4.7 && <5

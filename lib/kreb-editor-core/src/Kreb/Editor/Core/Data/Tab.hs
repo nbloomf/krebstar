@@ -28,6 +28,7 @@ import Kreb.Text.TextBox
 import Kreb.Editor.Core.Data.Panel
 import Kreb.Struct.Class
 import Kreb.Struct.Data.FingerTree
+import Kreb.Struct.Data.Zipper
 import qualified Kreb.Struct.Data.Deque.Zipper as DZ
 
 

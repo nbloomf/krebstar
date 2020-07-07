@@ -35,7 +35,7 @@ Adapted from Stephen Diehl's cats https://github.com/sdiehl/cats
 
 > doTikZ :: FilePath -> P.Block -> IO P.Block
 > doTikZ path x = case x of
->   (P.CodeBlock (id, ["tikz"], kvs) blk) -> tikzPipeline path (T.pack blk)
+>   (P.CodeBlock (id, ["tikzcd"], kvs) blk) -> tikzPipeline path (T.pack blk)
 >   _ -> return x
 
 > tikzPipeline :: FilePath -> T.Text -> IO P.Block
@@ -54,17 +54,16 @@ Adapted from Stephen Diehl's cats https://github.com/sdiehl/cats
 > tikzPreamble :: IO T.Text
 > tikzPreamble = return $ T.pack $ concat
 >   [ "\\documentclass{standalone}\n"
->   , "\\usepackage{amsmath}\n"
->   , "\\usepackage{tikz}\n"
->   , "\\usetikzlibrary{matrix}\n"
+>   , "\\usepackage{amsmath,amssymb}\n"
+>   , "\\usepackage{tikz-cd}\n"
+>   , "\\tikzcdset{every label/.append style = {font = \\large}, nodes={font=\\Large}}"
 >   , "\\begin{document}\n"
->   , "\\begin{tikzpicture}[node distance=3.5cm, auto]\n"
->   , "\\tikzstyle{every node}=[font=\\Large]"
+>   , "\\begin{tikzcd}"
 >   ]
 > 
 > tikzPostamble :: IO T.Text
 > tikzPostamble = return $ T.pack $ concat
->   [ "\\end{tikzpicture}\n"
+>   [ "\\end{tikzcd}\n"
 >   , "\\end{document}\n"
 >   ]
 
@@ -107,6 +106,8 @@ Adapted from Stephen Diehl's cats https://github.com/sdiehl/cats
 >         hGetContents (C.getStdout p) >>= putStrLn
 >         putStrLn "STDERR:"
 >         hGetContents (C.getStderr p) >>= putStrLn
+>         putStrLn "FILE:"
+>         T.putStrLn txt
 >         putStrLn "!!!ERROR!!! There was an error running pdflatex."
 >         putStrLn "This almost certainly generated an enormous log,"
 >         putStrLn "shown above, which I hope you will find useful."

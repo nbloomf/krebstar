@@ -11,3 +11,5 @@
 > import qualified Kreb.Struct.Data.StemTree.Zipper
 > import qualified Kreb.Struct.Data.RedBlackTree
 > import qualified Kreb.Struct.Data.FiniteMap
+
+> import Kreb.Struct.Data.Zipper
