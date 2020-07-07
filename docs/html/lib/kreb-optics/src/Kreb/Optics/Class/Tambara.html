@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Tambara Modules</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Tambara Modules</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Optics.Class.Tambara</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">import</span> <span class="dt">Kreb.Category</span></a></code></pre></div>
+<section class="level2">
+<h2>Tambara Modules</h2>
+<p>Laws: - natural in x and y - dimapC unitor unitor' . tambara == unit - tambara == dimap compor' compor . tambara . tambara - ???</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  ( <span class="dt">MonoidalActionC</span> objm morm otimes unit objc morc f</a>
+<a class="sourceLine" id="cb2-3" title="3">  , <span class="dt">MonoidalActionC</span> objm morm otimes unit objd mord g</a>
+<a class="sourceLine" id="cb2-4" title="4">  , <span class="dt">ProfunctorC</span> objc morc objd mord <span class="dt">Hask</span> (<span class="ot">-&gt;</span>) p</a>
+<a class="sourceLine" id="cb2-5" title="5">  ) <span class="ot">=&gt;</span> <span class="dt">Tambara</span> objc morc objd mord objm morm otimes unit f g p</a>
+<a class="sourceLine" id="cb2-6" title="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-7" title="7">    tambara</a>
+<a class="sourceLine" id="cb2-8" title="8"><span class="ot">      ::</span> ( objc x, objd y, objm w )</a>
+<a class="sourceLine" id="cb2-9" title="9">      <span class="ot">=&gt;</span> p x y <span class="ot">-&gt;</span> p (f w x) (g w y)</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Existential Optic</h2>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">data</span></a>
+<a class="sourceLine" id="cb3-2" title="2">  <span class="dt">Optic</span> objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb3-3" title="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-4" title="4">    <span class="dt">Optic</span></a>
+<a class="sourceLine" id="cb3-5" title="5"><span class="ot">      ::</span> ( <span class="dt">MonoidalActionC</span> objm morm otimes unit objc morc f</a>
+<a class="sourceLine" id="cb3-6" title="6">         , <span class="dt">MonoidalActionC</span> objm morm otimes unit objd mord g</a>
+<a class="sourceLine" id="cb3-7" title="7">         , objc a, objc s, objd b, objd t, objm x</a>
+<a class="sourceLine" id="cb3-8" title="8">         )</a>
+<a class="sourceLine" id="cb3-9" title="9">      <span class="ot">=&gt;</span> morc s (f x a) <span class="ot">-&gt;</span> mord (g x b) t</a>
+<a class="sourceLine" id="cb3-10" title="10">      <span class="ot">-&gt;</span> <span class="dt">Optic</span> objc morc objd mord objm morm otimes unit f g a b s t</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb4-2" title="2">  ( <span class="dt">MonoidalActionC</span> objm morm otimes unit objc morc f</a>
+<a class="sourceLine" id="cb4-3" title="3">  , <span class="dt">MonoidalActionC</span> objm morm otimes unit objd mord g</a>
+<a class="sourceLine" id="cb4-4" title="4">  , objc a, objd b</a>
+<a class="sourceLine" id="cb4-5" title="5">  ) <span class="ot">=&gt;</span> <span class="dt">ProfunctorC</span> objc morc objd mord <span class="dt">Hask</span> (<span class="ot">-&gt;</span>)</a>
+<a class="sourceLine" id="cb4-6" title="6">    (<span class="dt">Optic</span> objc morc objd mord objm morm otimes unit f g a b)</a>
+<a class="sourceLine" id="cb4-7" title="7">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-8" title="8">    dimapC f g (<span class="dt">Optic</span> l r) <span class="ot">=</span> <span class="dt">Optic</span></a>
+<a class="sourceLine" id="cb4-9" title="9">      (comp <span class="op">@</span>objc <span class="op">@</span>morc l f)</a>
+<a class="sourceLine" id="cb4-10" title="10">      (comp <span class="op">@</span>objd <span class="op">@</span>mord g r)</a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb5-2" title="2">  ( <span class="dt">MonoidalActionC</span> objm morm otimes unit objc morc f</a>
+<a class="sourceLine" id="cb5-3" title="3">  , <span class="dt">MonoidalActionC</span> objm morm otimes unit objd mord g</a>
+<a class="sourceLine" id="cb5-4" title="4">  , objc a, objd b</a>
+<a class="sourceLine" id="cb5-5" title="5">  ) <span class="ot">=&gt;</span> <span class="dt">Tambara</span> objc morc objd mord objm morm otimes unit f g</a>
+<a class="sourceLine" id="cb5-6" title="6">    (<span class="dt">Optic</span> objc morc objd mord objm morm otimes unit f g a b)</a>
+<a class="sourceLine" id="cb5-7" title="7">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-8" title="8">    tambara (<span class="dt">Optic</span> l r) <span class="ot">=</span> <span class="dt">Optic</span></a>
+<a class="sourceLine" id="cb5-9" title="9">      (comp <span class="op">@</span>objc <span class="op">@</span>morc</a>
+<a class="sourceLine" id="cb5-10" title="10">        (compor <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>otimes <span class="op">@</span>unit <span class="op">@</span>objc <span class="op">@</span>morc)</a>
+<a class="sourceLine" id="cb5-11" title="11">        (bimapC <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>objc <span class="op">@</span>morc <span class="op">@</span>objc <span class="op">@</span>morc</a>
+<a class="sourceLine" id="cb5-12" title="12">          (unit <span class="op">@</span>objm <span class="op">@</span>morm) l))</a>
+<a class="sourceLine" id="cb5-13" title="13">      (comp <span class="op">@</span>objd <span class="op">@</span>mord</a>
+<a class="sourceLine" id="cb5-14" title="14">        (bimapC <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>objd <span class="op">@</span>mord <span class="op">@</span>objd <span class="op">@</span>mord</a>
+<a class="sourceLine" id="cb5-15" title="15">          (unit <span class="op">@</span>objm <span class="op">@</span>morm) r)</a>
+<a class="sourceLine" id="cb5-16" title="16">        (compor&#39; <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>otimes <span class="op">@</span>unit <span class="op">@</span>objd <span class="op">@</span>mord))</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Profunctor Optic</h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">type</span></a>
+<a class="sourceLine" id="cb6-2" title="2">  <span class="dt">ProfOptic</span> objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb6-3" title="3">     <span class="ot">=</span> <span class="kw">forall</span> p</a>
+<a class="sourceLine" id="cb6-4" title="4">     <span class="op">.</span> ( <span class="dt">Tambara</span> objc morc objd mord objm morm otimes unit f g p</a>
+<a class="sourceLine" id="cb6-5" title="5">       , objc a, objc s, objd b, objd t )</a>
+<a class="sourceLine" id="cb6-6" title="6">    <span class="ot">=&gt;</span> p a b <span class="ot">-&gt;</span> p s t</a></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">toProfOptic</a>
+<a class="sourceLine" id="cb7-2" title="2"><span class="ot">  ::</span> <span class="kw">forall</span>    objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb7-3" title="3">   <span class="op">.</span> <span class="dt">Optic</span>     objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb7-4" title="4">  <span class="ot">-&gt;</span> <span class="dt">ProfOptic</span> objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb7-5" title="5">toProfOptic (<span class="dt">Optic</span> l r) <span class="ot">=</span></a>
+<a class="sourceLine" id="cb7-6" title="6">  dimapC <span class="op">@</span>objc <span class="op">@</span>morc <span class="op">@</span>objd <span class="op">@</span>mord <span class="op">@</span><span class="dt">Hask</span> <span class="op">@</span>(<span class="ot">-&gt;</span>) l r</a>
+<a class="sourceLine" id="cb7-7" title="7">    <span class="op">.</span> tambara <span class="op">@</span>objc <span class="op">@</span>morc <span class="op">@</span>objd <span class="op">@</span>mord <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>otimes <span class="op">@</span>unit</a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1">toOptic</a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="ot">  ::</span> <span class="kw">forall</span> objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb8-3" title="3">   <span class="op">.</span> ( <span class="dt">MonoidalActionC</span> objm morm otimes unit objc morc f</a>
+<a class="sourceLine" id="cb8-4" title="4">     , <span class="dt">MonoidalActionC</span> objm morm otimes unit objd mord g</a>
+<a class="sourceLine" id="cb8-5" title="5">     , objm unit, objc a, objc s, objc unit, objd b, objd t, objd unit</a>
+<a class="sourceLine" id="cb8-6" title="6">     )</a>
+<a class="sourceLine" id="cb8-7" title="7">  <span class="ot">=&gt;</span> <span class="dt">ProfOptic</span> objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb8-8" title="8">  <span class="ot">-&gt;</span> <span class="dt">Optic</span>     objc morc objd mord objm morm otimes unit f g a b s t</a>
+<a class="sourceLine" id="cb8-9" title="9">toOptic p <span class="ot">=</span> p <span class="op">$</span> <span class="dt">Optic</span></a>
+<a class="sourceLine" id="cb8-10" title="10">  (unitor&#39; <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>otimes <span class="op">@</span>unit <span class="op">@</span>objc <span class="op">@</span>morc <span class="op">@</span>f)</a>
+<a class="sourceLine" id="cb8-11" title="11">  (unitor  <span class="op">@</span>objm <span class="op">@</span>morm <span class="op">@</span>otimes <span class="op">@</span>unit <span class="op">@</span>objd <span class="op">@</span>mord <span class="op">@</span>g)</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

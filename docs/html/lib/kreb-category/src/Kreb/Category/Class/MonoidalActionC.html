@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Monoidal Actions</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Monoidal Actions</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Category.Class.MonoidalActionC</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">import</span> <span class="dt">Kreb.Category.Class.CategoryC</span></a>
+<a class="sourceLine" id="cb1-4" title="4"><span class="kw">import</span> <span class="dt">Kreb.Category.Class.BifunctorC</span></a>
+<a class="sourceLine" id="cb1-5" title="5"><span class="kw">import</span> <span class="dt">Kreb.Category.Class.MonoidalCategoryC</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>A monoidal category is the categorical analog of a monoid. Another useful concept is the <em>monoid action</em>; if <span class="math inline">\(M\)</span> is a monoid and <span class="math inline">\(A\)</span> a set, an action is a function <span class="math inline">\(\ast : M \times A \rightarrow A\)</span> that is "compatible" with the monoid structure. The categorical analog is a bifunctor <span class="math inline">\(\ast : \mathcal{M} \times \mathcal{C} \rightarrow \mathcal{C}\)</span> compatible with the monoidal structure on <span class="math inline">\(\mathcal{M}\)</span>.</p>
+<p>More precisely, suppose we have a monoidal category <span class="math inline">\((\mathcal{M}, \otimes, 1, \alpha, \lambda, \rho)\)</span>, a category <span class="math inline">\(\mathcal{C}\)</span>, and a bifunctor <span class="math inline">\(\ast : \mathcal{M} \times \mathcal{C} \rightarrow \mathcal{C}\)</span>. Suppose further we have two natural families of isomorphisms in <span class="math inline">\(\mathcal{C}\)</span>:</p>
+<ul>
+<li><span class="math inline">\(\kappa_{M,N,A} : M \ast (N \ast A) \rightarrow (M \otimes N) \ast A\)</span>, called an <em>associator</em></li>
+<li><span class="math inline">\(\mu_{A} : 1 \ast A \rightarrow A\)</span>, called a <em>unitor</em></li>
+</ul>
+<p>Then the structure <span class="math inline">\((\mathcal{M}, \otimes, 1, \alpha, \lambda, \rho, \mathcal{C}, \ast, \kappa, \mu)\)</span> is called a <em>monoidal category action</em> or just <em>monoidal action</em> if these additional properties hold for all objects <span class="math inline">\(M\)</span>, <span class="math inline">\(N\)</span>, <span class="math inline">\(P\)</span> of <span class="math inline">\(\mathcal{M}\)</span> and <span class="math inline">\(A\)</span> of <span class="math inline">\(\mathcal{C}\)</span>.</p>
+<p>The following diagram commutes:</p>
+<p><img src="../../../../../../../img/tikz/31d72913c28e0921a5622e7280e401e0/31d72913c28e0921a5622e7280e401e0.svg" class="tikz" /></p>
+<p>That is, <span class="math display">\[\mu_{M \ast A} \circ \kappa_{1,M,A} = \lambda_M \ast 1_A.\]</span></p>
+<p>Likewise the following diagram commutes:</p>
+<p><img src="../../../../../../../img/tikz/ba131b04155f31cd073dbe5b1d5fa9e0/ba131b04155f31cd073dbe5b1d5fa9e0.svg" class="tikz" /></p>
+<p>That is, <span class="math display">\[1_M \ast \mu_A \circ \kappa_{M,1,A} = \rho_M \ast 1_A.\]</span></p>
+<p>And finally, the following diagram commutes:</p>
+<p><img src="../../../../../../../img/tikz/a117b1c739430c211fbeca1088a63846/a117b1c739430c211fbeca1088a63846.svg" class="tikz" /></p>
+<p>That is, <span class="math display">\[\kappa_{M \otimes N, P, A} \circ \kappa_{M, N, P \ast A} = \alpha_{M,N,P} \ast 1_A \circ \kappa_{M, N \otimes P, A} \circ 1_M \ast \kappa_{N,P,A}.\]</span></p>
+</section>
+<section class="level2">
+<h2>Monoidal Actions in Haskell</h2>
+<p>We again translate this concept using a type class -- in this case a class with 7 parameters. In the past type classes like this would be a pain to use, but the <code>TypeApplications</code> language extension makes them much more ergonomic.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  ( <span class="dt">MonoidalCategoryC</span> objm morm otimes unit</a>
+<a class="sourceLine" id="cb2-3" title="3">  , <span class="dt">CategoryC</span> objc morc</a>
+<a class="sourceLine" id="cb2-4" title="4">  , <span class="dt">BifunctorC</span> objm morm objc morc objc morc f</a>
+<a class="sourceLine" id="cb2-5" title="5">  ) <span class="ot">=&gt;</span> <span class="dt">MonoidalActionC</span> objm morm otimes unit objc morc f</a>
+<a class="sourceLine" id="cb2-6" title="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-7" title="7">    unitor</a>
+<a class="sourceLine" id="cb2-8" title="8"><span class="ot">      ::</span> ( objc x, objm unit )</a>
+<a class="sourceLine" id="cb2-9" title="9">      <span class="ot">=&gt;</span> morc (f unit x) x</a>
+<a class="sourceLine" id="cb2-10" title="10"></a>
+<a class="sourceLine" id="cb2-11" title="11">    unitor&#39;</a>
+<a class="sourceLine" id="cb2-12" title="12"><span class="ot">      ::</span> ( objc x, objm unit )</a>
+<a class="sourceLine" id="cb2-13" title="13">      <span class="ot">=&gt;</span> morc x (f unit x)</a>
+<a class="sourceLine" id="cb2-14" title="14"></a>
+<a class="sourceLine" id="cb2-15" title="15">    compor</a>
+<a class="sourceLine" id="cb2-16" title="16"><span class="ot">      ::</span> ( objm p, objm q, objc x )</a>
+<a class="sourceLine" id="cb2-17" title="17">      <span class="ot">=&gt;</span> morc (f p (f q x)) (f (otimes p q) x)</a>
+<a class="sourceLine" id="cb2-18" title="18"></a>
+<a class="sourceLine" id="cb2-19" title="19">    compor&#39;</a>
+<a class="sourceLine" id="cb2-20" title="20"><span class="ot">      ::</span> ( objm p, objm q, objc x )</a>
+<a class="sourceLine" id="cb2-21" title="21">      <span class="ot">=&gt;</span> morc (f (otimes p q) x) (f p (f q x))</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

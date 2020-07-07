@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Container Classes</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Container Classes</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="ot">{-# LANGUAGE TypeFamilyDependencies #-}</span></a>
+<a class="sourceLine" id="cb1-2" title="2"><span class="ot">{-# LANGUAGE FlexibleContexts #-}</span></a>
+<a class="sourceLine" id="cb1-3" title="3"></a>
+<a class="sourceLine" id="cb1-4" title="4"><span class="kw">module</span> <span class="dt">Kreb.Struct.Class.Container</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-5" title="5"></a>
+<a class="sourceLine" id="cb1-6" title="6"><span class="kw">import</span> <span class="dt">Prelude</span> <span class="kw">hiding</span> (reverse)</a>
+<a class="sourceLine" id="cb1-7" title="7"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Prelude</span> <span class="kw">as</span> <span class="dt">Prelude</span> (reverse)</a>
+<a class="sourceLine" id="cb1-8" title="8"><span class="kw">import</span> <span class="dt">Control.Monad</span> (join)</a>
+<a class="sourceLine" id="cb1-9" title="9"><span class="kw">import</span> <span class="dt">GHC.Exts</span> (<span class="dt">Constraint</span>)</a>
+<a class="sourceLine" id="cb1-10" title="10"></a>
+<a class="sourceLine" id="cb1-11" title="11"><span class="kw">import</span> <span class="dt">Kreb.Category</span></a>
+<a class="sourceLine" id="cb1-12" title="12"><span class="kw">import</span> <span class="dt">Kreb.Prop</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>In this package we'll define several kinds of data structures. The one thing they all have in common is that they contain data of some type, which in general is subject to a constraint. We'll capture this using a type class, <code>Container</code>, with an associated type family:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">class</span> <span class="dt">Container</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  <span class="kw">type</span> <span class="dt">ElementOf</span><span class="ot"> t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="dt">Constraint</span></a></code></pre></div>
+<p>For example, lists are a container with the trivial constraint.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">instance</span> <span class="dt">Container</span> [] <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-2" title="2">  <span class="kw">type</span> <span class="dt">ElementOf</span> [] <span class="ot">=</span> <span class="dt">Hask</span></a></code></pre></div>
+<p>It is very common for the same "operation" to make sense for lots of different specific data structures; things like "append a new item to the front" or "construct an instance containing only one item". Moreover, it's very common for these operations to satisfy the same properties. And so we will bundle these, where it makes sense, into lawful type classes. This brings some benefits:</p>
+<ul>
+<li>We can avoid needing to qualify function names (this is just solving a namespacing problem)</li>
+<li>We can write generic code against the class interface (although in practice this is really only useful for tests)</li>
+<li>We can leverage a property-based understanding of core functionality across multiple structures.</li>
+</ul>
+<p>I should mention here that it's not obvious that this is the best way, or necessarily a <em>good</em> way, to structure a library like this. Some of the classes (and laws) we define will be reasonably "natural", but some will be a bit more ad hoc. And ad hoc code is bad; the best programs are the ones that write themselves. But we'll do what we can.</p>
+</section>
+<section class="level2">
+<h2>Subset Types</h2>
+<p>The first lawful class we define is really papering over a deficiency in Haskell's type system: it cannot reason about subset relationships among types. The <code>Subset</code> class asserts that a given container type, <code>t</code>, constructs a "subset" of a <strong>fixed</strong> associated container type <code>SupersetOf t</code>. Right off the bat this is not optimal, because it doesn't make sense to say that a set is only a subset of <em>one</em> other set. For our purposes this turns out to be okay.</p>
+<p>The more important question is: what operations and laws should "subsets" satisfy? It should be possible to <em>inject</em> a value from the subset type into the superset type. It should also be possible to <em>restrict</em> a value from the superset type to the subset type. These should also satisfy the following laws:</p>
+<dl>
+<dt>Restrict/Inject Law</dt>
+<dd><code>restrict . inject</code> is equivalent to <code>Just</code>
+</dd>
+<dt>Inject/Restrict Law</dt>
+<dd>If <code>restrict x == Just a</code>, then <code>x == inject a</code>
+</dd>
+</dl>
+<p>These essentially state that <code>inject</code> is injective as a function and that <code>restrict</code> is its one-sided inverse.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb4-2" title="2">  ( <span class="dt">Container</span> t, <span class="dt">Container</span> (<span class="dt">SupersetOf</span> t)</a>
+<a class="sourceLine" id="cb4-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">Subset</span> t</a>
+<a class="sourceLine" id="cb4-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-5" title="5">    <span class="kw">type</span> <span class="dt">SupersetOf</span> t <span class="ot">=</span> (<span class="ot">u ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="op">|</span> u <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb4-6" title="6"></a>
+<a class="sourceLine" id="cb4-7" title="7">    inject</a>
+<a class="sourceLine" id="cb4-8" title="8"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb4-9" title="9">      <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">SupersetOf</span> t a</a>
+<a class="sourceLine" id="cb4-10" title="10"></a>
+<a class="sourceLine" id="cb4-11" title="11">    restrict</a>
+<a class="sourceLine" id="cb4-12" title="12"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb4-13" title="13">      <span class="ot">=&gt;</span> <span class="dt">SupersetOf</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (t a)</a></code></pre></div>
+<p>Next up: if one type is a subset of another, and both types happen to also be instances of <code>Semigroup</code>, then we in fact have a <code>Subsemigroup</code> if their <code>&lt;&gt;</code> operations are compatible. That is, instances of <code>Subsemigroup</code> must satisfy the following law:</p>
+<dl>
+<dt>Subsemigroup Law</dt>
+<dd><code>inject (u &lt;&gt; v)</code> is equivalent to <code>inject u &lt;&gt; inject v</code>
+</dd>
+</dl>
+<p>This law is asserting that <code>inject</code> is a homomorphism.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb5-2" title="2">  ( <span class="dt">Subset</span> t</a>
+<a class="sourceLine" id="cb5-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (t a)</a>
+<a class="sourceLine" id="cb5-4" title="4">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> (<span class="dt">SupersetOf</span> t) a) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (<span class="dt">SupersetOf</span> t a)</a>
+<a class="sourceLine" id="cb5-5" title="5">  ) <span class="ot">=&gt;</span> <span class="dt">Subsemigroup</span> t</a></code></pre></div>
+<p>If you remember your abstract algebra, recall that some subsemigroups are especially important. A subsemigroup is called an <em>ideal</em> if it "absorbs" other semigroup elements under multiplication. That is, if <span class="math inline">\(S\)</span> is a semigroup and <span class="math inline">\(I\)</span> a subsemigroup of <span class="math inline">\(S\)</span>, then <span class="math inline">\(I\)</span> is an ideal in <span class="math inline">\(S\)</span> if anytime we take <span class="math inline">\(s \in S\)</span> and <span class="math inline">\(a \in I\)</span>, we have <span class="math inline">\(sa \in I\)</span> and <span class="math inline">\(as \in I\)</span>. To make the types work out we need new operations to express these mixed multiplications, and that's exactly what the <code>Ideal</code> class is for.</p>
+<p>To make sure the mixed multiplications are compatible with both the ideal and semigroup multiplications, instances of this class must satisfy the following laws:</p>
+<dl>
+<dt>Left Injection</dt>
+<dd><code>inject (u @&gt; v)</code> is equivalent to <code>inject u &lt;&gt; v</code>
+</dd>
+<dt>Right Injection</dt>
+<dd><code>inject (u &lt;@ v)</code> is equivalent to <code>u &lt;&gt; inject v</code>
+</dd>
+<dt>Left Associativity</dt>
+<dd><code>(u &lt;&gt; v) @&gt; w</code> is equivalent to <code>u &lt;&gt; (v @&gt; w)</code>
+</dd>
+<dt>Right Associativity</dt>
+<dd><code>u &lt;@ (v &lt;&gt; w)</code> is equivalent to <code>(u &lt;@ v) &lt;&gt; w</code>
+</dd>
+<dt>Inner Interchange</dt>
+<dd><code>u &lt;@ (v @&gt; w)</code> is equivalent to <code>(u &lt;@ v) @&gt; w</code>
+</dd>
+<dt>Outer Interchange</dt>
+<dd><code>u &lt;&gt; (v &lt;@ w)</code> is equivalent to <code>(u @&gt; v) &lt;&gt; w</code>
+</dd>
+</dl>
+<p>These laws assert that the semigroup acts on the ideal, and this action is equivalent to multiplication (after injection).</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">class</span> (<span class="dt">Subsemigroup</span> t) <span class="ot">=&gt;</span> <span class="dt">Ideal</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-2" title="2">  (<span class="op">@&gt;</span>)</a>
+<a class="sourceLine" id="cb6-3" title="3"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb6-4" title="4">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">SupersetOf</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb6-5" title="5"></a>
+<a class="sourceLine" id="cb6-6" title="6">  (<span class="op">&lt;@</span>)</a>
+<a class="sourceLine" id="cb6-7" title="7"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb6-8" title="8">    <span class="ot">=&gt;</span> <span class="dt">SupersetOf</span> t a <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> t a</a></code></pre></div>
+<p>For convenience we also define mixed multiplications with outputs in the supersemigroup.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" title="1">(<span class="op">&gt;@&gt;</span>)</a>
+<a class="sourceLine" id="cb7-2" title="2"><span class="ot">  ::</span> ( <span class="dt">Ideal</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb7-3" title="3">  <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">SupersetOf</span> t a <span class="ot">-&gt;</span> <span class="dt">SupersetOf</span> t a</a>
+<a class="sourceLine" id="cb7-4" title="4">u <span class="op">&gt;@&gt;</span> v <span class="ot">=</span> inject (u <span class="op">@&gt;</span> v)</a>
+<a class="sourceLine" id="cb7-5" title="5"></a>
+<a class="sourceLine" id="cb7-6" title="6">(<span class="op">&lt;@&lt;</span>)</a>
+<a class="sourceLine" id="cb7-7" title="7"><span class="ot">  ::</span> ( <span class="dt">Ideal</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb7-8" title="8">  <span class="ot">=&gt;</span> <span class="dt">SupersetOf</span> t a <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">SupersetOf</span> t a</a>
+<a class="sourceLine" id="cb7-9" title="9">u <span class="op">&lt;@&lt;</span> v <span class="ot">=</span> inject (u <span class="op">&lt;@</span> v)</a></code></pre></div>
+<p>We are describing operations on container types. Very often, it makes sense to have the concept of an <em>empty</em> container, with nothing in it. It also sometimes makes sense to have a different type of containers which cannot be empty.</p>
+<p>The <code>NonEmpty</code> class is inhabited by <code>Subset</code>s which contain only nonempty containers. The functions on this class are <code>empty</code>, which constructs and empty value, and <code>isEmpty</code>, which detects if a given value is empty. Inhabitants of this class must satisfy the following properties:</p>
+<dl>
+<dt>Empty Law</dt>
+<dd><code>isEmpty empty</code> is equivalent to <code>True</code>
+</dd>
+<dt>Restrict Law</dt>
+<dd><code>restrict x == Nothing</code> is equivalent to <code>isEmpty x</code>
+</dd>
+<dt>Inject Law</dt>
+<dd><code>isEmpty (inject x)</code> is equivalent to <code>False</code>
+</dd>
+</dl>
+<p>These laws assert that <code>empty</code> is empty, that values in the subset are not empty, and that <em>all</em> nonempty values in the superset come from values in the subset.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" title="1"><span class="kw">class</span> (<span class="dt">Subset</span> t) <span class="ot">=&gt;</span> <span class="dt">NonEmpty</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb8-2" title="2">  empty</a>
+<a class="sourceLine" id="cb8-3" title="3"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb8-4" title="4">    <span class="ot">=&gt;</span> <span class="dt">SupersetOf</span> t a</a>
+<a class="sourceLine" id="cb8-5" title="5"></a>
+<a class="sourceLine" id="cb8-6" title="6">  isEmpty</a>
+<a class="sourceLine" id="cb8-7" title="7"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb8-8" title="8">    <span class="ot">=&gt;</span> <span class="dt">SupersetOf</span> t a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-9" title="9">  isEmpty x <span class="ot">=</span> <span class="kw">case</span> restrict x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb8-10" title="10">    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">True</span>; <span class="dt">Just</span> _ <span class="ot">-&gt;</span> <span class="dt">False</span></a></code></pre></div>
+<p>Some container types have a natural notion of <code>singleton</code> -- a container holding exactly one item. In general we'd like to construct and detect singleton values; the <code>Singleton</code> class models this. Instances of this class should satisfy the following laws:</p>
+<dl>
+<dt>Singleton</dt>
+<dd><code>fromSingleton (singleton a)</code> is equivalent to <code>Just a</code>
+</dd>
+<dt>FromSingleton</dt>
+<dd><code>fromSingleton x == Just a</code> is equivalent to <code>x == singleton a</code>
+</dd>
+</dl>
+<p>These laws assert that <code>singleton</code> is injective as a function, and moreover all of the "singletons" are in its image. The helper function <code>isSingleton</code> detects singletons.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" title="1"><span class="kw">class</span> (<span class="dt">Container</span> t) <span class="ot">=&gt;</span> <span class="dt">Singleton</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-2" title="2">  singleton</a>
+<a class="sourceLine" id="cb9-3" title="3"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb9-4" title="4">    <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb9-5" title="5"></a>
+<a class="sourceLine" id="cb9-6" title="6">  fromSingleton</a>
+<a class="sourceLine" id="cb9-7" title="7"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb9-8" title="8">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
+<a class="sourceLine" id="cb9-9" title="9"></a>
+<a class="sourceLine" id="cb9-10" title="10">isSingleton</a>
+<a class="sourceLine" id="cb9-11" title="11"><span class="ot">  ::</span> ( <span class="dt">Singleton</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb9-12" title="12">  <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb9-13" title="13">isSingleton x <span class="ot">=</span> <span class="kw">case</span> fromSingleton x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb9-14" title="14">  <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">False</span>; <span class="dt">Just</span> _ <span class="ot">-&gt;</span> <span class="dt">True</span></a></code></pre></div>
+<p>We have a <code>Singleton</code> instance for lists:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">instance</span> <span class="dt">Singleton</span> [] <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-2" title="2">  singleton</a>
+<a class="sourceLine" id="cb10-3" title="3"><span class="ot">    ::</span> ( <span class="dt">Hask</span> a )</a>
+<a class="sourceLine" id="cb10-4" title="4">    <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> [a]</a>
+<a class="sourceLine" id="cb10-5" title="5">  singleton a <span class="ot">=</span> [a]</a>
+<a class="sourceLine" id="cb10-6" title="6"></a>
+<a class="sourceLine" id="cb10-7" title="7">  fromSingleton</a>
+<a class="sourceLine" id="cb10-8" title="8"><span class="ot">    ::</span> ( <span class="dt">Hask</span> a )</a>
+<a class="sourceLine" id="cb10-9" title="9">    <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
+<a class="sourceLine" id="cb10-10" title="10">  fromSingleton xs <span class="ot">=</span> <span class="kw">case</span> xs <span class="kw">of</span></a>
+<a class="sourceLine" id="cb10-11" title="11">    [a] <span class="ot">-&gt;</span> <span class="dt">Just</span> a</a>
+<a class="sourceLine" id="cb10-12" title="12">    _   <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a></code></pre></div>
+<p>The basic container classes (Ideal, Singleton, NonEmpty) are intended to capture very general behavior. When two or more of them interact we impose additional laws. For example, if some type is a singleton instance as well as a subset of another singleton instance, we demand that the subset function be compatible with subsets by the following properties:</p>
+<dl>
+<dt>Inject/Singleton</dt>
+<dd><code>inject (singleton a)</code> is equivalent to <code>singleton a</code>
+</dd>
+<dt>Restrict/Singleton</dt>
+<dd><code>restrict (singleton a)</code> is equivalent to <code>Just (singleton a)</code>
+</dd>
+</dl>
+<p>These are stating that injection is a singleton-homomorphism.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb11-2" title="2">  ( <span class="dt">Subset</span> t, <span class="dt">Singleton</span> t, <span class="dt">Singleton</span> (<span class="dt">SupersetOf</span> t)</a>
+<a class="sourceLine" id="cb11-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">SubsetSingleton</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>)</a></code></pre></div>
+<p>If a singleton instance is also a non-empty instance, we demand the following:</p>
+<dl>
+<dt>Empty</dt>
+<dd><code>isSingleton empty</code> is equivalent to <code>False</code>
+</dd>
+<dt>Singleton</dt>
+<dd><code>isEmpty (singleton a)</code> is equivalent to <code>False</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb12"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb12-2" title="2">  ( <span class="dt">NonEmpty</span> t, <span class="dt">SubsetSingleton</span> t</a>
+<a class="sourceLine" id="cb12-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">NonEmptySingleton</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>)</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>Semigroups and Actions</h2>
+<p>If a container type is a semigroup, it may also be the case that the element type acts on this semigroup. This isn't quite a semigroup action in the usual sense; instead of a semigroup acting on a set, we have a set acting on a semigroup. Actions come in two flavors, left and right, which we call <code>Cons</code> and <code>Snoc</code> after the traditional name for these operations on lists.</p>
+<p>Instances of the <code>Cons</code> class must satisfy the following laws:</p>
+<dl>
+<dt>Product/Cons</dt>
+<dd><code>cons a (x &lt;&gt; y)</code> is equivalent to <code>(cons a x) &lt;&gt; y</code>
+</dd>
+<dt>Uncons/Cons</dt>
+<dd><code>uncons (cons a x)</code> is equivalent to <code>Just (a, x)</code>
+</dd>
+<dt>Inverse/Cons</dt>
+<dd><code>uncons w == Just (a, x)</code> is equivalent to <code>cons a x == w</code>
+</dd>
+</dl>
+<p>These essentially require that <code>uncurry cons</code> be injective with one-sided inverse <code>uncons</code>. <code>readFirst</code> is a safe version of the standard Haskell function <code>head</code> on lists.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb13-2" title="2">  ( <span class="dt">Container</span> t</a>
+<a class="sourceLine" id="cb13-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (t a)</a>
+<a class="sourceLine" id="cb13-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">Cons</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>)</a>
+<a class="sourceLine" id="cb13-5" title="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb13-6" title="6">    cons</a>
+<a class="sourceLine" id="cb13-7" title="7"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb13-8" title="8">      <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb13-9" title="9"></a>
+<a class="sourceLine" id="cb13-10" title="10">    uncons</a>
+<a class="sourceLine" id="cb13-11" title="11"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb13-12" title="12">      <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (a, t a)</a>
+<a class="sourceLine" id="cb13-13" title="13"></a>
+<a class="sourceLine" id="cb13-14" title="14">readFirst</a>
+<a class="sourceLine" id="cb13-15" title="15"><span class="ot">  ::</span> ( <span class="dt">Cons</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb13-16" title="16">  <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
+<a class="sourceLine" id="cb13-17" title="17">readFirst <span class="ot">=</span> <span class="fu">fmap</span> <span class="fu">fst</span> <span class="op">.</span> uncons</a></code></pre></div>
+<p>Of course we have a <code>Cons</code> instance for lists:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" title="1"><span class="kw">instance</span> <span class="dt">Cons</span> [] <span class="kw">where</span></a>
+<a class="sourceLine" id="cb14-2" title="2">  cons</a>
+<a class="sourceLine" id="cb14-3" title="3"><span class="ot">    ::</span> ( <span class="dt">Hask</span> a )</a>
+<a class="sourceLine" id="cb14-4" title="4">    <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> [a]</a>
+<a class="sourceLine" id="cb14-5" title="5">  cons a as <span class="ot">=</span> a<span class="op">:</span>as</a>
+<a class="sourceLine" id="cb14-6" title="6"></a>
+<a class="sourceLine" id="cb14-7" title="7">  uncons</a>
+<a class="sourceLine" id="cb14-8" title="8"><span class="ot">    ::</span> ( <span class="dt">Hask</span> a )</a>
+<a class="sourceLine" id="cb14-9" title="9">    <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (a, [a])</a>
+<a class="sourceLine" id="cb14-10" title="10">  uncons x <span class="ot">=</span> <span class="kw">case</span> x <span class="kw">of</span></a>
+<a class="sourceLine" id="cb14-11" title="11">    [] <span class="ot">-&gt;</span> <span class="dt">Nothing</span></a>
+<a class="sourceLine" id="cb14-12" title="12">    a<span class="op">:</span>as <span class="ot">-&gt;</span> <span class="dt">Just</span> (a, as)</a></code></pre></div>
+<p>If a type inhabits both <code>Cons</code> and <code>Singleton</code>, we require the following additional law:</p>
+<dl>
+<dt>Singleton/Cons</dt>
+<dd><code>cons a x</code> is equivalent to <code>(singleton a) &lt;&gt; x</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" title="1"><span class="kw">class</span> (<span class="dt">Singleton</span> t, <span class="dt">Cons</span> t) <span class="ot">=&gt;</span> <span class="dt">SingletonCons</span> t</a></code></pre></div>
+<p>If a type inhabits both <code>Cons</code> and <code>Subset</code>, we require the following additional laws:</p>
+<dl>
+<dt>Inject/Cons</dt>
+<dd><code>inject (cons a x)</code> is equivalent to <code>cons a (inject x)</code>
+</dd>
+<dt>Restrict/Cons</dt>
+<dd><code>restrict (cons a (inject x))</code> is equivalent to <code>Just (cons a x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" title="1"><span class="kw">class</span> (<span class="dt">Subset</span> t, <span class="dt">Cons</span> t, <span class="dt">Cons</span> (<span class="dt">SupersetOf</span> t)) <span class="ot">=&gt;</span> <span class="dt">SubsetCons</span> t</a></code></pre></div>
+<p>If a type inhabits <code>Cons</code>, <code>Subset</code>, and <code>NonEmpty</code>, we have an additional primitive, <code>unconsNonEmpty</code>. This behaves similarly to <code>uncons</code>, but is guaranteed to succeed (although the remainder structure may be empty). We also demand some additional laws:</p>
+<dl>
+<dt>Inject/UnconsNonEmpty</dt>
+<dd>if <code>(a, as) = unconsNonEmpty x</code> then <code>inject x</code> is equivalent to <code>cons a as</code>
+</dd>
+<dt>Restrict/UnconsNonEmpty</dt>
+<dd><code>fmap unconsNonEmpty (restrict (cons a x))</code> is equivalent to <code>Just (a, x)</code>
+</dd>
+<dt>Empty/Uncons</dt>
+<dd><code>isEmpty x</code> is equivalent to <code>Nothing == uncons x</code>
+</dd>
+<dt>Inject/Uncons</dt>
+<dd>if <code>uncons w == Just (a, x)</code> then <code>unconsNonEmpty w == (a, inject x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb17-2" title="2">  ( <span class="dt">Cons</span> t, <span class="dt">NonEmpty</span> t, <span class="dt">Subset</span> t, <span class="dt">Cons</span> (<span class="dt">SupersetOf</span> t)</a>
+<a class="sourceLine" id="cb17-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">UnconsNonEmpty</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>)</a>
+<a class="sourceLine" id="cb17-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb17-5" title="5">    unconsNonEmpty</a>
+<a class="sourceLine" id="cb17-6" title="6"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb17-7" title="7">      <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> (a, <span class="dt">SupersetOf</span> t a)</a>
+<a class="sourceLine" id="cb17-8" title="8"></a>
+<a class="sourceLine" id="cb17-9" title="9">readFirstNonEmpty</a>
+<a class="sourceLine" id="cb17-10" title="10"><span class="ot">  ::</span> ( <span class="dt">UnconsNonEmpty</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb17-11" title="11">  <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb17-12" title="12">readFirstNonEmpty <span class="ot">=</span> <span class="fu">fst</span> <span class="op">.</span> unconsNonEmpty</a></code></pre></div>
+<p>Dual to <code>Cons</code> is the <code>Snoc</code> class, with the following laws:</p>
+<dl>
+<dt>Product/Snoc</dt>
+<dd><code>snoc a (x &lt;&gt; y)</code> is equivalent to <code>x &lt;&gt; (snoc a y)</code>
+</dd>
+<dt>Uncons/Snoc</dt>
+<dd><code>unsnoc (snoc a x)</code> is equivalent to <code>Just (a, x)</code>
+</dd>
+<dt>Inverse/Snoc</dt>
+<dd><code>unsnoc w == Just (a, x)</code> is equivalent to <code>snoc a x == w</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb18"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb18-2" title="2">  ( <span class="dt">Container</span> t</a>
+<a class="sourceLine" id="cb18-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (t a)</a>
+<a class="sourceLine" id="cb18-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">Snoc</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>)</a>
+<a class="sourceLine" id="cb18-5" title="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb18-6" title="6">    snoc</a>
+<a class="sourceLine" id="cb18-7" title="7"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb18-8" title="8">      <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb18-9" title="9"></a>
+<a class="sourceLine" id="cb18-10" title="10">    unsnoc</a>
+<a class="sourceLine" id="cb18-11" title="11"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb18-12" title="12">      <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (a, t a)</a>
+<a class="sourceLine" id="cb18-13" title="13"></a>
+<a class="sourceLine" id="cb18-14" title="14">readLast</a>
+<a class="sourceLine" id="cb18-15" title="15"><span class="ot">  ::</span> ( <span class="dt">Snoc</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb18-16" title="16">  <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
+<a class="sourceLine" id="cb18-17" title="17">readLast <span class="ot">=</span> <span class="fu">fmap</span> <span class="fu">fst</span> <span class="op">.</span> unsnoc</a></code></pre></div>
+<p>If a type inhabits both <code>Snoc</code> and <code>Singleton</code> we have an additional law:</p>
+<dl>
+<dt>Singleton/Snoc</dt>
+<dd><code>snoc a x</code> is equivalent to <code>x &lt;&gt; (singleton a)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" title="1"><span class="kw">class</span> (<span class="dt">Singleton</span> t, <span class="dt">Snoc</span> t) <span class="ot">=&gt;</span> <span class="dt">SingletonSnoc</span> t</a></code></pre></div>
+<p>If a type inhabits both <code>Snoc</code> and <code>Subset</code>, we require the following additional laws:</p>
+<dl>
+<dt>Inject/Snoc</dt>
+<dd><code>inject (snoc a x)</code> is equivalent to <code>snoc a (inject x)</code>
+</dd>
+<dt>Restrict/Snoc</dt>
+<dd><code>restrict (snoc a (inject x))</code> is equivalent to <code>Just (snoc a x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" title="1"><span class="kw">class</span> (<span class="dt">Subset</span> t, <span class="dt">Snoc</span> t, <span class="dt">Snoc</span> (<span class="dt">SupersetOf</span> t)) <span class="ot">=&gt;</span> <span class="dt">SubsetSnoc</span> t</a></code></pre></div>
+<p>If a type inhabits <code>Snoc</code>, <code>Subset</code>, and <code>NonEmpty</code>, we have an additional primitive, <code>unsnocNonEmpty</code>, analogous to <code>unconsNonEmpty</code>. We require the following laws:</p>
+<dl>
+<dt>Inject/UnsnocNonEmpty</dt>
+<dd>if <code>(a, as) = unsnocNonEmpty x</code> then <code>inject x</code> is equivalent to <code>snoc a as</code>
+</dd>
+<dt>Restrict/UnsnocNonEmpty</dt>
+<dd><code>fmap unsnocNonEmpty (restrict (snoc a x))</code> is equivalent to <code>Just (a, x)</code>
+</dd>
+<dt>Empty/Unsnoc</dt>
+<dd><code>isEmpty x</code> is equivalent to <code>Nothing == unsnoc x</code>
+</dd>
+<dt>Inject/Unsnoc</dt>
+<dd>if <code>unsnoc w == Just (a, x)</code> then <code>unsnocNonEmpty w == (a, inject x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb21-2" title="2">  ( <span class="dt">Snoc</span> t, <span class="dt">NonEmpty</span> t, <span class="dt">Subset</span> t, <span class="dt">Snoc</span> (<span class="dt">SupersetOf</span> t)</a>
+<a class="sourceLine" id="cb21-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">UnsnocNonEmpty</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>)</a>
+<a class="sourceLine" id="cb21-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb21-5" title="5">    unsnocNonEmpty</a>
+<a class="sourceLine" id="cb21-6" title="6"><span class="ot">      ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb21-7" title="7">      <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> (a, <span class="dt">SupersetOf</span> t a)</a>
+<a class="sourceLine" id="cb21-8" title="8"></a>
+<a class="sourceLine" id="cb21-9" title="9">readLastNonEmpty</a>
+<a class="sourceLine" id="cb21-10" title="10"><span class="ot">  ::</span> ( <span class="dt">UnsnocNonEmpty</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb21-11" title="11">  <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> a</a>
+<a class="sourceLine" id="cb21-12" title="12">readLastNonEmpty <span class="ot">=</span> <span class="fu">fst</span> <span class="op">.</span> unsnocNonEmpty</a></code></pre></div>
+<p>And if a type inhabits both <code>Cons</code> and <code>Snoc</code>, we require them to interact nicely:</p>
+<dl>
+<dt>Cons/Snoc</dt>
+<dd><code>cons u (snoc v x)</code> is equivalent to <code>snoc v (cons u x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" title="1"><span class="kw">class</span> (<span class="dt">Cons</span> t, <span class="dt">Snoc</span> t) <span class="ot">=&gt;</span> <span class="dt">ConsSnoc</span> t</a></code></pre></div>
+</section>
+<section class="level2">
+<h2>List-like Containers</h2>
+<p>Roughly speaking, a container is <em>list-like</em> if it arranges a set of values in a specific order. For such structures it makes sense to <em>reverse</em> the order, and this operation should be an involution:</p>
+<dl>
+<dt>Reverse Involution</dt>
+<dd><code>reverse . reverse</code> is equivalent to <code>id</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb23"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" title="1"><span class="kw">class</span> (<span class="dt">Container</span> t) <span class="ot">=&gt;</span> <span class="dt">Reverse</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb23-2" title="2">  <span class="fu">reverse</span></a>
+<a class="sourceLine" id="cb23-3" title="3"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb23-4" title="4">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> t a</a></code></pre></div>
+<p>If our type also constructs semigroups, <code>reverse</code> should be an antihomomorphism:</p>
+<dl>
+<dt>Reverse Antihomomorphism</dt>
+<dd><code>reverse (x &lt;&gt; y)</code> is equivalent to <code>reverse y &lt;&gt; reverse x</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb24-2" title="2">  ( <span class="dt">Reverse</span> t</a>
+<a class="sourceLine" id="cb24-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (t a)</a>
+<a class="sourceLine" id="cb24-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">ReverseSemigroup</span> t</a></code></pre></div>
+<p>And if our type constructs monoids, <code>reverse</code> should fix the identity.</p>
+<dl>
+<dt>Reverse Identity</dt>
+<dd><code>reverse mempty</code> is equivalent to <code>mempty</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb25-2" title="2">  ( <span class="dt">Reverse</span> t</a>
+<a class="sourceLine" id="cb25-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (t a)</a>
+<a class="sourceLine" id="cb25-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">ReverseMonoid</span> t</a></code></pre></div>
+<p>If our type inhabits both <code>Reverse</code> and <code>Subset</code>, it should commute with <code>inject</code> and <code>restrict</code>.</p>
+<dl>
+<dt>Reverse/Inject</dt>
+<dd><code>reverse (inject x)</code> is equivalent to <code>inject (reverse x)</code>
+</dd>
+<dt>Reverse/Restrict</dt>
+<dd><code>restrict (reverse x)</code> is equivalent to <code>fmap reverse (restrict x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" title="1"><span class="kw">class</span> (<span class="dt">Reverse</span> t, <span class="dt">Subset</span> t, <span class="dt">Reverse</span> (<span class="dt">SupersetOf</span> t)) <span class="ot">=&gt;</span> <span class="dt">ReverseSubset</span> t</a></code></pre></div>
+<p>Reversal should fix singletons:</p>
+<dl>
+<dt>Reverse/Singleton</dt>
+<dd><code>reverse (singleton a)</code> is equivalent to <code>singleton a</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb27"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" title="1"><span class="kw">class</span> (<span class="dt">Reverse</span> t, <span class="dt">Singleton</span> t) <span class="ot">=&gt;</span> <span class="dt">ReverseSingleton</span> t</a></code></pre></div>
+<p>And if our type also inhabits <code>Cons</code> and <code>Snoc</code>, reversal should convert between them.</p>
+<dl>
+<dt>Reverse/Cons</dt>
+<dd><code>reverse (cons a x)</code> is equivalent to <code>snoc a (reverse x)</code>
+</dd>
+<dt>Reverse/Snoc</dt>
+<dd><code>reverse (snoc a x)</code> is equivalent to <code>cons a (reverse x)</code>
+</dd>
+</dl>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" title="1"><span class="kw">class</span> (<span class="dt">Reverse</span> t, <span class="dt">Cons</span> t, <span class="dt">Snoc</span> t) <span class="ot">=&gt;</span> <span class="dt">ReverseConsSnoc</span> t</a></code></pre></div>
+<div class="sourceCode" id="cb29"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb29-2" title="2">  ( <span class="dt">Container</span> t, <span class="dt">Foldable</span> t</a>
+<a class="sourceLine" id="cb29-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (t a)</a>
+<a class="sourceLine" id="cb29-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">FromList</span> t</a>
+<a class="sourceLine" id="cb29-5" title="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb29-6" title="6"><span class="ot">    fromList ::</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> t a</a></code></pre></div>
+<div class="sourceCode" id="cb30"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb30-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb30-2" title="2">  ( <span class="dt">FromList</span> t</a>
+<a class="sourceLine" id="cb30-3" title="3">  , <span class="kw">forall</span> a<span class="op">.</span> (<span class="dt">ElementOf</span> t a) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (t a)</a>
+<a class="sourceLine" id="cb30-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">FromListMonoid</span> t</a></code></pre></div>
+<div class="sourceCode" id="cb31"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb31-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb31-2" title="2">  ( <span class="dt">FromList</span> t</a>
+<a class="sourceLine" id="cb31-3" title="3">  , <span class="dt">Cons</span> t, <span class="dt">Snoc</span> t, <span class="dt">Reverse</span> t</a>
+<a class="sourceLine" id="cb31-4" title="4">  ) <span class="ot">=&gt;</span> <span class="dt">FromListConsSnocReverse</span> t</a></code></pre></div>
+<div class="sourceCode" id="cb32"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb32-1" title="1">arbFromList</a>
+<a class="sourceLine" id="cb32-2" title="2"><span class="ot">  ::</span> ( <span class="dt">FromList</span> t, <span class="dt">ElementOf</span> t a, <span class="dt">Arb</span> a )</a>
+<a class="sourceLine" id="cb32-3" title="3">  <span class="ot">=&gt;</span> <span class="dt">Sample</span> (t a)</a>
+<a class="sourceLine" id="cb32-4" title="4">arbFromList <span class="ot">=</span> genFromList arb</a>
+<a class="sourceLine" id="cb32-5" title="5"></a>
+<a class="sourceLine" id="cb32-6" title="6">genFromList</a>
+<a class="sourceLine" id="cb32-7" title="7"><span class="ot">  ::</span> ( <span class="dt">FromList</span> t, <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb32-8" title="8">  <span class="ot">=&gt;</span> <span class="dt">Sample</span> a <span class="ot">-&gt;</span> <span class="dt">Sample</span> (t a)</a>
+<a class="sourceLine" id="cb32-9" title="9">genFromList gen <span class="ot">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb32-10" title="10">  <span class="dt">NonNegative</span> (<span class="ot">k ::</span> <span class="dt">Int</span>) <span class="ot">&lt;-</span> arb</a>
+<a class="sourceLine" id="cb32-11" title="11">  <span class="fu">fmap</span> fromList <span class="op">$</span> join <span class="op">$</span> vectOf <span class="op">&lt;$&gt;</span> <span class="fu">pure</span> k <span class="op">&lt;*&gt;</span> <span class="fu">pure</span> gen</a></code></pre></div>
+<div class="sourceCode" id="cb33"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb33-1" title="1"><span class="kw">class</span> (<span class="dt">NonEmpty</span> (<span class="dt">Zipped</span> t)) <span class="ot">=&gt;</span> <span class="dt">Zipper</span> (<span class="ot">t ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb33-2" title="2">  <span class="kw">type</span> <span class="dt">Zipped</span> t <span class="ot">=</span> (<span class="ot">u ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="op">|</span> u <span class="ot">-&gt;</span> t</a>
+<a class="sourceLine" id="cb33-3" title="3"></a>
+<a class="sourceLine" id="cb33-4" title="4">  toZipper</a>
+<a class="sourceLine" id="cb33-5" title="5"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb33-6" title="6">    <span class="ot">=&gt;</span> <span class="dt">Zipped</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb33-7" title="7"></a>
+<a class="sourceLine" id="cb33-8" title="8">  fromZipper</a>
+<a class="sourceLine" id="cb33-9" title="9"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb33-10" title="10">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Zipped</span> t a</a></code></pre></div>
+<div class="sourceCode" id="cb34"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb34-1" title="1"><span class="kw">class</span> (<span class="dt">Container</span> t) <span class="ot">=&gt;</span> <span class="dt">LinearZipper</span> t <span class="kw">where</span></a>
+<a class="sourceLine" id="cb34-2" title="2">  readPointer</a>
+<a class="sourceLine" id="cb34-3" title="3"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-4" title="4">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Maybe</span> a</a>
+<a class="sourceLine" id="cb34-5" title="5"></a>
+<a class="sourceLine" id="cb34-6" title="6">  alterPointer</a>
+<a class="sourceLine" id="cb34-7" title="7"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-8" title="8">    <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb34-9" title="9"></a>
+<a class="sourceLine" id="cb34-10" title="10">  alterPointerM</a>
+<a class="sourceLine" id="cb34-11" title="11"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a, <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb34-12" title="12">    <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> m a) <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> m (t a)</a>
+<a class="sourceLine" id="cb34-13" title="13"></a>
+<a class="sourceLine" id="cb34-14" title="14">  isAtStart</a>
+<a class="sourceLine" id="cb34-15" title="15"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-16" title="16">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb34-17" title="17"></a>
+<a class="sourceLine" id="cb34-18" title="18">  isAtEnd</a>
+<a class="sourceLine" id="cb34-19" title="19"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-20" title="20">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb34-21" title="21"></a>
+<a class="sourceLine" id="cb34-22" title="22">  moveTowardStart</a>
+<a class="sourceLine" id="cb34-23" title="23"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-24" title="24">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb34-25" title="25"></a>
+<a class="sourceLine" id="cb34-26" title="26">  moveTowardEnd</a>
+<a class="sourceLine" id="cb34-27" title="27"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-28" title="28">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb34-29" title="29"></a>
+<a class="sourceLine" id="cb34-30" title="30">  moveToStart</a>
+<a class="sourceLine" id="cb34-31" title="31"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-32" title="32">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> t a</a>
+<a class="sourceLine" id="cb34-33" title="33"></a>
+<a class="sourceLine" id="cb34-34" title="34">  moveToEnd</a>
+<a class="sourceLine" id="cb34-35" title="35"><span class="ot">    ::</span> ( <span class="dt">ElementOf</span> t a )</a>
+<a class="sourceLine" id="cb34-36" title="36">    <span class="ot">=&gt;</span> t a <span class="ot">-&gt;</span> t a</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

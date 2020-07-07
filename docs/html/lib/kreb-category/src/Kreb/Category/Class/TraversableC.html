@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="nbloomf">
+  <title>Traversable Functors</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="../../../../../../../styles/style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        macros: {
+          dom: "\\mathsf{dom}",
+          cod: "\\mathsf{cod}",
+          id:  "\\mathsf{id}",
+          Hask: "\\mathsf{Hask}",
+        }
+      }
+    };
+  </script
+</head>
+<body>
+<article>
+<header>
+<h1 class="title">Traversable Functors</h1>
+<p class="byline">nbloomf</p>
+</header>
+<div class="frontmatter">
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">module</span> <span class="dt">Kreb.Category.Class.TraversableC</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb1-2" title="2"></a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">import</span> <span class="dt">Kreb.Category.Class.FunctorC</span></a></code></pre></div>
+</div>
+<section class="level2">
+<h2>Introduction</h2>
+<p>A functor <span class="math inline">\(F\)</span> is called <em>traversable</em> if it distributes with every applicative functor. Giving a full categorical definition requires talking about applicatives first, which I'm deferring for now. The primitives and laws used here come from <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.750.5714&amp;rep=rep1&amp;type=pdf">An Investigation of the Laws of Traversals</a> by Jaskelioff and Rypacek.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb2-2" title="2">  ( <span class="dt">Foldable</span> t, <span class="dt">FunctorC</span> obj1 mor1 obj2 mor2 t</a>
+<a class="sourceLine" id="cb2-3" title="3">  ) <span class="ot">=&gt;</span> <span class="dt">TraversableC</span> obj1 mor1 obj2 mor2 t</a>
+<a class="sourceLine" id="cb2-4" title="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb2-5" title="5">    traverseC</a>
+<a class="sourceLine" id="cb2-6" title="6"><span class="ot">      ::</span> ( <span class="dt">Applicative</span> f, obj1 a, obj1 b )</a>
+<a class="sourceLine" id="cb2-7" title="7">      <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> f b) <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> f (t b)</a>
+<a class="sourceLine" id="cb2-8" title="8"></a>
+<a class="sourceLine" id="cb2-9" title="9">    sequenceAC</a>
+<a class="sourceLine" id="cb2-10" title="10"><span class="ot">      ::</span> ( <span class="dt">Applicative</span> f, obj1 a, obj1 (f a) )</a>
+<a class="sourceLine" id="cb2-11" title="11">      <span class="ot">=&gt;</span> t (f a) <span class="ot">-&gt;</span> f (t a)</a>
+<a class="sourceLine" id="cb2-12" title="12"></a>
+<a class="sourceLine" id="cb2-13" title="13">    consumeC</a>
+<a class="sourceLine" id="cb2-14" title="14"><span class="ot">      ::</span> ( <span class="dt">Applicative</span> f, obj1 a, obj1 (f a) )</a>
+<a class="sourceLine" id="cb2-15" title="15">      <span class="ot">=&gt;</span> (t a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> t (f a) <span class="ot">-&gt;</span> f b</a></code></pre></div>
+<p>We define some special cases when interacting with monads instead of applicatives.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" title="1">mapMC</a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="ot">  ::</span> <span class="kw">forall</span> obj1 mor1 obj2 mor2 t m a b</a>
+<a class="sourceLine" id="cb3-3" title="3">   <span class="op">.</span> ( <span class="dt">Monad</span> m, <span class="dt">TraversableC</span> obj1 mor1 obj2 mor2 t</a>
+<a class="sourceLine" id="cb3-4" title="4">     , obj1 a, obj1 b )</a>
+<a class="sourceLine" id="cb3-5" title="5">  <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> m b) <span class="ot">-&gt;</span> t a <span class="ot">-&gt;</span> m (t b)</a>
+<a class="sourceLine" id="cb3-6" title="6">mapMC <span class="ot">=</span> traverseC <span class="op">@</span>obj1 <span class="op">@</span>mor1 <span class="op">@</span>obj2 <span class="op">@</span>mor2 <span class="op">@</span>t <span class="op">@</span>m <span class="op">@</span>a</a>
+<a class="sourceLine" id="cb3-7" title="7"></a>
+<a class="sourceLine" id="cb3-8" title="8">sequenceC</a>
+<a class="sourceLine" id="cb3-9" title="9"><span class="ot">  ::</span> <span class="kw">forall</span> obj1 mor1 obj2 mor2 t m a</a>
+<a class="sourceLine" id="cb3-10" title="10">   <span class="op">.</span> ( <span class="dt">Monad</span> m, <span class="dt">TraversableC</span> obj1 mor1 obj2 mor2 t</a>
+<a class="sourceLine" id="cb3-11" title="11">     , obj1 a, obj1 (m a) )</a>
+<a class="sourceLine" id="cb3-12" title="12">  <span class="ot">=&gt;</span> t (m a) <span class="ot">-&gt;</span> m (t a)</a>
+<a class="sourceLine" id="cb3-13" title="13">sequenceC <span class="ot">=</span> sequenceAC <span class="op">@</span>obj1 <span class="op">@</span>mor1 <span class="op">@</span>obj2 <span class="op">@</span>mor2 <span class="op">@</span>t <span class="op">@</span>m <span class="op">@</span>a</a></code></pre></div>
+</section>
+</article>
+</body>
+</html>

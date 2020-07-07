@@ -1,0 +1,22 @@
+\documentclass{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz-cd}
+\tikzcdset{every label/.append style = {font = \large}, nodes={font=\Large}}\begin{document}
+\begin{tikzcd}
+A \otimes (B \otimes (C \otimes D))
+  \arrow[rr, "\alpha_{A, B, C \otimes D}"]
+  \arrow[dd, "1_A \otimes \alpha_{B,C,D}"']
+ & &
+(A \otimes B) \otimes (C \otimes D)
+  \arrow[rr, "\alpha_{A \otimes B, C, D}"]
+ & &
+((A \otimes B) \otimes C) \otimes D
+\\
+ & & & & \\
+A \otimes ((B \otimes C) \otimes D)
+  \arrow[rrrr, "\alpha_{A, B \otimes C, D}"']
+ & & & &
+(A \otimes (B \otimes C)) \otimes D
+  \arrow[uu, "\alpha_{A,B,C} \otimes 1_D"']
+\end{tikzcd}
+\end{document}

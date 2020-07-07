@@ -1,0 +1,18 @@
+\documentclass{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz-cd}
+\tikzcdset{every label/.append style = {font = \large}, nodes={font=\Large}}\begin{document}
+\begin{tikzcd}
+A \otimes (1 \otimes B)
+  \arrow[rr, "\alpha_{A,I,B}"]
+  \arrow[rdd, "1_A \otimes \lambda_B"']
+    & &
+(A \otimes 1) \otimes B
+  \arrow[ldd, "\rho_A \otimes 1_B"]
+\\
+ & & \\
+ &
+A \otimes B
+ &
+\end{tikzcd}
+\end{document}

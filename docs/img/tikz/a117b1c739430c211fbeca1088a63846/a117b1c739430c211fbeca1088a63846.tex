@@ -1,0 +1,22 @@
+\documentclass{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz-cd}
+\tikzcdset{every label/.append style = {font = \large}, nodes={font=\Large}}\begin{document}
+\begin{tikzcd}
+M \ast (N \ast (P \ast A))
+  \arrow[rr, "\kappa_{M, N, P \ast A}"]
+  \arrow[dd, "1_M \ast \kappa_{N,P,A}"']
+ & &
+(M \otimes N) \ast (P \ast A)
+  \arrow[rr, "\kappa_{M \otimes N, P, A}"]
+ & &
+((M \otimes N) \otimes P) \ast A
+\\
+ & & & & \\
+M \ast ((N \otimes P) \ast A)
+  \arrow[rrrr, "\kappa_{M, N \otimes P, A}"']
+ & & & &
+(M \otimes (N \otimes P)) \ast A
+  \arrow[uu, "\alpha_{M,N,P} \ast 1_A"']
+\end{tikzcd}
+\end{document}

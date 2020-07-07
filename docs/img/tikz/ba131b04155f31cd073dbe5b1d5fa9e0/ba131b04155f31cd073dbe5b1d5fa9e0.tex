@@ -1,0 +1,18 @@
+\documentclass{standalone}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz-cd}
+\tikzcdset{every label/.append style = {font = \large}, nodes={font=\Large}}\begin{document}
+\begin{tikzcd}
+(M \otimes 1) \ast A
+  \arrow[rr, "\kappa_{M,1,A}"]
+  \arrow[rdd, "\rho_M \ast 1_A"']
+    & &
+M \ast (1 \ast A)
+  \arrow[ldd, "1_M \ast \mu_A"]
+\\
+ & & \\
+ &
+M \ast A
+ &
+\end{tikzcd}
+\end{document}
